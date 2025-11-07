@@ -70,11 +70,6 @@ const Dashboard = () => {
     fetchStats();
   }, [user]);
 
-  // Show designer dashboard if user is a designer
-  if (userRole === 'designer') {
-    return <DesignerDashboard />;
-  }
-
   const statCards = [
     {
       title: 'Total Sales',
@@ -117,6 +112,11 @@ const Dashboard = () => {
         </div>
       </Layout>
     );
+  }
+
+  // Render designer dashboard for designers
+  if (userRole === 'designer') {
+    return <DesignerDashboard />;
   }
 
   return (
