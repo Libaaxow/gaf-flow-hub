@@ -4,6 +4,7 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Package, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import DesignerDashboard from './DesignerDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -21,10 +22,21 @@ const Dashboard = () => {
     totalCommissions: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
+        // Check user role
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user?.id)
+          .single();
+
+        if (roleData) {
+          setUserRole(roleData.role);
+        }
         // Get total sales
         const { data: orders } = await supabase
           .from('orders')
@@ -57,6 +69,11 @@ const Dashboard = () => {
 
     fetchStats();
   }, [user]);
+
+  // Show designer dashboard if user is a designer
+  if (userRole === 'designer') {
+    return <DesignerDashboard />;
+  }
 
   const statCards = [
     {
