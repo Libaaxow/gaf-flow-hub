@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, Package, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import DesignerDashboard from './DesignerDashboard';
+import SalesDashboard from './SalesDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -37,6 +38,8 @@ const Dashboard = () => {
         if (roleData) {
           setUserRole(roleData.role);
         }
+        
+
         // Get total sales
         const { data: orders } = await supabase
           .from('orders')
@@ -117,6 +120,11 @@ const Dashboard = () => {
   // Render designer dashboard for designers
   if (userRole === 'designer') {
     return <DesignerDashboard />;
+  }
+
+  // Render sales dashboard for sales and marketing roles
+  if (userRole === 'sales' || userRole === 'marketing') {
+    return <SalesDashboard />;
   }
 
   return (
