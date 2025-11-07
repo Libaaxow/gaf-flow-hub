@@ -209,7 +209,7 @@ const Orders = () => {
 
         <div className="grid gap-4">
           {orders.map((order) => (
-            <Card key={order.id}>
+            <Card key={order.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => window.location.href = `/orders/${order.id}`}>
               <CardHeader>
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                   <CardTitle className="text-lg">{order.job_title}</CardTitle>

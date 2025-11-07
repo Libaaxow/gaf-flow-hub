@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { RoleManager } from '@/components/RoleManager';
 
 interface UserWithRoles {
   id: string;
@@ -129,6 +130,12 @@ const Users = () => {
                   )}
                 </div>
                 
+                <RoleManager
+                  userId={user.id}
+                  currentRoles={user.roles}
+                  onUpdate={fetchUsers}
+                />
+
                 {user.roles.includes('sales') && (
                   <div className="space-y-2 pt-2 border-t">
                     <Label className="text-xs">Commission %</Label>
