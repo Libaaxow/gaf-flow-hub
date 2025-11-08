@@ -14,6 +14,7 @@ import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import ProfileSettings from "./pages/ProfileSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Users />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <ProfileSettings />
                 </ProtectedRoute>
               }
             />

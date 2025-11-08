@@ -10,6 +10,7 @@ import {
   LogOut,
   Menu,
   UserCog,
+  Settings,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -20,6 +21,7 @@ const navItems = [
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/users', label: 'Users', icon: UserCog },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export const Layout = ({ children }: { children: ReactNode }) => {

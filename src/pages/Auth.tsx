@@ -60,11 +60,12 @@ const Auth = () => {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
+    const avatarFile = formData.get('avatar') as File;
 
     try {
       authSchema.parse({ email, password, fullName });
 
-      const { error } = await supabase.auth.signUp({
+      const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -75,7 +76,31 @@ const Auth = () => {
         },
       });
 
-      if (error) throw error;
+      if (signUpError) throw signUpError;
+
+      // Upload avatar if provided
+      if (avatarFile && avatarFile.size > 0 && authData.user) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${authData.user.id}/avatar.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(fileName, avatarFile, { upsert: true });
+
+        if (uploadError) {
+          console.error('Avatar upload error:', uploadError);
+        } else {
+          // Update profile with avatar URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName);
+
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: publicUrl })
+            .eq('id', authData.user.id);
+        }
+      }
 
       toast({
         title: 'Success',
@@ -148,6 +173,16 @@ const Auth = () => {
                     placeholder="John Doe"
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-avatar">Profile Picture</Label>
+                  <Input
+                    id="signup-avatar"
+                    name="avatar"
+                    type="file"
+                    accept="image/*"
+                  />
+                  <p className="text-xs text-muted-foreground">Optional: Upload your profile picture</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
