@@ -411,6 +411,11 @@ const OrderDetail = () => {
 
   // Check if order is completed and user is not admin - restrict editing for non-admins
   const isReadOnly = order.status === 'delivered' && userRole !== 'admin';
+  
+  // Debug logging
+  console.log('Order Status:', order.status);
+  console.log('User Role:', userRole);
+  console.log('Is Read Only:', isReadOnly);
 
   return (
     <Layout>
