@@ -38,8 +38,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (event === 'SIGNED_IN') {
-          navigate('/dashboard');
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Check if user has roles before redirecting
+          setTimeout(() => {
+            supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .then(({ data: roles }) => {
+                if (roles && roles.length > 0) {
+                  navigate('/dashboard');
+                } else {
+                  navigate('/pending-approval');
+                }
+              });
+          }, 0);
         }
       }
     );

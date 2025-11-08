@@ -106,7 +106,7 @@ const Auth = () => {
 
       toast({
         title: 'Success',
-        description: 'Account created successfully! You can now sign in.',
+        description: 'Account created successfully! Please wait for admin approval to access the system.',
       });
     } catch (error: any) {
       toast({

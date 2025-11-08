@@ -1,10 +1,26 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
+  const [hasRoles, setHasRoles] = useState<boolean | null>(null);
+  const location = useLocation();
 
-  if (loading) {
+  useEffect(() => {
+    if (user) {
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .then(({ data: roles }) => {
+          setHasRoles(roles && roles.length > 0);
+        });
+    }
+  }, [user]);
+
+  if (loading || (user && hasRoles === null)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -17,6 +33,16 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (!user) {
     return <Navigate to="/auth" replace />;
+  }
+
+  // Allow access to pending-approval page even without roles
+  if (location.pathname === '/pending-approval') {
+    return <>{children}</>;
+  }
+
+  // Redirect to pending-approval if user has no roles
+  if (!hasRoles) {
+    return <Navigate to="/pending-approval" replace />;
   }
 
   return <>{children}</>;
