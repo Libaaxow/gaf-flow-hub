@@ -32,6 +32,7 @@ interface Customer {
   phone: string | null;
   company_name: string | null;
   created_at: string;
+  created_by: string | null;
   total_orders?: number;
   total_spent?: number;
   last_order_date?: string | null;
@@ -90,6 +91,9 @@ const SalesDashboard = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [designers, setDesigners] = useState<any[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  
+  // Separate state for my customers (for display in My Customers tab)
+  const myCustomers = customers.filter(c => c.created_by === user?.id);
 
   useEffect(() => {
     fetchDashboardData();
@@ -140,14 +144,17 @@ const SalesDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch customers created by this salesperson
-      const { data: customersData, error: customersError } = await supabase
+      // Fetch all customers (for order creation dropdown)
+      const { data: allCustomersData, error: allCustomersError } = await supabase
         .from('customers')
         .select('*')
-        .eq('created_by', user?.id)
         .order('created_at', { ascending: false });
 
-      if (customersError) throw customersError;
+      if (allCustomersError) throw allCustomersError;
+
+      // Fetch customers created by this salesperson (for stats)
+      const myCustomersData = allCustomersData?.filter(c => c.created_by === user?.id) || [];
+      const customersData = myCustomersData;
 
       // Fetch orders for this salesperson
       const { data: ordersData, error: ordersError } = await supabase
@@ -219,7 +226,8 @@ const SalesDashboard = () => {
         completedJobs,
       });
 
-      setCustomers(customersWithStats);
+      // Use all customers for dropdowns, but show stats for only my customers
+      setCustomers(allCustomersData || []);
       setOrders(ordersWithDesigners || []);
       setCommissions(commissionsData || []);
     } catch (error: any) {
@@ -472,7 +480,7 @@ const SalesDashboard = () => {
     { name: 'Completed', value: stats.completedJobs, color: '#10b981' },
   ];
 
-  const topCustomers = [...customers]
+  const topCustomers = [...myCustomers]
     .sort((a, b) => (b.total_spent || 0) - (a.total_spent || 0))
     .slice(0, 5);
 
@@ -1064,7 +1072,7 @@ const SalesDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {customers.map((customer) => (
+                    {myCustomers.map((customer) => (
                       <TableRow key={customer.id}>
                         <TableCell>
                           <div>
@@ -1094,7 +1102,7 @@ const SalesDashboard = () => {
                     ))}
                   </TableBody>
                 </Table>
-                {customers.length === 0 && (
+                {myCustomers.length === 0 && (
                   <p className="text-center text-muted-foreground py-8">No customers yet</p>
                 )}
               </CardContent>
