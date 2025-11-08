@@ -449,6 +449,9 @@ export type Database = {
         | "printed"
         | "delivered"
         | "on_hold"
+        | "pending_accounting_review"
+        | "awaiting_accounting_approval"
+        | "ready_for_print"
       payment_method:
         | "cash"
         | "bank_transfer"
@@ -610,6 +613,9 @@ export const Constants = {
         "printed",
         "delivered",
         "on_hold",
+        "pending_accounting_review",
+        "awaiting_accounting_approval",
+        "ready_for_print",
       ],
       payment_method: [
         "cash",
