@@ -112,22 +112,34 @@ const DesignerDashboard = () => {
       // Fetch assigned orders
       const { data: ordersData } = await supabase
         .from('orders')
-        .select(`
-          *,
-          customers(name, company_name),
-          salesperson:profiles(full_name)
-        `)
+        .select('*, customers(name, company_name)')
         .eq('designer_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (ordersData) {
-        setOrders(ordersData as any);
+        // Fetch salesperson data separately for each order
+        const ordersWithSalesperson = await Promise.all(
+          ordersData.map(async (order) => {
+            let salesperson = null;
+            if (order.salesperson_id) {
+              const { data: salesData } = await supabase
+                .from('profiles')
+                .select('full_name')
+                .eq('id', order.salesperson_id)
+                .single();
+              salesperson = salesData;
+            }
+            return { ...order, salesperson };
+          })
+        );
+
+        setOrders(ordersWithSalesperson as any);
 
         // Calculate stats
-        const totalJobs = ordersData.length;
-        const completed = ordersData.filter(o => o.status === 'delivered').length;
-        const inProgress = ordersData.filter(o => o.status === 'designing').length;
-        const awaitingApproval = ordersData.filter(o => o.status === 'designed').length;
+        const totalJobs = ordersWithSalesperson.length;
+        const completed = ordersWithSalesperson.filter(o => o.status === 'delivered').length;
+        const inProgress = ordersWithSalesperson.filter(o => o.status === 'designing').length;
+        const awaitingApproval = ordersWithSalesperson.filter(o => o.status === 'designed').length;
 
         setStats({ totalJobs, completed, inProgress, awaitingApproval });
       }
