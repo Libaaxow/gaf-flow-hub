@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit } from 'lucide-react';
+import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -91,11 +91,13 @@ const SalesDashboard = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [designers, setDesigners] = useState<any[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
   // Separate state for my customers (for display in My Customers tab)
   const myCustomers = customers.filter(c => c.created_by === user?.id);
 
   useEffect(() => {
+    fetchUserRole();
     fetchDashboardData();
     fetchDesigners();
     
@@ -120,6 +122,22 @@ const SalesDashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      setUserRole(data?.role || null);
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const fetchDesigners = async () => {
     try {
@@ -960,17 +978,31 @@ const SalesDashboard = () => {
                           ${Number(order.order_value || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingOrder(order);
-                              setIsEditDialogOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          {order.status === 'delivered' && userRole !== 'admin' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/orders/${order.id}`;
+                              }}
+                              title="View Only"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingOrder(order);
+                                setIsEditDialogOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

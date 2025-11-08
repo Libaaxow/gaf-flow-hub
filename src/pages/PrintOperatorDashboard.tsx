@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Printer, Package, CheckCircle2, Clock } from 'lucide-react';
+import { Printer, Package, CheckCircle2, Clock, Eye } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -36,13 +36,31 @@ const PrintOperatorDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [stats, setStats] = useState<Stats>({ readyForPrint: 0, printing: 0, printed: 0, delivered: 0 });
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.id) {
+      fetchUserRole();
       fetchPrintData();
       setupRealtimeSubscription();
     }
   }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      setUserRole(data?.role || null);
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
@@ -256,15 +274,29 @@ const PrintOperatorDashboard = () => {
                       </TableCell>
                       <TableCell>{getStatusBadge(order.status)}</TableCell>
                       <TableCell>
-                        <Button 
-                          size="sm" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/orders/${order.id}`);
-                          }}
-                        >
-                          Manage
-                        </Button>
+                        {order.status === 'delivered' && userRole !== 'admin' ? (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orders/${order.id}`);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        ) : (
+                          <Button 
+                            size="sm" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orders/${order.id}`);
+                            }}
+                          >
+                            Manage
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

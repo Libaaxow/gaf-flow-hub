@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -46,11 +46,29 @@ const DesignerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [profile, setProfile] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
+    fetchUserRole();
     fetchDesignerData();
     setupRealtimeSubscription();
   }, [user]);
+
+  const fetchUserRole = async () => {
+    if (!user?.id) return;
+    
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      setUserRole(data?.role || null);
+    } catch (error) {
+      console.error('Error fetching user role:', error);
+    }
+  };
 
   const setupRealtimeSubscription = () => {
     const channel = supabase
@@ -308,17 +326,31 @@ const DesignerDashboard = () => {
                       </TableCell>
                       <TableCell>{order.salesperson?.full_name || 'Unassigned'}</TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/orders/${order.id}`);
-                          }}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          Manage
-                        </Button>
+                        {order.status === 'delivered' && userRole !== 'admin' ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orders/${order.id}`);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/orders/${order.id}`);
+                            }}
+                          >
+                            <Upload className="h-4 w-4 mr-2" />
+                            Manage
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
