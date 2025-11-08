@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp } from 'lucide-react';
+import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -40,6 +40,7 @@ interface Customer {
 interface Order {
   id: string;
   job_title: string;
+  description: string | null;
   order_value: number;
   status: string;
   payment_status: string;
@@ -81,6 +82,8 @@ const SalesDashboard = () => {
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [showOrderFields, setShowOrderFields] = useState(false);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -289,6 +292,45 @@ const SalesDashboard = () => {
 
       e.currentTarget.reset();
       setIsOrderDialogOpen(false);
+      fetchDashboardData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditOrder = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingOrder) return;
+
+    const formData = new FormData(e.currentTarget);
+    
+    const orderData = {
+      job_title: formData.get('job_title') as string,
+      description: formData.get('description') as string,
+      order_value: parseFloat(formData.get('order_value') as string),
+      delivery_date: formData.get('delivery_date') as string || null,
+    };
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update(orderData)
+        .eq('id', editingOrder.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Order updated successfully',
+      });
+
+      e.currentTarget.reset();
+      setIsEditDialogOpen(false);
+      setEditingOrder(null);
       fetchDashboardData();
     } catch (error: any) {
       toast({
@@ -578,6 +620,58 @@ const SalesDashboard = () => {
               </Dialog>
             </div>
 
+            {/* Edit Order Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="max-w-2xl">
+                <DialogHeader>
+                  <DialogTitle>Edit Order</DialogTitle>
+                </DialogHeader>
+                {editingOrder && (
+                  <form onSubmit={handleEditOrder} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_job_title">Job Title *</Label>
+                      <Input 
+                        id="edit_job_title" 
+                        name="job_title" 
+                        defaultValue={editingOrder.job_title}
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_description">Description / Notes</Label>
+                      <Textarea 
+                        id="edit_description" 
+                        name="description" 
+                        defaultValue={editingOrder.description || ''}
+                        rows={3} 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_order_value">Order Value *</Label>
+                      <Input 
+                        id="edit_order_value" 
+                        name="order_value" 
+                        type="number" 
+                        step="0.01"
+                        defaultValue={editingOrder.order_value}
+                        required 
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_delivery_date">Delivery Date</Label>
+                      <Input 
+                        id="edit_delivery_date" 
+                        name="delivery_date" 
+                        type="date"
+                        defaultValue={editingOrder.delivery_date || ''}
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">Update Order</Button>
+                  </form>
+                )}
+              </DialogContent>
+            </Dialog>
+
             <Card>
               <CardContent className="p-0">
                 <Table>
@@ -589,15 +683,12 @@ const SalesDashboard = () => {
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Value</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order) => (
-                      <TableRow 
-                        key={order.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => window.location.href = `/orders/${order.id}`}
-                      >
+                      <TableRow key={order.id}>
                         <TableCell className="font-mono text-xs">
                           {order.id.slice(0, 8)}
                         </TableCell>
@@ -615,6 +706,19 @@ const SalesDashboard = () => {
                         </TableCell>
                         <TableCell className="text-right font-bold">
                           ${Number(order.order_value || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingOrder(order);
+                              setIsEditDialogOpen(true);
+                            }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
