@@ -300,6 +300,7 @@ export type Database = {
         | "printing"
         | "printed"
         | "delivered"
+        | "on_hold"
       payment_status: "unpaid" | "partial" | "paid"
       print_type_enum:
         | "business_card"
@@ -454,6 +455,7 @@ export const Constants = {
         "printing",
         "printed",
         "delivered",
+        "on_hold",
       ],
       payment_status: ["unpaid", "partial", "paid"],
       print_type_enum: [

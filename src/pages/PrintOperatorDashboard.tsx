@@ -93,7 +93,7 @@ const PrintOperatorDashboard = () => {
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name)')
-        .in('status', ['designed', 'printing', 'printed', 'on_hold'])
+        .in('status', ['designed', 'printing', 'printed', 'on_hold' as any])
         .order('created_at', { ascending: false });
 
       if (ordersData) {
