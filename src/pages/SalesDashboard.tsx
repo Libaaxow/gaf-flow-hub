@@ -676,15 +676,21 @@ const SalesDashboard = () => {
                     <div className="space-y-2">
                       <Label htmlFor="customer_id">Customer *</Label>
                       <Select name="customer_id" required>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select existing or add new customer" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="bg-background z-50">
+                          {customers.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No customers found. Add a customer first.
+                            </div>
+                          ) : (
+                            customers.map((customer) => (
+                              <SelectItem key={customer.id} value={customer.id}>
+                                {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
@@ -705,10 +711,10 @@ const SalesDashboard = () => {
                       <div className="space-y-2">
                         <Label htmlFor="print_type">Print Type *</Label>
                         <Select name="print_type" required>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background">
                             <SelectValue placeholder="Select print type" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="bg-background z-50">
                             <SelectItem value="business_card">Business Card</SelectItem>
                             <SelectItem value="flyer">Flyer</SelectItem>
                             <SelectItem value="banner">Banner</SelectItem>
@@ -788,15 +794,21 @@ const SalesDashboard = () => {
                     <div className="space-y-2">
                       <Label htmlFor="designer_id">Assign Designer *</Label>
                       <Select name="designer_id" required>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select designer" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {designers.map((designer) => (
-                            <SelectItem key={designer.id} value={designer.id}>
-                              {designer.full_name}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="bg-background z-50">
+                          {designers.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No designers available
+                            </div>
+                          ) : (
+                            designers.map((designer) => (
+                              <SelectItem key={designer.id} value={designer.id}>
+                                {designer.full_name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
@@ -862,15 +874,21 @@ const SalesDashboard = () => {
                     <div className="space-y-2">
                       <Label htmlFor="edit_designer_id">Assign Designer</Label>
                       <Select name="designer_id" defaultValue={editingOrder.designer_id || undefined}>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select designer (optional)" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {designers.map((designer) => (
-                            <SelectItem key={designer.id} value={designer.id}>
-                              {designer.full_name}
-                            </SelectItem>
-                          ))}
+                        <SelectContent className="bg-background z-50">
+                          {designers.length === 0 ? (
+                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                              No designers available
+                            </div>
+                          ) : (
+                            designers.map((designer) => (
+                              <SelectItem key={designer.id} value={designer.id}>
+                                {designer.full_name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
