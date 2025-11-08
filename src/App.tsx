@@ -12,6 +12,7 @@ import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
+import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();

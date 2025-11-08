@@ -335,6 +335,7 @@ const OrderDetail = () => {
       approved: 'bg-success',
       printing: 'bg-primary',
       printed: 'bg-success',
+      on_hold: 'bg-destructive',
       delivered: 'bg-success',
     };
     return colors[status] || 'bg-secondary';
@@ -394,6 +395,39 @@ const OrderDetail = () => {
               <CheckCircle className="h-4 w-4" />
               Mark Ready for Print
             </Button>
+          )}
+          
+          {userRole === 'print_operator' && ['designed', 'printing', 'printed'].includes(order.status) && (
+            <div className="flex gap-2">
+              {order.status === 'designed' && (
+                <>
+                  <Button onClick={() => handleUpdateOrder('status', 'printing')} className="gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Start Printing
+                  </Button>
+                  <Button variant="outline" onClick={() => handleUpdateOrder('status', 'on_hold')}>
+                    Put On Hold
+                  </Button>
+                </>
+              )}
+              {order.status === 'printing' && (
+                <>
+                  <Button onClick={() => handleUpdateOrder('status', 'printed')} className="gap-2">
+                    <CheckCircle className="h-4 w-4" />
+                    Mark as Printed
+                  </Button>
+                  <Button variant="outline" onClick={() => handleUpdateOrder('status', 'on_hold')}>
+                    Put On Hold
+                  </Button>
+                </>
+              )}
+              {order.status === 'printed' && (
+                <Button onClick={() => handleUpdateOrder('status', 'delivered')} className="gap-2">
+                  <CheckCircle className="h-4 w-4" />
+                  Mark as Delivered
+                </Button>
+              )}
+            </div>
           )}
         </div>
 
@@ -554,6 +588,7 @@ const OrderDetail = () => {
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="printing">Printing</SelectItem>
                     <SelectItem value="printed">Printed</SelectItem>
+                    <SelectItem value="on_hold">On Hold</SelectItem>
                     <SelectItem value="delivered">Delivered</SelectItem>
                   </SelectContent>
                 </Select>

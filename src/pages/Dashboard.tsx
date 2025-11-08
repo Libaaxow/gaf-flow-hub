@@ -6,6 +6,7 @@ import { DollarSign, Package, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import DesignerDashboard from './DesignerDashboard';
 import SalesDashboard from './SalesDashboard';
+import PrintOperatorDashboard from './PrintOperatorDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -120,6 +121,11 @@ const Dashboard = () => {
   // Render designer dashboard for designers
   if (userRole === 'designer') {
     return <DesignerDashboard />;
+  }
+
+  // Render print operator dashboard for print operators
+  if (userRole === 'print_operator') {
+    return <PrintOperatorDashboard />;
   }
 
   // Render sales dashboard for sales and marketing roles
