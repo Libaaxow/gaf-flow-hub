@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -113,6 +114,7 @@ interface Payment {
 }
 
 const AccountantDashboard = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [stats, setStats] = useState<FinancialStats>({
     totalRevenue: 0,
@@ -693,41 +695,51 @@ const AccountantDashboard = () => {
                           <TableCell>${order.order_value?.toFixed(2)}</TableCell>
                           <TableCell>{format(new Date(order.created_at), 'PP')}</TableCell>
                           <TableCell>
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button size="sm" onClick={() => setSelectedOrderForAssignment(order.id)}>
-                                  Assign Designer
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                <DialogHeader>
-                                  <DialogTitle>Assign Designer</DialogTitle>
-                                  <DialogDescription>
-                                    Select a designer for: {order.job_title}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  <div className="grid gap-2">
-                                    <Label htmlFor="designer">Designer *</Label>
-                                    <Select value={selectedDesigner} onValueChange={setSelectedDesigner}>
-                                      <SelectTrigger>
-                                        <SelectValue placeholder="Select designer" />
-                                      </SelectTrigger>
-                                      <SelectContent>
-                                        {designers.map((designer) => (
-                                          <SelectItem key={designer.id} value={designer.id}>
-                                            {designer.full_name}
-                                          </SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
+                            <div className="flex gap-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button size="sm" onClick={() => setSelectedOrderForAssignment(order.id)}>
+                                    Assign Designer
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                  <DialogHeader>
+                                    <DialogTitle>Assign Designer</DialogTitle>
+                                    <DialogDescription>
+                                      Select a designer for: {order.job_title}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    <div className="grid gap-2">
+                                      <Label htmlFor="designer">Designer *</Label>
+                                      <Select value={selectedDesigner} onValueChange={setSelectedDesigner}>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select designer" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {designers.map((designer) => (
+                                            <SelectItem key={designer.id} value={designer.id}>
+                                              {designer.full_name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
                                   </div>
-                                </div>
-                                <DialogFooter>
-                                  <Button onClick={handleAssignDesigner}>Assign</Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
+                                  <DialogFooter>
+                                    <Button onClick={handleAssignDesigner}>Assign</Button>
+                                  </DialogFooter>
+                                </DialogContent>
+                              </Dialog>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate(`/orders/${order.id}`)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -784,7 +796,7 @@ const AccountantDashboard = () => {
                               <Button 
                                 size="sm" 
                                 variant="outline"
-                                onClick={() => window.location.href = `/orders/${order.id}`}
+                                onClick={() => navigate(`/orders/${order.id}`)}
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View
