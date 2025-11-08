@@ -287,9 +287,9 @@ const SalesDashboard = () => {
         description: 'Order created successfully',
       });
 
+      e.currentTarget.reset();
       setIsOrderDialogOpen(false);
       fetchDashboardData();
-      e.currentTarget.reset();
     } catch (error: any) {
       toast({
         title: 'Error',

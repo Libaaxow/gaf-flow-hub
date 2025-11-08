@@ -82,9 +82,9 @@ const Customers = () => {
         description: 'Customer added successfully',
       });
 
+      e.currentTarget.reset();
       setIsDialogOpen(false);
       fetchCustomers();
-      e.currentTarget.reset();
     } catch (error: any) {
       toast({
         title: 'Error',

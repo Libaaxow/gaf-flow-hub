@@ -102,9 +102,9 @@ const Orders = () => {
         description: 'Order created successfully',
       });
 
+      e.currentTarget.reset();
       setIsDialogOpen(false);
       fetchOrders();
-      e.currentTarget.reset();
     } catch (error: any) {
       toast({
         title: 'Error',
