@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Printer, Package, CheckCircle2, Clock, Eye } from 'lucide-react';
+import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -20,6 +20,7 @@ interface Order {
   created_at: string;
   customer: { name: string } | null;
   designer: { full_name: string } | null;
+  file_count?: number;
 }
 
 interface Stats {
@@ -115,7 +116,7 @@ const PrintOperatorDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (ordersData) {
-        // Fetch designer data separately for each order
+        // Fetch designer data and file count for each order
         const ordersWithDesigner = await Promise.all(
           ordersData.map(async (order) => {
             let designer = null;
@@ -127,7 +128,14 @@ const PrintOperatorDashboard = () => {
                 .single();
               designer = designerData;
             }
-            return { ...order, customer: order.customers, designer };
+            
+            // Fetch file count
+            const { count: fileCount } = await supabase
+              .from('order_files')
+              .select('*', { count: 'exact', head: true })
+              .eq('order_id', order.id);
+            
+            return { ...order, customer: order.customers, designer, file_count: fileCount || 0 };
           })
         );
 
@@ -249,6 +257,7 @@ const PrintOperatorDashboard = () => {
                     <TableHead>Designer</TableHead>
                     <TableHead>Print Type</TableHead>
                     <TableHead>Quantity</TableHead>
+                    <TableHead>Files</TableHead>
                     <TableHead>Delivery Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
@@ -266,6 +275,14 @@ const PrintOperatorDashboard = () => {
                       <TableCell>{order.designer?.full_name || 'N/A'}</TableCell>
                       <TableCell>{order.print_type || 'N/A'}</TableCell>
                       <TableCell>{order.quantity}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Paperclip className="h-4 w-4 text-muted-foreground" />
+                          <span className={order.file_count && order.file_count > 0 ? 'font-medium' : ''}>
+                            {order.file_count || 0}
+                          </span>
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {order.delivery_date 
                           ? new Date(order.delivery_date).toLocaleDateString()
