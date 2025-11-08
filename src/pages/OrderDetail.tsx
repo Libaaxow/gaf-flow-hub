@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle, History } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -58,6 +58,7 @@ const OrderDetail = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [files, setFiles] = useState<OrderFile[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -70,6 +71,7 @@ const OrderDetail = () => {
       fetchOrderDetails();
       fetchDesigners();
       fetchUserRole();
+      fetchOrderHistory();
     }
   }, [id, user]);
 
@@ -179,6 +181,37 @@ const OrderDetail = () => {
       .eq('role', 'designer');
     
     setDesigners(data?.map(d => d.profiles).filter(Boolean) || []);
+  };
+
+  const fetchOrderHistory = async () => {
+    try {
+      const { data: historyData, error } = await supabase
+        .from('order_history')
+        .select('*')
+        .eq('order_id', id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch user profiles for history entries
+      const historyWithProfiles = await Promise.all(
+        (historyData || []).map(async (entry) => {
+          if (entry.user_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', entry.user_id)
+              .single();
+            return { ...entry, user: profile };
+          }
+          return { ...entry, user: null };
+        })
+      );
+
+      setHistory(historyWithProfiles);
+    } catch (error: any) {
+      console.error('Error fetching history:', error);
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -736,6 +769,53 @@ const OrderDetail = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Order History - Only for Admin and Accountant */}
+        {(userRole === 'admin' || userRole === 'accountant') && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Job History Log
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {history.map((entry) => (
+                  <div key={entry.id} className="p-3 border-l-4 border-primary rounded-r-lg bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="font-medium text-sm">{entry.action}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(entry.created_at).toLocaleString()}
+                      </span>
+                    </div>
+                    {entry.user && (
+                      <p className="text-xs text-muted-foreground mb-1">
+                        By {entry.user.full_name}
+                      </p>
+                    )}
+                    {entry.details && (
+                      <div className="text-xs text-muted-foreground mt-2">
+                        {entry.details.old_status && entry.details.new_status && (
+                          <p>Status changed: {entry.details.old_status} → {entry.details.new_status}</p>
+                        )}
+                        {entry.details.old_designer_id && entry.details.new_designer_id && (
+                          <p>Designer reassigned</p>
+                        )}
+                        {entry.details.file_name && (
+                          <p>File: {entry.details.file_name}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {history.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">No history entries yet</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );

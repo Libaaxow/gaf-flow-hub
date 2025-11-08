@@ -13,6 +13,7 @@ import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
 import Users from "./pages/Users";
 import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin-dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
                 </ProtectedRoute>
               }
             />

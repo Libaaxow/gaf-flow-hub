@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import DesignerDashboard from './DesignerDashboard';
 import SalesDashboard from './SalesDashboard';
 import PrintOperatorDashboard from './PrintOperatorDashboard';
+import AdminDashboard from './AdminDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -116,6 +117,11 @@ const Dashboard = () => {
         </div>
       </Layout>
     );
+  }
+
+  // Render admin dashboard for admins
+  if (userRole === 'admin') {
+    return <AdminDashboard />;
   }
 
   // Render designer dashboard for designers
