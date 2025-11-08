@@ -12,6 +12,7 @@ import {
   UserCog,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import gafMediaLogo from '@/assets/gaf-media-logo.png';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -52,7 +53,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <aside className="hidden w-64 border-r bg-card lg:block">
         <div className="flex h-full flex-col">
           <div className="border-b p-6">
-            <h1 className="text-xl font-bold text-primary">GAF MEDIA</h1>
+            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
             <p className="text-sm text-muted-foreground">Management System</p>
           </div>
           <nav className="flex-1 space-y-2 p-4">
@@ -75,7 +76,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <div className="flex flex-1 flex-col">
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
-            <h1 className="text-lg font-bold text-primary">GAF MEDIA</h1>
+            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -85,7 +86,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
               <SheetContent side="left" className="w-64 p-0">
                 <div className="flex h-full flex-col">
                   <div className="border-b p-6">
-                    <h1 className="text-xl font-bold text-primary">GAF MEDIA</h1>
+                    <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Management System</p>
                   </div>
                   <nav className="flex-1 space-y-2 p-4">

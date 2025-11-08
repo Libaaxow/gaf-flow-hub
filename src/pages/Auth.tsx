@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import gafMediaLogo from '@/assets/gaf-media-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -95,7 +96,10 @@ const Auth = () => {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-bold text-primary">GAF MEDIA MANAGEMENT</CardTitle>
+          <div className="flex justify-center mb-4">
+            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-20 w-auto" />
+          </div>
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>Design & Print Workflow System</CardDescription>
         </CardHeader>
         <CardContent>
