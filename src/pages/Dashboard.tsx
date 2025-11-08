@@ -8,6 +8,7 @@ import DesignerDashboard from './DesignerDashboard';
 import SalesDashboard from './SalesDashboard';
 import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
+import AccountantDashboard from './AccountantDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -137,6 +138,11 @@ const Dashboard = () => {
   // Render sales dashboard for sales and marketing roles
   if (userRole === 'sales' || userRole === 'marketing') {
     return <SalesDashboard />;
+  }
+
+  // Render accountant dashboard for accountants
+  if (userRole === 'accountant') {
+    return <AccountantDashboard />;
   }
 
   return (

@@ -21,6 +21,9 @@ export type Database = {
           created_at: string | null
           id: string
           order_id: string
+          paid_at: string | null
+          paid_by: string | null
+          paid_status: string | null
           salesperson_id: string
         }
         Insert: {
@@ -29,6 +32,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           order_id: string
+          paid_at?: string | null
+          paid_by?: string | null
+          paid_status?: string | null
           salesperson_id: string
         }
         Update: {
@@ -37,6 +43,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           order_id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          paid_status?: string | null
           salesperson_id?: string
         }
         Relationships: [
@@ -78,6 +87,57 @@ export type Database = {
           id?: string
           name?: string
           phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      expenses: {
+        Row: {
+          amount: number
+          approval_status: string | null
+          approved_by: string | null
+          category: string
+          created_at: string | null
+          description: string
+          expense_date: string
+          id: string
+          notes: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          receipt_url: string | null
+          recorded_by: string | null
+          supplier_name: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          approval_status?: string | null
+          approved_by?: string | null
+          category: string
+          created_at?: string | null
+          description: string
+          expense_date: string
+          id?: string
+          notes?: string | null
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          receipt_url?: string | null
+          recorded_by?: string | null
+          supplier_name?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          approval_status?: string | null
+          approved_by?: string | null
+          category?: string
+          created_at?: string | null
+          description?: string
+          expense_date?: string
+          id?: string
+          notes?: string | null
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          receipt_url?: string | null
+          recorded_by?: string | null
+          supplier_name?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -202,6 +262,7 @@ export type Database = {
           job_title: string
           notes: string | null
           order_value: number | null
+          payment_method: Database["public"]["Enums"]["payment_method"] | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
           print_type: string | null
           quantity: number | null
@@ -220,6 +281,7 @@ export type Database = {
           job_title: string
           notes?: string | null
           order_value?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           print_type?: string | null
           quantity?: number | null
@@ -238,6 +300,7 @@ export type Database = {
           job_title?: string
           notes?: string | null
           order_value?: number | null
+          payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           print_type?: string | null
           quantity?: number | null
@@ -251,6 +314,56 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          id: string
+          notes: string | null
+          order_id: string
+          payment_date: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          receipt_url: string | null
+          recorded_by: string | null
+          reference_number: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id: string
+          payment_date?: string
+          payment_method: Database["public"]["Enums"]["payment_method"]
+          receipt_url?: string | null
+          recorded_by?: string | null
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          order_id?: string
+          payment_date?: string
+          payment_method?: Database["public"]["Enums"]["payment_method"]
+          receipt_url?: string | null
+          recorded_by?: string | null
+          reference_number?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -336,6 +449,12 @@ export type Database = {
         | "printed"
         | "delivered"
         | "on_hold"
+      payment_method:
+        | "cash"
+        | "bank_transfer"
+        | "mobile_money"
+        | "cheque"
+        | "card"
       payment_status: "unpaid" | "partial" | "paid"
       print_type_enum:
         | "business_card"
@@ -491,6 +610,13 @@ export const Constants = {
         "printed",
         "delivered",
         "on_hold",
+      ],
+      payment_method: [
+        "cash",
+        "bank_transfer",
+        "mobile_money",
+        "cheque",
+        "card",
       ],
       payment_status: ["unpaid", "partial", "paid"],
       print_type_enum: [
