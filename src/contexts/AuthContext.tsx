@@ -38,7 +38,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (event === 'SIGNED_IN' && session?.user) {
+        // Only redirect on actual sign-in from auth page, not on page refresh
+        if (event === 'SIGNED_IN' && session?.user && window.location.pathname === '/auth') {
           // Check if user has roles before redirecting
           setTimeout(() => {
             supabase
