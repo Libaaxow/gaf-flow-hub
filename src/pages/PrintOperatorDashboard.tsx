@@ -72,11 +72,11 @@ const PrintOperatorDashboard = () => {
           event: '*',
           schema: 'public',
           table: 'orders',
-          filter: `status=in.(designed,printing,printed)`,
+          filter: `status=in.(ready_for_print,designed,printing,printed)`,
         },
         async (payload) => {
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            if (payload.new.status === 'designed') {
+            if (payload.new.status === 'ready_for_print' || payload.new.status === 'designed') {
               // Fetch designer info for the new job
               let designerName = 'Unknown';
               if (payload.new.designer_id) {
@@ -112,7 +112,7 @@ const PrintOperatorDashboard = () => {
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name)')
-        .in('status', ['designed', 'printing', 'printed', 'on_hold' as any])
+        .in('status', ['ready_for_print', 'designed', 'printing', 'printed', 'on_hold' as any])
         .order('created_at', { ascending: false });
 
       if (ordersData) {
@@ -142,7 +142,7 @@ const PrintOperatorDashboard = () => {
         setOrders(ordersWithDesigner as any);
 
         // Calculate stats
-        const readyForPrint = ordersWithDesigner.filter(o => o.status === 'designed').length;
+        const readyForPrint = ordersWithDesigner.filter(o => o.status === 'ready_for_print' || o.status === 'designed').length;
         const printing = ordersWithDesigner.filter(o => o.status === 'printing').length;
         const printed = ordersWithDesigner.filter(o => o.status === 'printed').length;
         const delivered = ordersWithDesigner.filter(o => o.status === 'delivered').length;
@@ -162,6 +162,7 @@ const PrintOperatorDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; className: string }> = {
+      ready_for_print: { label: 'Ready for Print', className: 'bg-info text-info-foreground' },
       designed: { label: 'Ready for Print', className: 'bg-info text-info-foreground' },
       printing: { label: 'Printing', className: 'bg-primary text-primary-foreground' },
       printed: { label: 'Printed', className: 'bg-success text-success-foreground' },
