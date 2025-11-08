@@ -48,6 +48,7 @@ interface Order {
   created_at: string;
   customer_id: string;
   designer_id: string | null;
+  designer_name?: string | null;
   customers: { name: string } | null;
 }
 
@@ -84,9 +85,11 @@ const SalesDashboard = () => {
   const [showOrderFields, setShowOrderFields] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [designers, setDesigners] = useState<any[]>([]);
 
   useEffect(() => {
     fetchDashboardData();
+    fetchDesigners();
     
     // Set up realtime subscription for orders
     const channel = supabase
@@ -109,6 +112,27 @@ const SalesDashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [user]);
+
+  const fetchDesigners = async () => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'designer');
+      
+      if (data && data.length > 0) {
+        const designerIds = data.map(d => d.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', designerIds);
+        
+        setDesigners(profiles || []);
+      }
+    } catch (error) {
+      console.error('Error fetching designers:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -133,6 +157,21 @@ const SalesDashboard = () => {
 
       if (ordersError) throw ordersError;
 
+      // Fetch designer names for orders
+      const ordersWithDesigners = await Promise.all(
+        (ordersData || []).map(async (order) => {
+          if (order.designer_id) {
+            const { data: designer } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', order.designer_id)
+              .single();
+            return { ...order, designer_name: designer?.full_name || null };
+          }
+          return { ...order, designer_name: null };
+        })
+      );
+
       // Fetch commissions
       const { data: commissionsData, error: commissionsError } = await supabase
         .from('commissions')
@@ -146,16 +185,16 @@ const SalesDashboard = () => {
       if (commissionsError) throw commissionsError;
 
       // Calculate stats
-      const totalSales = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
+      const totalSales = ordersWithDesigners?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
       const totalCommission = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
-      const activeJobs = ordersData?.filter(o => 
+      const activeJobs = ordersWithDesigners?.filter(o => 
         o.status === 'pending' || o.status === 'designing' || o.status === 'designed' || o.status === 'printing'
       ).length || 0;
-      const completedJobs = ordersData?.filter(o => o.status === 'delivered').length || 0;
+      const completedJobs = ordersWithDesigners?.filter(o => o.status === 'delivered').length || 0;
 
       // Calculate customer statistics
       const customersWithStats = customersData?.map(customer => {
-        const customerOrders = ordersData?.filter(o => o.customer_id === customer.id) || [];
+        const customerOrders = ordersWithDesigners?.filter(o => o.customer_id === customer.id) || [];
         const totalOrders = customerOrders.length;
         const totalSpent = customerOrders.reduce((sum, o) => sum + Number(o.order_value || 0), 0);
         const lastOrder = customerOrders.length > 0 ? customerOrders[0].created_at : null;
@@ -177,7 +216,7 @@ const SalesDashboard = () => {
       });
 
       setCustomers(customersWithStats);
-      setOrders(ordersData || []);
+      setOrders(ordersWithDesigners || []);
       setCommissions(commissionsData || []);
     } catch (error: any) {
       toast({
@@ -275,6 +314,7 @@ const SalesDashboard = () => {
       description: formData.get('description') as string,
       order_value: parseFloat(formData.get('order_value') as string),
       salesperson_id: user?.id,
+      designer_id: (formData.get('designer_id') as string) || null,
       delivery_date: formData.get('delivery_date') as string || null,
     };
 
@@ -312,6 +352,7 @@ const SalesDashboard = () => {
       job_title: formData.get('job_title') as string,
       description: formData.get('description') as string,
       order_value: parseFloat(formData.get('order_value') as string),
+      designer_id: (formData.get('designer_id') as string) || null,
       delivery_date: formData.get('delivery_date') as string || null,
     };
 
@@ -612,6 +653,21 @@ const SalesDashboard = () => {
                       <Input id="order_value" name="order_value" type="number" step="0.01" required />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="designer_id">Assign Designer</Label>
+                      <Select name="designer_id">
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select designer (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {designers.map((designer) => (
+                            <SelectItem key={designer.id} value={designer.id}>
+                              {designer.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="delivery_date">Delivery Date</Label>
                       <Input id="delivery_date" name="delivery_date" type="date" />
                     </div>
@@ -662,6 +718,21 @@ const SalesDashboard = () => {
                       />
                     </div>
                     <div className="space-y-2">
+                      <Label htmlFor="edit_designer_id">Assign Designer</Label>
+                      <Select name="designer_id" defaultValue={editingOrder.designer_id || undefined}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select designer (optional)" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {designers.map((designer) => (
+                            <SelectItem key={designer.id} value={designer.id}>
+                              {designer.full_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
                       <Label htmlFor="edit_delivery_date">Delivery Date</Label>
                       <Input 
                         id="edit_delivery_date" 
@@ -684,6 +755,7 @@ const SalesDashboard = () => {
                       <TableHead>Order ID</TableHead>
                       <TableHead>Customer</TableHead>
                       <TableHead>Job Title</TableHead>
+                      <TableHead>Designer</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Payment</TableHead>
                       <TableHead className="text-right">Value</TableHead>
@@ -698,6 +770,15 @@ const SalesDashboard = () => {
                         </TableCell>
                         <TableCell>{order.customers?.name || '-'}</TableCell>
                         <TableCell className="font-medium">{order.job_title}</TableCell>
+                        <TableCell>
+                          {order.designer_name ? (
+                            <Badge variant="outline" className="bg-primary/10">
+                              {order.designer_name}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">Not assigned</span>
+                          )}
+                        </TableCell>
                         <TableCell>
                           <Badge className={getStatusColor(order.status)}>
                             {order.status}
