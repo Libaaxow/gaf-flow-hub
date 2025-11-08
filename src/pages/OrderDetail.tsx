@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Download, MessageSquare, FileText } from 'lucide-react';
+import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Order {
   id: string;
@@ -23,7 +24,9 @@ interface Order {
   amount_paid: number;
   delivery_date: string | null;
   notes: string | null;
-  customers: { id: string; name: string } | null;
+  print_type: string | null;
+  quantity: number;
+  customers: { id: string; name: string; email: string | null; phone: string | null; company_name: string | null } | null;
   salesperson: { id: string; full_name: string } | null;
   designer: { id: string; full_name: string } | null;
 }
@@ -59,13 +62,28 @@ const OrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [newComment, setNewComment] = useState('');
+  const [isFinalDesign, setIsFinalDesign] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
       fetchOrderDetails();
       fetchDesigners();
+      fetchUserRole();
     }
-  }, [id]);
+  }, [id, user]);
+
+  const fetchUserRole = async () => {
+    if (!user?.id) return;
+    
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .single();
+    
+    setUserRole(data?.role || null);
+  };
 
   const fetchOrderDetails = async () => {
     try {
@@ -73,7 +91,7 @@ const OrderDetail = () => {
         .from('orders')
         .select(`
           *,
-          customers (id, name)
+          customers (id, name, email, phone, company_name)
         `)
         .eq('id', id)
         .single();
@@ -186,15 +204,17 @@ const OrderDetail = () => {
           file_path: fileName,
           file_type: file.type,
           uploaded_by: user?.id,
+          is_final_design: isFinalDesign,
         }]);
 
       if (dbError) throw dbError;
 
       toast({
         title: 'Success',
-        description: 'File uploaded successfully',
+        description: `${isFinalDesign ? 'Final design' : 'File'} uploaded successfully`,
       });
 
+      setIsFinalDesign(false);
       fetchOrderDetails();
     } catch (error: any) {
       toast({
@@ -283,6 +303,30 @@ const OrderDetail = () => {
     }
   };
 
+  const handleMarkReadyForPrint = async () => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'designed' })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Job marked as ready for print',
+      });
+
+      fetchOrderDetails();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
       pending: 'bg-warning',
@@ -334,25 +378,67 @@ const OrderDetail = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={() => navigate('/orders')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">{order.job_title}</h1>
-            <p className="text-muted-foreground">Order Details</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-3xl font-bold tracking-tight">{order.job_title}</h1>
+              <p className="text-muted-foreground">Order Details</p>
+            </div>
           </div>
+          
+          {userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
+            <Button onClick={handleMarkReadyForPrint} className="gap-2">
+              <CheckCircle className="h-4 w-4" />
+              Mark Ready for Print
+            </Button>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
             <CardHeader>
-              <CardTitle>Order Information</CardTitle>
+              <CardTitle>Customer Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-2">
-                <Label>Customer</Label>
+                <Label>Customer Name</Label>
                 <Input value={order.customers?.name || 'N/A'} disabled />
+              </div>
+
+              {order.customers?.company_name && (
+                <div className="grid gap-2">
+                  <Label>Company</Label>
+                  <Input value={order.customers.company_name} disabled />
+                </div>
+              )}
+
+              {order.customers?.email && (
+                <div className="grid gap-2">
+                  <Label>Email</Label>
+                  <Input value={order.customers.email} disabled />
+                </div>
+              )}
+
+              {order.customers?.phone && (
+                <div className="grid gap-2">
+                  <Label>Phone</Label>
+                  <Input value={order.customers.phone} disabled />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Job Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2">
+                <Label>Job Title</Label>
+                <Input value={order.job_title} disabled />
               </div>
 
               <div className="grid gap-2">
@@ -361,18 +447,20 @@ const OrderDetail = () => {
                   value={order.description || ''} 
                   onChange={(e) => handleUpdateOrder('description', e.target.value)}
                   onBlur={(e) => handleUpdateOrder('description', e.target.value)}
+                  rows={3}
                 />
               </div>
 
+              {order.print_type && (
+                <div className="grid gap-2">
+                  <Label>Print Type</Label>
+                  <Input value={order.print_type} disabled />
+                </div>
+              )}
+
               <div className="grid gap-2">
-                <Label>Order Value</Label>
-                <Input 
-                  type="number" 
-                  step="0.01"
-                  value={order.order_value} 
-                  onChange={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
-                  onBlur={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
-                />
+                <Label>Quantity</Label>
+                <Input type="number" value={order.quantity} disabled />
               </div>
 
               <div className="grid gap-2">
@@ -385,11 +473,61 @@ const OrderDetail = () => {
               </div>
 
               <div className="grid gap-2">
-                <Label>Notes</Label>
+                <Label>Order Notes</Label>
                 <Textarea 
                   value={order.notes || ''} 
                   onChange={(e) => handleUpdateOrder('notes', e.target.value)}
                   onBlur={(e) => handleUpdateOrder('notes', e.target.value)}
+                  rows={3}
+                  placeholder="Special instructions or notes..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-2">
+                <Label>Order Value</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  value={order.order_value} 
+                  onChange={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
+                  onBlur={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Payment Status</Label>
+                <Select 
+                  value={order.payment_status} 
+                  onValueChange={(value) => handleUpdateOrder('payment_status', value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                    <SelectItem value="partial">Partial</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Amount Paid</Label>
+                <Input 
+                  type="number" 
+                  step="0.01"
+                  value={order.amount_paid} 
+                  onChange={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
+                  onBlur={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
                 />
               </div>
             </CardContent>
@@ -422,34 +560,6 @@ const OrderDetail = () => {
               </div>
 
               <div className="grid gap-2">
-                <Label>Payment Status</Label>
-                <Select 
-                  value={order.payment_status} 
-                  onValueChange={(value) => handleUpdateOrder('payment_status', value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unpaid">Unpaid</SelectItem>
-                    <SelectItem value="partial">Partial</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Amount Paid</Label>
-                <Input 
-                  type="number" 
-                  step="0.01"
-                  value={order.amount_paid} 
-                  onChange={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
-                  onBlur={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
-                />
-              </div>
-
-              <div className="grid gap-2">
                 <Label>Assigned Designer</Label>
                 <Select 
                   value={order.designer?.id || ''} 
@@ -478,25 +588,44 @@ const OrderDetail = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Files
-              </CardTitle>
-              <Label htmlFor="file-upload" className="cursor-pointer">
-                <Button type="button" disabled={uploading} asChild>
-                  <span>
-                    <Upload className="mr-2 h-4 w-4" />
-                    {uploading ? 'Uploading...' : 'Upload File'}
-                  </span>
-                </Button>
-                <Input
-                  id="file-upload"
-                  type="file"
-                  className="hidden"
-                  onChange={handleFileUpload}
-                />
-              </Label>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Files & Attachments
+                </CardTitle>
+                <Label htmlFor="file-upload" className="cursor-pointer">
+                  <Button type="button" disabled={uploading} asChild>
+                    <span>
+                      <Upload className="mr-2 h-4 w-4" />
+                      {uploading ? 'Uploading...' : 'Upload File'}
+                    </span>
+                  </Button>
+                  <Input
+                    id="file-upload"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileUpload}
+                    accept=".pdf,.ai,.png,.jpg,.jpeg,.psd,.eps,.svg"
+                  />
+                </Label>
+              </div>
+              
+              {userRole === 'designer' && order.designer?.id === user?.id && (
+                <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
+                  <Checkbox
+                    id="final-design"
+                    checked={isFinalDesign}
+                    onCheckedChange={(checked) => setIsFinalDesign(checked as boolean)}
+                  />
+                  <label
+                    htmlFor="final-design"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    Mark next upload as final design
+                  </label>
+                </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
