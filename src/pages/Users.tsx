@@ -32,9 +32,26 @@ const Users = () => {
 
   const fetchUsers = async () => {
     try {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('*');
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Check if current user is admin
+      const { data: userRoles } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id);
+
+      const isAdmin = userRoles?.some(r => r.role === 'admin');
+
+      // Fetch profiles - all if admin, only current user if not
+      let profilesQuery = supabase.from('profiles').select('*');
+      
+      if (!isAdmin) {
+        profilesQuery = profilesQuery.eq('id', user.id);
+      }
+
+      const { data: profiles } = await profilesQuery;
 
       const { data: roles } = await supabase
         .from('user_roles')
