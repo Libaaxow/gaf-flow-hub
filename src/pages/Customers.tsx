@@ -22,7 +22,7 @@ interface Customer {
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().min(10, 'Phone must be at least 10 digits').optional().or(z.literal('')),
+  phone: z.string().min(9, 'Phone must be at least 9 digits').optional().or(z.literal('')),
   company_name: z.string().optional(),
 });
 
