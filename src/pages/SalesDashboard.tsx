@@ -247,11 +247,12 @@ const SalesDashboard = () => {
         });
       }
 
-      setIsCustomerDialogOpen(false);
+      // Reset form before closing dialog
+      e.currentTarget.reset();
       setPhoneNumber('');
       setShowOrderFields(false);
+      setIsCustomerDialogOpen(false);
       fetchDashboardData();
-      e.currentTarget.reset();
     } catch (error: any) {
       toast({
         title: 'Error',
