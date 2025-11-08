@@ -79,6 +79,8 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [showOrderFields, setShowOrderFields] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -198,18 +200,56 @@ const SalesDashboard = () => {
     };
 
     try {
-      const { error } = await supabase
+      // Insert customer
+      const { data: newCustomer, error: customerError } = await supabase
         .from('customers')
-        .insert([customerData]);
+        .insert([customerData])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (customerError) throw customerError;
 
-      toast({
-        title: 'Success',
-        description: 'Customer added successfully',
-      });
+      // If phone is 9+ digits and order fields are filled, create order too
+      if (showOrderFields && newCustomer) {
+        const jobTitle = formData.get('job_title') as string;
+        const orderValue = formData.get('order_value') as string;
+        
+        if (jobTitle && orderValue) {
+          const orderData = {
+            customer_id: newCustomer.id,
+            job_title: jobTitle,
+            description: (formData.get('description') as string) || null,
+            order_value: parseFloat(orderValue),
+            salesperson_id: user?.id,
+            delivery_date: (formData.get('delivery_date') as string) || null,
+          };
+
+          const { error: orderError } = await supabase
+            .from('orders')
+            .insert([orderData]);
+
+          if (orderError) throw orderError;
+
+          toast({
+            title: 'Success',
+            description: 'Customer and order created successfully',
+          });
+        } else {
+          toast({
+            title: 'Success',
+            description: 'Customer added successfully',
+          });
+        }
+      } else {
+        toast({
+          title: 'Success',
+          description: 'Customer added successfully',
+        });
+      }
 
       setIsCustomerDialogOpen(false);
+      setPhoneNumber('');
+      setShowOrderFields(false);
       fetchDashboardData();
       e.currentTarget.reset();
     } catch (error: any) {
@@ -612,13 +652,50 @@ const SalesDashboard = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" name="phone" type="tel" />
+                      <Input 
+                        id="phone" 
+                        name="phone" 
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setPhoneNumber(value);
+                          setShowOrderFields(value.replace(/\D/g, '').length >= 9);
+                        }}
+                      />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="company_name">Company Name</Label>
                       <Input id="company_name" name="company_name" />
                     </div>
-                    <Button type="submit" className="w-full">Add Customer</Button>
+
+                    {showOrderFields && (
+                      <>
+                        <div className="pt-4 border-t">
+                          <h3 className="font-semibold mb-4">Create Order (Optional)</h3>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="job_title">Job Title</Label>
+                          <Input id="job_title" name="job_title" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="description">Description / Notes</Label>
+                          <Textarea id="description" name="description" rows={3} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="order_value">Order Value</Label>
+                          <Input id="order_value" name="order_value" type="number" step="0.01" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="delivery_date">Delivery Date</Label>
+                          <Input id="delivery_date" name="delivery_date" type="date" />
+                        </div>
+                      </>
+                    )}
+
+                    <Button type="submit" className="w-full">
+                      {showOrderFields ? 'Add Customer & Order' : 'Add Customer'}
+                    </Button>
                   </form>
                 </DialogContent>
               </Dialog>
