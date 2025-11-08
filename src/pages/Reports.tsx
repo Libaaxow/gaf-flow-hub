@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
+import { Eye } from 'lucide-react';
 
 interface SalespersonReport {
   id: string;
@@ -19,10 +25,23 @@ interface CustomerReport {
   orderCount: number;
 }
 
+interface CustomerOrder {
+  id: string;
+  job_title: string;
+  order_value: number;
+  status: string;
+  created_at: string;
+  payment_status: string;
+}
+
 const Reports = () => {
+  const navigate = useNavigate();
   const [salespeople, setSalespeople] = useState<SalespersonReport[]>([]);
   const [customers, setCustomers] = useState<CustomerReport[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCustomer, setSelectedCustomer] = useState<CustomerReport | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<CustomerOrder[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
 
   useEffect(() => {
     fetchReports();
@@ -101,6 +120,54 @@ const Reports = () => {
     }
   };
 
+  const fetchCustomerOrders = async (customerId: string) => {
+    try {
+      setLoadingOrders(true);
+      const { data } = await supabase
+        .from('orders')
+        .select('id, job_title, order_value, status, created_at, payment_status')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+      
+      setCustomerOrders(data || []);
+    } catch (error) {
+      console.error('Error fetching customer orders:', error);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleCustomerClick = (customer: CustomerReport) => {
+    setSelectedCustomer(customer);
+    fetchCustomerOrders(customer.id);
+  };
+
+  const getStatusColor = (status: string) => {
+    const colors: Record<string, string> = {
+      pending: 'bg-yellow-500',
+      designing: 'bg-blue-500',
+      designed: 'bg-purple-500',
+      approved: 'bg-green-500',
+      printing: 'bg-orange-500',
+      printed: 'bg-teal-500',
+      delivered: 'bg-green-700',
+      on_hold: 'bg-red-500',
+      pending_accounting_review: 'bg-yellow-600',
+      awaiting_accounting_approval: 'bg-blue-600',
+      ready_for_print: 'bg-purple-600',
+    };
+    return colors[status] || 'bg-gray-500';
+  };
+
+  const getPaymentColor = (status: string) => {
+    const colors: Record<string, string> = {
+      unpaid: 'bg-red-500',
+      partial: 'bg-yellow-500',
+      paid: 'bg-green-500',
+    };
+    return colors[status] || 'bg-gray-500';
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -171,17 +238,24 @@ const Reports = () => {
               <CardContent>
                 <div className="space-y-4">
                   {customers.map((customer) => (
-                    <div key={customer.id} className="flex items-center justify-between border-b pb-4 last:border-0">
+                    <div 
+                      key={customer.id} 
+                      className="flex items-center justify-between border-b pb-4 last:border-0 hover:bg-muted/50 cursor-pointer transition-colors p-2 rounded-md"
+                      onClick={() => handleCustomerClick(customer)}
+                    >
                       <div>
-                        <h3 className="font-semibold">{customer.name}</h3>
+                        <h3 className="font-semibold text-primary hover:underline">{customer.name}</h3>
                         <p className="text-sm text-muted-foreground">
                           {customer.orderCount} orders
                         </p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold">
-                          ${customer.totalSpent.toFixed(2)}
-                        </p>
+                      <div className="text-right flex items-center gap-2">
+                        <div>
+                          <p className="font-semibold">
+                            ${customer.totalSpent.toFixed(2)}
+                          </p>
+                        </div>
+                        <Eye className="h-4 w-4 text-muted-foreground" />
                       </div>
                     </div>
                   ))}
@@ -195,6 +269,57 @@ const Reports = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Customer Orders Dialog */}
+        <Dialog open={!!selectedCustomer} onOpenChange={(open) => !open && setSelectedCustomer(null)}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Orders for {selectedCustomer?.name}
+              </DialogTitle>
+            </DialogHeader>
+            {loadingOrders ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {customerOrders.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">No orders found</p>
+                ) : (
+                  customerOrders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="font-semibold">{order.job_title}</h3>
+                          <Badge className={getStatusColor(order.status)}>
+                            {order.status.replace('_', ' ')}
+                          </Badge>
+                          <Badge className={getPaymentColor(order.payment_status)}>
+                            {order.payment_status}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Created: {format(new Date(order.created_at), 'MMM dd, yyyy')}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xl font-bold">${order.order_value?.toFixed(2) || '0.00'}</p>
+                        <Button variant="outline" size="sm" className="mt-2">
+                          View Details
+                        </Button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
