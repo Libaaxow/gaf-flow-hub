@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -767,7 +768,8 @@ const AccountantDashboard = () => {
                           Record a new operational expense
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
+                      <ScrollArea className="h-[400px] pr-4">
+                        <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                           <Label htmlFor="expenseDate">Date *</Label>
                           <Input
@@ -849,6 +851,7 @@ const AccountantDashboard = () => {
                           />
                         </div>
                       </div>
+                      </ScrollArea>
                       <DialogFooter>
                         <Button onClick={handleRecordExpense}>Record Expense</Button>
                       </DialogFooter>
