@@ -384,9 +384,8 @@ const SalesDashboard = () => {
         description: `Job created successfully${designerId ? ' and assigned to designer' : ''}`,
       });
 
-      e.currentTarget.reset();
       setIsOrderDialogOpen(false);
-      fetchDashboardData();
+      await fetchDashboardData();
     } catch (error: any) {
       toast({
         title: 'Error',
