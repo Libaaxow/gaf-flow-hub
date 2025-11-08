@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip } from 'lucide-react';
+import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip, Calendar as CalendarIcon } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface Order {
   id: string;
@@ -38,6 +42,7 @@ const PrintOperatorDashboard = () => {
   const [stats, setStats] = useState<Stats>({ readyForPrint: 0, printing: 0, printed: 0, delivered: 0 });
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
 
   useEffect(() => {
     if (user?.id) {
@@ -108,11 +113,16 @@ const PrintOperatorDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch orders ready for print or in printing stages
+      // Fetch orders filtered by date
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+      
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name)')
         .in('status', ['ready_for_print', 'designed', 'printing', 'printed', 'on_hold' as any])
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (ordersData) {
@@ -238,7 +248,37 @@ const PrintOperatorDashboard = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Print Jobs</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Print Jobs</CardTitle>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal",
+                      !dateFilter && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFilter}
+                    onSelect={(date) => {
+                      if (date) {
+                        setDateFilter(date);
+                        fetchPrintData();
+                      }
+                    }}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (

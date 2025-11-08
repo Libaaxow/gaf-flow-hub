@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye } from 'lucide-react';
+import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye, Calendar as CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface DashboardStats {
   totalSales: number;
@@ -94,6 +98,7 @@ const SalesDashboard = () => {
   const [designers, setDesigners] = useState<any[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
   
   // Separate state for my customers (for display in My Customers tab)
   const myCustomers = customers.filter(c => c.created_by === user?.id);
@@ -177,6 +182,9 @@ const SalesDashboard = () => {
       const customersData = myCustomersData;
 
       // Fetch orders for this salesperson
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+      
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -184,6 +192,8 @@ const SalesDashboard = () => {
           customers (name)
         `)
         .eq('salesperson_id', user?.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -569,6 +579,34 @@ const SalesDashboard = () => {
               <p className="text-muted-foreground">{user?.email}</p>
             </div>
           </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !dateFilter && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFilter}
+                onSelect={(date) => {
+                  if (date) {
+                    setDateFilter(date);
+                    fetchDashboardData();
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Stats Cards */}

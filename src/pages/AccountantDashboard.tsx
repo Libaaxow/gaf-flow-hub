@@ -18,7 +18,7 @@ import {
   Receipt,
   FileText,
   Users,
-  Calendar,
+  Calendar as CalendarIcon,
   Eye
 } from 'lucide-react';
 import {
@@ -49,7 +49,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -130,6 +133,7 @@ const AccountantDashboard = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
   
   // Order workflow states
   const [workflowOrders, setWorkflowOrders] = useState<any[]>([]);
@@ -162,7 +166,10 @@ const AccountantDashboard = () => {
     try {
       setLoading(true);
 
-      // Fetch orders with customer details
+      // Fetch orders with customer details filtered by date
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+      
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select(`
@@ -175,6 +182,8 @@ const AccountantDashboard = () => {
           created_at,
           customer:customers(name)
         `)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -626,9 +635,39 @@ const AccountantDashboard = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Accountant Dashboard</h1>
-          <p className="text-muted-foreground">Financial management and reporting</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Accountant Dashboard</h1>
+            <p className="text-muted-foreground">Financial management and reporting</p>
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal",
+                  !dateFilter && "text-muted-foreground"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={dateFilter}
+                onSelect={(date) => {
+                  if (date) {
+                    setDateFilter(date);
+                    fetchFinancialData();
+                  }
+                }}
+                initialFocus
+                className="pointer-events-auto"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Stats Grid */}

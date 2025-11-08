@@ -7,10 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface Order {
   id: string;
@@ -47,6 +51,7 @@ const DesignerDashboard = () => {
   const [filter, setFilter] = useState<string>('all');
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchUserRole();
@@ -127,11 +132,16 @@ const DesignerDashboard = () => {
 
       setProfile(profileData);
 
-      // Fetch assigned orders
+      // Fetch assigned orders filtered by date
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+      
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name, company_name)')
         .eq('designer_id', user?.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (ordersData) {
@@ -266,16 +276,46 @@ const DesignerDashboard = () => {
         {/* Jobs Table with Filters */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <CardTitle>My Assigned Jobs</CardTitle>
-              <Tabs value={filter} onValueChange={setFilter} className="w-auto">
-                <TabsList>
-                  <TabsTrigger value="all">All Jobs</TabsTrigger>
-                  <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                  <TabsTrigger value="ready">Ready for Print</TabsTrigger>
-                  <TabsTrigger value="completed">Completed</TabsTrigger>
-                </TabsList>
-              </Tabs>
+              <div className="flex items-center gap-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "justify-start text-left font-normal",
+                        !dateFilter && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={dateFilter}
+                      onSelect={(date) => {
+                        if (date) {
+                          setDateFilter(date);
+                          fetchDesignerData();
+                        }
+                      }}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+                <Tabs value={filter} onValueChange={setFilter} className="w-auto">
+                  <TabsList>
+                    <TabsTrigger value="all">All Jobs</TabsTrigger>
+                    <TabsTrigger value="in-progress">In Progress</TabsTrigger>
+                    <TabsTrigger value="ready">Ready for Print</TabsTrigger>
+                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

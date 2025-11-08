@@ -8,8 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Users, DollarSign, AlertCircle } from 'lucide-react';
-import { format } from 'date-fns';
+import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { format, startOfDay, endOfDay } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface Order {
   id: string;
@@ -58,6 +61,7 @@ export default function AdminDashboard() {
   const [filterCustomer, setFilterCustomer] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [dateFilter, setDateFilter] = useState<Date>(new Date());
 
   // Stats
   const [stats, setStats] = useState({
@@ -73,16 +77,21 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     applyFilters();
-  }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery]);
+  }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery, dateFilter]);
 
   const fetchAllData = async () => {
     try {
       setLoading(true);
 
-      // Fetch all orders
+      // Fetch orders filtered by date
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+      
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*, customers(name)')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -292,7 +301,36 @@ export default function AdminDashboard() {
           <CardTitle>Filter Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-5">
+          <div className="grid gap-4 md:grid-cols-6">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    !dateFilter && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFilter}
+                  onSelect={(date) => {
+                    if (date) {
+                      setDateFilter(date);
+                      fetchAllData();
+                    }
+                  }}
+                  initialFocus
+                  className="pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
+            
             <Input
               placeholder="Search by job title or customer..."
               value={searchQuery}
