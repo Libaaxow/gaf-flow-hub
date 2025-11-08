@@ -157,7 +157,7 @@ const DesignerDashboard = () => {
         const totalJobs = ordersWithSalesperson.length;
         const completed = ordersWithSalesperson.filter(o => o.status === 'delivered').length;
         const inProgress = ordersWithSalesperson.filter(o => o.status === 'designing').length;
-        const awaitingApproval = ordersWithSalesperson.filter(o => o.status === 'designed').length;
+        const awaitingApproval = ordersWithSalesperson.filter(o => o.status === 'awaiting_accounting_approval').length;
 
         setStats({ totalJobs, completed, inProgress, awaitingApproval });
       }
@@ -175,9 +175,10 @@ const DesignerDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      pending: { label: 'Pending', variant: 'outline' },
+      pending_accounting_review: { label: 'Pending Accountant', variant: 'outline' },
       designing: { label: 'In Design', variant: 'default' },
-      designed: { label: 'Ready for Print', variant: 'secondary' },
+      awaiting_accounting_approval: { label: 'Awaiting Approval', variant: 'secondary' },
+      ready_for_print: { label: 'Ready for Print', variant: 'default' },
       printing: { label: 'Printing', variant: 'default' },
       delivered: { label: 'Completed', variant: 'secondary' },
     };
@@ -189,7 +190,7 @@ const DesignerDashboard = () => {
   const filteredOrders = orders.filter(order => {
     if (filter === 'all') return true;
     if (filter === 'in-progress') return order.status === 'designing';
-    if (filter === 'ready') return order.status === 'designed';
+    if (filter === 'ready') return order.status === 'awaiting_accounting_approval';
     if (filter === 'completed') return order.status === 'delivered';
     return true;
   });

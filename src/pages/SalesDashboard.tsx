@@ -188,7 +188,7 @@ const SalesDashboard = () => {
 
       if (ordersError) throw ordersError;
 
-      // Fetch designer names for orders
+      // Fetch designer data separately for each order
       const ordersWithDesigners = await Promise.all(
         (ordersData || []).map(async (order) => {
           if (order.designer_id) {
@@ -199,7 +199,7 @@ const SalesDashboard = () => {
               .single();
             return { ...order, designer_name: designer?.full_name || null };
           }
-          return { ...order, designer_name: null };
+          return { ...order, designer_name: 'Pending Accountant Assignment' };
         })
       );
 
@@ -219,7 +219,7 @@ const SalesDashboard = () => {
       const totalSales = ordersWithDesigners?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
       const totalCommission = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
       const activeJobs = ordersWithDesigners?.filter(o => 
-        o.status === 'pending' || o.status === 'designing' || o.status === 'designed' || o.status === 'printing'
+        o.status === 'pending_accounting_review' || o.status === 'designing' || o.status === 'awaiting_accounting_approval' || o.status === 'ready_for_print' || o.status === 'printing'
       ).length || 0;
       const completedJobs = ordersWithDesigners?.filter(o => o.status === 'delivered').length || 0;
 
@@ -351,9 +351,8 @@ const SalesDashboard = () => {
       notes: formData.get('notes') as string || null,
       order_value: parseFloat(formData.get('order_value') as string),
       salesperson_id: user?.id,
-      designer_id: designerId,
       delivery_date: formData.get('delivery_date') as string || null,
-      status: (designerId ? 'designing' : 'pending') as 'designing' | 'pending',
+      status: 'pending_accounting_review' as const,
     };
 
     try {
@@ -401,7 +400,7 @@ const SalesDashboard = () => {
 
       toast({
         title: 'Success',
-        description: `Job created successfully${designerId ? ' and assigned to designer' : ''}`,
+        description: 'Job created successfully and sent to accountant for processing',
       });
 
       setIsOrderDialogOpen(false);
@@ -460,10 +459,10 @@ const SalesDashboard = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-warning',
+      pending_accounting_review: 'bg-warning',
       designing: 'bg-info',
-      designed: 'bg-info',
-      approved: 'bg-success',
+      awaiting_accounting_approval: 'bg-info',
+      ready_for_print: 'bg-success',
       printing: 'bg-primary',
       printed: 'bg-success',
       delivered: 'bg-success',
@@ -819,39 +818,17 @@ const SalesDashboard = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="designer_id">Assign Designer *</Label>
-                      <Select name="designer_id" required>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select designer" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50">
-                          {designers.length === 0 ? (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                              No designers available
-                            </div>
-                          ) : (
-                            designers.map((designer) => (
-                              <SelectItem key={designer.id} value={designer.id}>
-                                {designer.full_name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Notes for Designer (Optional)</Label>
+                      <Label htmlFor="notes">Notes (Optional)</Label>
                       <Textarea 
                         id="notes" 
                         name="notes" 
                         rows={2}
-                        placeholder="Any special instructions or notes for the designer..."
+                        placeholder="Any special instructions or notes..."
                       />
                     </div>
 
                     <Button type="submit" className="w-full" disabled={uploadingFiles}>
-                      {uploadingFiles ? 'Creating Job & Uploading Files...' : 'Create Job & Assign to Designer'}
+                      {uploadingFiles ? 'Creating Job & Uploading Files...' : 'Create Job & Send to Accountant'}
                     </Button>
                   </form>
                 </DialogContent>
@@ -897,27 +874,6 @@ const SalesDashboard = () => {
                         defaultValue={editingOrder.order_value}
                         required 
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_designer_id">Assign Designer</Label>
-                      <Select name="designer_id" defaultValue={editingOrder.designer_id || undefined}>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select designer (optional)" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50">
-                          {designers.length === 0 ? (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                              No designers available
-                            </div>
-                          ) : (
-                            designers.map((designer) => (
-                              <SelectItem key={designer.id} value={designer.id}>
-                                {designer.full_name}
-                              </SelectItem>
-                            ))
-                          )}
-                        </SelectContent>
-                      </Select>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="edit_delivery_date">Delivery Date</Label>

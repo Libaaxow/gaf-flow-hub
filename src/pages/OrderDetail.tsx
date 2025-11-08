@@ -340,14 +340,14 @@ const OrderDetail = () => {
     try {
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'designed' })
+        .update({ status: 'awaiting_accounting_approval' })
         .eq('id', id);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Job marked as ready for print',
+        description: 'Design completed and sent to accountant for approval',
       });
 
       fetchOrderDetails();
@@ -362,10 +362,10 @@ const OrderDetail = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-warning',
+      pending_accounting_review: 'bg-warning',
       designing: 'bg-info',
-      designed: 'bg-info',
-      approved: 'bg-success',
+      awaiting_accounting_approval: 'bg-info',
+      ready_for_print: 'bg-success',
       printing: 'bg-primary',
       printed: 'bg-success',
       on_hold: 'bg-destructive',
@@ -439,13 +439,13 @@ const OrderDetail = () => {
           {!isReadOnly && userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
             <Button onClick={handleMarkReadyForPrint} className="gap-2">
               <CheckCircle className="h-4 w-4" />
-              Mark Ready for Print
+              Submit to Accountant
             </Button>
           )}
           
-          {!isReadOnly && userRole === 'print_operator' && ['designed', 'printing', 'printed'].includes(order.status) && (
+          {!isReadOnly && userRole === 'print_operator' && ['ready_for_print', 'printing', 'printed'].includes(order.status) && (
             <div className="flex gap-2">
-              {order.status === 'designed' && (
+              {order.status === 'ready_for_print' && (
                 <>
                   <Button onClick={() => handleUpdateOrder('status', 'printing')} className="gap-2">
                     <CheckCircle className="h-4 w-4" />

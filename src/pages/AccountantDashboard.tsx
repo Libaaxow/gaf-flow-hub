@@ -17,7 +17,8 @@ import {
   Receipt,
   FileText,
   Users,
-  Calendar
+  Calendar,
+  Eye
 } from 'lucide-react';
 import {
   Table,
@@ -128,6 +129,12 @@ const AccountantDashboard = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   
+  // Order workflow states
+  const [workflowOrders, setWorkflowOrders] = useState<any[]>([]);
+  const [designers, setDesigners] = useState<any[]>([]);
+  const [selectedDesigner, setSelectedDesigner] = useState('');
+  const [selectedOrderForAssignment, setSelectedOrderForAssignment] = useState('');
+  
   // Form states
   const [selectedOrder, setSelectedOrder] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -145,6 +152,8 @@ const AccountantDashboard = () => {
 
   useEffect(() => {
     fetchFinancialData();
+    fetchWorkflowOrders();
+    fetchDesigners();
   }, []);
 
   const fetchFinancialData = async () => {
@@ -272,6 +281,136 @@ const AccountantDashboard = () => {
     }
   };
 
+  const fetchDesigners = async () => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'designer');
+      
+      if (data && data.length > 0) {
+        const designerIds = data.map(d => d.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', designerIds);
+        
+        setDesigners(profiles || []);
+      }
+    } catch (error) {
+      console.error('Error fetching designers:', error);
+    }
+  };
+
+  const fetchWorkflowOrders = async () => {
+    try {
+      const { data: ordersData, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          customers (name)
+        `)
+        .in('status', ['pending_accounting_review', 'awaiting_accounting_approval'])
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      // Fetch related data separately
+      const enrichedOrders = await Promise.all(
+        (ordersData || []).map(async (order) => {
+          let salesperson = null;
+          let designer = null;
+
+          if (order.salesperson_id) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', order.salesperson_id)
+              .single();
+            salesperson = data;
+          }
+
+          if (order.designer_id) {
+            const { data } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', order.designer_id)
+              .single();
+            designer = data;
+          }
+
+          return { ...order, salesperson, designer };
+        })
+      );
+
+      setWorkflowOrders(enrichedOrders);
+    } catch (error: any) {
+      console.error('Error fetching workflow orders:', error);
+    }
+  };
+
+  const handleAssignDesigner = async () => {
+    if (!selectedOrderForAssignment || !selectedDesigner) {
+      toast({
+        title: 'Error',
+        description: 'Please select both an order and a designer',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ 
+          designer_id: selectedDesigner,
+          status: 'designing'
+        })
+        .eq('id', selectedOrderForAssignment);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Order assigned to designer successfully',
+      });
+
+      setSelectedOrderForAssignment('');
+      setSelectedDesigner('');
+      fetchWorkflowOrders();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleApproveAndSendToPrint = async (orderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'ready_for_print' })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Order approved and sent to print operator',
+      });
+
+      fetchWorkflowOrders();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleRecordPayment = async () => {
     if (!selectedOrder || !paymentAmount || !paymentMethod) {
       toast({
@@ -330,6 +469,7 @@ const AccountantDashboard = () => {
       setPaymentNotes('');
       
       fetchFinancialData();
+      fetchWorkflowOrders();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -413,6 +553,7 @@ const AccountantDashboard = () => {
       });
 
       fetchFinancialData();
+      fetchWorkflowOrders();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -505,13 +646,159 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="payments" className="space-y-4">
+        <Tabs defaultValue="workflow" className="space-y-4">
           <TabsList>
+            <TabsTrigger value="workflow">Order Workflow</TabsTrigger>
             <TabsTrigger value="payments">Payment Management</TabsTrigger>
             <TabsTrigger value="commissions">Commissions</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
+
+          {/* Order Workflow Tab */}
+          <TabsContent value="workflow" className="space-y-4">
+            {/* Pending Orders Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Orders Pending Assignment</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  New orders from sales team awaiting designer assignment
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job Title</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Salesperson</TableHead>
+                      <TableHead>Order Value</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workflowOrders.filter(o => o.status === 'pending_accounting_review').length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No pending orders
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      workflowOrders.filter(o => o.status === 'pending_accounting_review').map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.job_title}</TableCell>
+                          <TableCell>{order.customers?.name}</TableCell>
+                          <TableCell>{order.salesperson?.full_name || '-'}</TableCell>
+                          <TableCell>${order.order_value?.toFixed(2)}</TableCell>
+                          <TableCell>{format(new Date(order.created_at), 'PP')}</TableCell>
+                          <TableCell>
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button size="sm" onClick={() => setSelectedOrderForAssignment(order.id)}>
+                                  Assign Designer
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                <DialogHeader>
+                                  <DialogTitle>Assign Designer</DialogTitle>
+                                  <DialogDescription>
+                                    Select a designer for: {order.job_title}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  <div className="grid gap-2">
+                                    <Label htmlFor="designer">Designer *</Label>
+                                    <Select value={selectedDesigner} onValueChange={setSelectedDesigner}>
+                                      <SelectTrigger>
+                                        <SelectValue placeholder="Select designer" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        {designers.map((designer) => (
+                                          <SelectItem key={designer.id} value={designer.id}>
+                                            {designer.full_name}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </div>
+                                <DialogFooter>
+                                  <Button onClick={handleAssignDesigner}>Assign</Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Awaiting Approval Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Orders Awaiting Approval</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Completed designs awaiting your approval to send to print
+                </p>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job Title</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Designer</TableHead>
+                      <TableHead>Order Value</TableHead>
+                      <TableHead>Completed</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workflowOrders.filter(o => o.status === 'awaiting_accounting_approval').length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No orders awaiting approval
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      workflowOrders.filter(o => o.status === 'awaiting_accounting_approval').map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.job_title}</TableCell>
+                          <TableCell>{order.customers?.name}</TableCell>
+                          <TableCell>{order.designer?.full_name || '-'}</TableCell>
+                          <TableCell>${order.order_value?.toFixed(2)}</TableCell>
+                          <TableCell>{format(new Date(order.updated_at), 'PP')}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                onClick={() => handleApproveAndSendToPrint(order.id)}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Approve & Send to Print
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => window.location.href = `/orders/${order.id}`}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Payment Management Tab */}
           <TabsContent value="payments" className="space-y-4">

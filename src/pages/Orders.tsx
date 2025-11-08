@@ -116,10 +116,10 @@ const Orders = () => {
 
   const getStatusColor = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-warning',
+      pending_accounting_review: 'bg-warning',
       designing: 'bg-info',
-      designed: 'bg-info',
-      approved: 'bg-success',
+      awaiting_accounting_approval: 'bg-info',
+      ready_for_print: 'bg-success',
       printing: 'bg-primary',
       printed: 'bg-success',
       delivered: 'bg-success',
