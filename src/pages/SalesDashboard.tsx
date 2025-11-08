@@ -41,6 +41,9 @@ interface Order {
   id: string;
   job_title: string;
   description: string | null;
+  print_type: string | null;
+  quantity: number | null;
+  notes: string | null;
   order_value: number;
   status: string;
   payment_status: string;
@@ -86,6 +89,7 @@ const SalesDashboard = () => {
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [designers, setDesigners] = useState<any[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
 
   useEffect(() => {
     fetchDashboardData();
@@ -308,26 +312,68 @@ const SalesDashboard = () => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
+    const designerId = (formData.get('designer_id') as string) || null;
+    
     const orderData = {
       customer_id: formData.get('customer_id') as string,
       job_title: formData.get('job_title') as string,
       description: formData.get('description') as string,
+      print_type: formData.get('print_type') as string,
+      quantity: parseInt(formData.get('quantity') as string) || 1,
+      notes: formData.get('notes') as string || null,
       order_value: parseFloat(formData.get('order_value') as string),
       salesperson_id: user?.id,
-      designer_id: (formData.get('designer_id') as string) || null,
+      designer_id: designerId,
       delivery_date: formData.get('delivery_date') as string || null,
+      status: (designerId ? 'designing' : 'pending') as 'designing' | 'pending',
     };
 
     try {
-      const { error } = await supabase
-        .from('orders')
-        .insert([orderData]);
+      setUploadingFiles(true);
 
-      if (error) throw error;
+      // Insert order
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert([orderData])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Handle file uploads if any
+      const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput?.files && fileInput.files.length > 0) {
+        const files = Array.from(fileInput.files);
+        
+        for (const file of files) {
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${newOrder.id}/${Date.now()}_${file.name}`;
+          
+          // Upload file to storage
+          const { error: uploadError } = await supabase.storage
+            .from('order-files')
+            .upload(fileName, file);
+
+          if (uploadError) throw uploadError;
+
+          // Record file in database
+          const { error: fileRecordError } = await supabase
+            .from('order_files')
+            .insert({
+              order_id: newOrder.id,
+              file_name: file.name,
+              file_path: fileName,
+              file_type: file.type,
+              uploaded_by: user?.id,
+            });
+
+          if (fileRecordError) throw fileRecordError;
+        }
+      }
 
       toast({
         title: 'Success',
-        description: 'Order created successfully',
+        description: `Job created successfully${designerId ? ' and assigned to designer' : ''}`,
       });
 
       e.currentTarget.reset();
@@ -339,6 +385,8 @@ const SalesDashboard = () => {
         description: error.message,
         variant: 'destructive',
       });
+    } finally {
+      setUploadingFiles(false);
     }
   };
 
@@ -620,43 +668,128 @@ const SalesDashboard = () => {
                     New Job Request
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle>Create New Job Request</DialogTitle>
+                    <DialogTitle>Create New Job</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddOrder} className="space-y-4">
                     <div className="space-y-2">
                       <Label htmlFor="customer_id">Customer *</Label>
                       <Select name="customer_id" required>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select customer" />
+                          <SelectValue placeholder="Select existing or add new customer" />
                         </SelectTrigger>
                         <SelectContent>
                           {customers.map((customer) => (
                             <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name}
+                              {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Don't see the customer? Add them in the "My Customers" tab first.
+                      </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="job_title">Job Title *</Label>
-                      <Input id="job_title" name="job_title" required />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="job_title">Job Title *</Label>
+                        <Input 
+                          id="job_title" 
+                          name="job_title" 
+                          placeholder="e.g., Business Cards - John Doe"
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="print_type">Print Type *</Label>
+                        <Select name="print_type" required>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select print type" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="business_card">Business Card</SelectItem>
+                            <SelectItem value="flyer">Flyer</SelectItem>
+                            <SelectItem value="banner">Banner</SelectItem>
+                            <SelectItem value="brochure">Brochure</SelectItem>
+                            <SelectItem value="poster">Poster</SelectItem>
+                            <SelectItem value="t_shirt">T-Shirt</SelectItem>
+                            <SelectItem value="mug">Mug</SelectItem>
+                            <SelectItem value="sticker">Sticker</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="description">Description / Notes</Label>
-                      <Textarea id="description" name="description" rows={3} />
+                      <Label htmlFor="description">Description *</Label>
+                      <Textarea 
+                        id="description" 
+                        name="description" 
+                        rows={3}
+                        placeholder="Detailed description of the job requirements..."
+                        required
+                      />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="order_value">Order Value *</Label>
-                      <Input id="order_value" name="order_value" type="number" step="0.01" required />
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="quantity">Quantity *</Label>
+                        <Input 
+                          id="quantity" 
+                          name="quantity" 
+                          type="number"
+                          min="1"
+                          defaultValue="1"
+                          required 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="order_value">Order Value ($) *</Label>
+                        <Input 
+                          id="order_value" 
+                          name="order_value" 
+                          type="number" 
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                          required 
+                        />
+                      </div>
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="designer_id">Assign Designer</Label>
-                      <Select name="designer_id">
+                      <Label htmlFor="delivery_date">Expected Delivery Date *</Label>
+                      <Input 
+                        id="delivery_date" 
+                        name="delivery_date" 
+                        type="date"
+                        min={new Date().toISOString().split('T')[0]}
+                        required 
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="reference_files">Upload Reference Files</Label>
+                      <Input 
+                        id="reference_files" 
+                        name="reference_files" 
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.zip,.doc,.docx"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Upload PDF, images, or ZIP files (max 20MB per file)
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="designer_id">Assign Designer *</Label>
+                      <Select name="designer_id" required>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select designer (optional)" />
+                          <SelectValue placeholder="Select designer" />
                         </SelectTrigger>
                         <SelectContent>
                           {designers.map((designer) => (
@@ -667,11 +800,20 @@ const SalesDashboard = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="delivery_date">Delivery Date</Label>
-                      <Input id="delivery_date" name="delivery_date" type="date" />
+                      <Label htmlFor="notes">Notes for Designer (Optional)</Label>
+                      <Textarea 
+                        id="notes" 
+                        name="notes" 
+                        rows={2}
+                        placeholder="Any special instructions or notes for the designer..."
+                      />
                     </div>
-                    <Button type="submit" className="w-full">Create Job Request</Button>
+
+                    <Button type="submit" className="w-full" disabled={uploadingFiles}>
+                      {uploadingFiles ? 'Creating Job & Uploading Files...' : 'Create Job & Assign to Designer'}
+                    </Button>
                   </form>
                 </DialogContent>
               </Dialog>

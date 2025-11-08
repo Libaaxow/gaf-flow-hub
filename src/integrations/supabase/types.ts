@@ -168,6 +168,8 @@ export type Database = {
           notes: string | null
           order_value: number | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          print_type: string | null
+          quantity: number | null
           salesperson_id: string | null
           status: Database["public"]["Enums"]["order_status"] | null
           updated_at: string | null
@@ -184,6 +186,8 @@ export type Database = {
           notes?: string | null
           order_value?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          print_type?: string | null
+          quantity?: number | null
           salesperson_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           updated_at?: string | null
@@ -200,6 +204,8 @@ export type Database = {
           notes?: string | null
           order_value?: number | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          print_type?: string | null
+          quantity?: number | null
           salesperson_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
           updated_at?: string | null
@@ -295,6 +301,16 @@ export type Database = {
         | "printed"
         | "delivered"
       payment_status: "unpaid" | "partial" | "paid"
+      print_type_enum:
+        | "business_card"
+        | "flyer"
+        | "banner"
+        | "brochure"
+        | "poster"
+        | "t_shirt"
+        | "mug"
+        | "sticker"
+        | "other"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -440,6 +456,17 @@ export const Constants = {
         "delivered",
       ],
       payment_status: ["unpaid", "partial", "paid"],
+      print_type_enum: [
+        "business_card",
+        "flyer",
+        "banner",
+        "brochure",
+        "poster",
+        "t_shirt",
+        "mug",
+        "sticker",
+        "other",
+      ],
     },
   },
 } as const
