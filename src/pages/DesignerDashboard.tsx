@@ -58,7 +58,31 @@ const DesignerDashboard = () => {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `designer_id=eq.${user?.id}`,
+        },
+        async (payload) => {
+          // Fetch salesperson name for notification
+          const { data: salespersonData } = await supabase
+            .from('profiles')
+            .select('full_name')
+            .eq('id', payload.new.salesperson_id)
+            .single();
+
+          toast({
+            title: '🎨 New Job Assigned!',
+            description: `${payload.new.job_title} by ${salespersonData?.full_name || 'Unknown Salesperson'}`,
+          });
+          
+          fetchDesignerData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'orders',
           filter: `designer_id=eq.${user?.id}`,
