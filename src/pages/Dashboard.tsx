@@ -121,22 +121,38 @@ const Dashboard = () => {
 
   // Render admin dashboard for admins
   if (userRole === 'admin') {
-    return <AdminDashboard />;
+    return (
+      <Layout>
+        <AdminDashboard />
+      </Layout>
+    );
   }
 
   // Render designer dashboard for designers
   if (userRole === 'designer') {
-    return <DesignerDashboard />;
+    return (
+      <Layout>
+        <DesignerDashboard />
+      </Layout>
+    );
   }
 
   // Render print operator dashboard for print operators
   if (userRole === 'print_operator') {
-    return <PrintOperatorDashboard />;
+    return (
+      <Layout>
+        <PrintOperatorDashboard />
+      </Layout>
+    );
   }
 
   // Render sales dashboard for sales and marketing roles
   if (userRole === 'sales' || userRole === 'marketing') {
-    return <SalesDashboard />;
+    return (
+      <Layout>
+        <SalesDashboard />
+      </Layout>
+    );
   }
 
   return (
