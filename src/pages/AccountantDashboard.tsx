@@ -424,42 +424,42 @@ const AccountantDashboard = () => {
   const statCards = [
     {
       title: 'Total Revenue',
-      value: `GH₵${stats.totalRevenue.toFixed(2)}`,
+      value: `$${stats.totalRevenue.toFixed(2)}`,
       icon: DollarSign,
       description: 'Total order value',
       color: 'text-blue-600',
     },
     {
       title: 'Amount Collected',
-      value: `GH₵${stats.collectedAmount.toFixed(2)}`,
+      value: `$${stats.collectedAmount.toFixed(2)}`,
       icon: TrendingUp,
       description: 'Payments received',
       color: 'text-green-600',
     },
     {
       title: 'Outstanding',
-      value: `GH₵${stats.outstandingAmount.toFixed(2)}`,
+      value: `$${stats.outstandingAmount.toFixed(2)}`,
       icon: Clock,
       description: 'Pending payments',
       color: 'text-orange-600',
     },
     {
       title: 'Total Expenses',
-      value: `GH₵${stats.totalExpenses.toFixed(2)}`,
+      value: `$${stats.totalExpenses.toFixed(2)}`,
       icon: TrendingDown,
       description: 'Operational costs',
       color: 'text-red-600',
     },
     {
       title: 'Net Profit',
-      value: `GH₵${stats.profit.toFixed(2)}`,
+      value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
       description: 'Revenue - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
     },
     {
       title: 'Pending Commissions',
-      value: `GH₵${stats.pendingCommissions.toFixed(2)}`,
+      value: `$${stats.pendingCommissions.toFixed(2)}`,
       icon: AlertCircle,
       description: 'Unpaid commissions',
       color: 'text-yellow-600',
@@ -545,7 +545,7 @@ const AccountantDashboard = () => {
                             <SelectContent>
                               {orders.filter(o => o.payment_status !== 'paid').map((order) => (
                                 <SelectItem key={order.id} value={order.id}>
-                                  {order.job_title} - {order.customer.name} (Outstanding: GH₵{(order.order_value - order.amount_paid).toFixed(2)})
+                                  {order.job_title} - {order.customer.name} (Outstanding: ${(order.order_value - order.amount_paid).toFixed(2)})
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -621,9 +621,9 @@ const AccountantDashboard = () => {
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">{order.job_title}</TableCell>
                         <TableCell>{order.customer.name}</TableCell>
-                        <TableCell>GH₵{order.order_value.toFixed(2)}</TableCell>
-                        <TableCell>GH₵{order.amount_paid.toFixed(2)}</TableCell>
-                        <TableCell>GH₵{(order.order_value - order.amount_paid).toFixed(2)}</TableCell>
+                        <TableCell>${order.order_value.toFixed(2)}</TableCell>
+                        <TableCell>${order.amount_paid.toFixed(2)}</TableCell>
+                        <TableCell>${(order.order_value - order.amount_paid).toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
@@ -676,7 +676,7 @@ const AccountantDashboard = () => {
                         <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
                         <TableCell>{payment.order.job_title}</TableCell>
                         <TableCell>{payment.order.customer.name}</TableCell>
-                        <TableCell>GH₵{payment.amount.toFixed(2)}</TableCell>
+                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {payment.payment_method.replace('_', ' ')}
@@ -718,7 +718,7 @@ const AccountantDashboard = () => {
                         <TableCell>{commission.salesperson.full_name}</TableCell>
                         <TableCell>{commission.order.job_title}</TableCell>
                         <TableCell>{commission.commission_percentage}%</TableCell>
-                        <TableCell>GH₵{commission.commission_amount.toFixed(2)}</TableCell>
+                        <TableCell>${commission.commission_amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge
                             variant={commission.paid_status === 'paid' ? 'default' : 'destructive'}
@@ -877,7 +877,7 @@ const AccountantDashboard = () => {
                           <Badge variant="outline">{expense.category}</Badge>
                         </TableCell>
                         <TableCell>{expense.description}</TableCell>
-                        <TableCell>GH₵{expense.amount.toFixed(2)}</TableCell>
+                        <TableCell>${expense.amount.toFixed(2)}</TableCell>
                         <TableCell>
                           <Badge variant="outline">
                             {expense.payment_method.replace('_', ' ')}
@@ -919,24 +919,24 @@ const AccountantDashboard = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Revenue:</span>
-                      <span className="font-semibold">GH₵{stats.totalRevenue.toFixed(2)}</span>
+                      <span className="font-semibold">${stats.totalRevenue.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Amount Collected:</span>
-                      <span className="font-semibold text-green-600">GH₵{stats.collectedAmount.toFixed(2)}</span>
+                      <span className="font-semibold text-green-600">${stats.collectedAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Outstanding:</span>
-                      <span className="font-semibold text-orange-600">GH₵{stats.outstandingAmount.toFixed(2)}</span>
+                      <span className="font-semibold text-orange-600">${stats.outstandingAmount.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Expenses:</span>
-                      <span className="font-semibold text-red-600">GH₵{stats.totalExpenses.toFixed(2)}</span>
+                      <span className="font-semibold text-red-600">${stats.totalExpenses.toFixed(2)}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between">
                       <span className="font-semibold">Net Profit:</span>
                       <span className={`font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        GH₵{stats.profit.toFixed(2)}
+                        ${stats.profit.toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -954,15 +954,15 @@ const AccountantDashboard = () => {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pending Commissions:</span>
-                      <span className="font-semibold text-orange-600">GH₵{stats.pendingCommissions.toFixed(2)}</span>
+                      <span className="font-semibold text-orange-600">${stats.pendingCommissions.toFixed(2)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Paid Commissions:</span>
-                      <span className="font-semibold text-green-600">GH₵{stats.paidCommissions.toFixed(2)}</span>
+                      <span className="font-semibold text-green-600">${stats.paidCommissions.toFixed(2)}</span>
                     </div>
                     <div className="border-t pt-2 flex justify-between">
                       <span className="font-semibold">Total Commissions:</span>
-                      <span className="font-bold">GH₵{(stats.pendingCommissions + stats.paidCommissions).toFixed(2)}</span>
+                      <span className="font-bold">${(stats.pendingCommissions + stats.paidCommissions).toFixed(2)}</span>
                     </div>
                   </div>
                 </CardContent>
