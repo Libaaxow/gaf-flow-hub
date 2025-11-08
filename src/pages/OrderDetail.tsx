@@ -409,6 +409,9 @@ const OrderDetail = () => {
     );
   }
 
+  // Check if order is completed and user is not admin - restrict editing for non-admins
+  const isReadOnly = order.status === 'delivered' && userRole !== 'admin';
+
   return (
     <Layout>
       <div className="space-y-6">
@@ -419,18 +422,23 @@ const OrderDetail = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold tracking-tight">{order.job_title}</h1>
-              <p className="text-muted-foreground">Order Details</p>
+              <div className="flex items-center gap-2">
+                <p className="text-muted-foreground">Order Details</p>
+                {isReadOnly && (
+                  <Badge variant="secondary">Completed - View Only</Badge>
+                )}
+              </div>
             </div>
           </div>
           
-          {userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
+          {!isReadOnly && userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
             <Button onClick={handleMarkReadyForPrint} className="gap-2">
               <CheckCircle className="h-4 w-4" />
               Mark Ready for Print
             </Button>
           )}
           
-          {userRole === 'print_operator' && ['designed', 'printing', 'printed'].includes(order.status) && (
+          {!isReadOnly && userRole === 'print_operator' && ['designed', 'printing', 'printed'].includes(order.status) && (
             <div className="flex gap-2">
               {order.status === 'designed' && (
                 <>
@@ -515,6 +523,7 @@ const OrderDetail = () => {
                   onChange={(e) => handleUpdateOrder('description', e.target.value)}
                   onBlur={(e) => handleUpdateOrder('description', e.target.value)}
                   rows={3}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -536,6 +545,7 @@ const OrderDetail = () => {
                   type="date"
                   value={order.delivery_date || ''} 
                   onChange={(e) => handleUpdateOrder('delivery_date', e.target.value)}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -547,6 +557,7 @@ const OrderDetail = () => {
                   onBlur={(e) => handleUpdateOrder('notes', e.target.value)}
                   rows={3}
                   placeholder="Special instructions or notes..."
+                  disabled={isReadOnly}
                 />
               </div>
             </CardContent>
@@ -567,6 +578,7 @@ const OrderDetail = () => {
                   value={order.order_value} 
                   onChange={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
                   onBlur={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
+                  disabled={isReadOnly}
                 />
               </div>
 
@@ -575,6 +587,7 @@ const OrderDetail = () => {
                 <Select 
                   value={order.payment_status} 
                   onValueChange={(value) => handleUpdateOrder('payment_status', value)}
+                  disabled={isReadOnly}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -595,6 +608,7 @@ const OrderDetail = () => {
                   value={order.amount_paid} 
                   onChange={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
                   onBlur={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
+                  disabled={isReadOnly}
                 />
               </div>
             </CardContent>
@@ -610,6 +624,7 @@ const OrderDetail = () => {
                 <Select 
                   value={order.status} 
                   onValueChange={(value) => handleUpdateOrder('status', value)}
+                  disabled={isReadOnly}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -632,6 +647,7 @@ const OrderDetail = () => {
                 <Select 
                   value={order.designer?.id || ''} 
                   onValueChange={(value) => handleUpdateOrder('designer_id', value)}
+                  disabled={isReadOnly}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select designer" />
@@ -662,24 +678,26 @@ const OrderDetail = () => {
                   <FileText className="h-5 w-5" />
                   Files & Attachments
                 </CardTitle>
-                <Label htmlFor="file-upload" className="cursor-pointer">
-                  <Button type="button" disabled={uploading} asChild>
-                    <span>
-                      <Upload className="mr-2 h-4 w-4" />
-                      {uploading ? 'Uploading...' : 'Upload File'}
-                    </span>
-                  </Button>
-                  <Input
-                    id="file-upload"
-                    type="file"
-                    className="hidden"
-                    onChange={handleFileUpload}
-                    accept=".pdf,.ai,.png,.jpg,.jpeg,.psd,.eps,.svg"
-                  />
-                </Label>
+                {!isReadOnly && (
+                  <Label htmlFor="file-upload" className="cursor-pointer">
+                    <Button type="button" disabled={uploading} asChild>
+                      <span>
+                        <Upload className="mr-2 h-4 w-4" />
+                        {uploading ? 'Uploading...' : 'Upload File'}
+                      </span>
+                    </Button>
+                    <Input
+                      id="file-upload"
+                      type="file"
+                      className="hidden"
+                      onChange={handleFileUpload}
+                      accept=".pdf,.ai,.png,.jpg,.jpeg,.psd,.eps,.svg"
+                    />
+                  </Label>
+                )}
               </div>
               
-              {userRole === 'designer' && order.designer?.id === user?.id && (
+              {!isReadOnly && userRole === 'designer' && order.designer?.id === user?.id && (
                 <div className="flex items-center space-x-2 bg-muted p-3 rounded-lg">
                   <Checkbox
                     id="final-design"
@@ -755,7 +773,7 @@ const OrderDetail = () => {
 
             <div className="flex gap-2">
               <Textarea
-                placeholder="Add a comment..."
+                placeholder={isReadOnly ? "Comments disabled for completed orders" : "Add a comment..."}
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 onKeyDown={(e) => {
@@ -764,8 +782,9 @@ const OrderDetail = () => {
                     handleAddComment();
                   }
                 }}
+                disabled={isReadOnly}
               />
-              <Button onClick={handleAddComment}>Send</Button>
+              <Button onClick={handleAddComment} disabled={isReadOnly}>Send</Button>
             </div>
           </CardContent>
         </Card>
