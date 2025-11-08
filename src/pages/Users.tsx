@@ -153,20 +153,25 @@ const Users = () => {
                   onUpdate={fetchUsers}
                 />
 
-                {user.roles.includes('sales') && (
-                  <div className="space-y-2 pt-2 border-t">
-                    <Label className="text-xs">Commission %</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="number"
-                        step="0.01"
-                        defaultValue={user.commission_percentage}
-                        className="flex-1"
-                        onBlur={(e) => handleUpdateCommission(user.id, parseFloat(e.target.value))}
-                      />
-                    </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <Label className="text-xs">Commission %</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      defaultValue={user.commission_percentage || 0}
+                      className="flex-1"
+                      onBlur={(e) => {
+                        const value = parseFloat(e.target.value);
+                        if (!isNaN(value) && value >= 0 && value <= 100) {
+                          handleUpdateCommission(user.id, value);
+                        }
+                      }}
+                    />
                   </div>
-                )}
+                </div>
               </CardContent>
             </Card>
           ))}
