@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +73,7 @@ interface Commission {
 const SalesDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats>({
     totalSales: 0,
     totalCommission: 0,
@@ -984,7 +986,7 @@ const SalesDashboard = () => {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                window.location.href = `/orders/${order.id}`;
+                                navigate(`/orders/${order.id}`);
                               }}
                               title="View Only"
                             >
