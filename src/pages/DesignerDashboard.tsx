@@ -269,7 +269,11 @@ const DesignerDashboard = () => {
                   </TableRow>
                 ) : (
                   filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
+                    <TableRow 
+                      key={order.id}
+                      className="cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => navigate(`/orders/${order.id}`)}
+                    >
                       <TableCell className="font-mono text-sm">
                         #{order.id.slice(0, 8)}
                       </TableCell>
@@ -295,7 +299,10 @@ const DesignerDashboard = () => {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => navigate(`/orders/${order.id}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/orders/${order.id}`);
+                          }}
                         >
                           <Upload className="h-4 w-4 mr-2" />
                           Manage
