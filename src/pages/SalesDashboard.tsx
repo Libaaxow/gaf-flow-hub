@@ -328,9 +328,10 @@ const SalesDashboard = () => {
         description: 'Order updated successfully',
       });
 
+      // Reset form and close dialog in correct order
       e.currentTarget.reset();
-      setIsEditDialogOpen(false);
       setEditingOrder(null);
+      setIsEditDialogOpen(false);
       fetchDashboardData();
     } catch (error: any) {
       toast({
@@ -621,7 +622,10 @@ const SalesDashboard = () => {
             </div>
 
             {/* Edit Order Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+              setIsEditDialogOpen(open);
+              if (!open) setEditingOrder(null);
+            }}>
               <DialogContent className="max-w-2xl">
                 <DialogHeader>
                   <DialogTitle>Edit Order</DialogTitle>
