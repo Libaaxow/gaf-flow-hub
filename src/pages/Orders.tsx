@@ -77,7 +77,8 @@ const Orders = () => {
 
   const handleAddOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     const orderData = {
       customer_id: formData.get('customer_id') as string,
@@ -102,7 +103,7 @@ const Orders = () => {
         description: 'Order created successfully',
       });
 
-      e.currentTarget.reset();
+      form.reset();
       setIsDialogOpen(false);
       fetchOrders();
     } catch (error: any) {

@@ -59,7 +59,8 @@ const Customers = () => {
 
   const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     const customerData = {
       name: formData.get('name') as string,
@@ -82,7 +83,7 @@ const Customers = () => {
         description: 'Customer added successfully',
       });
 
-      e.currentTarget.reset();
+      form.reset();
       setIsDialogOpen(false);
       fetchCustomers();
     } catch (error: any) {

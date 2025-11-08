@@ -104,9 +104,10 @@ const ProfileSettings = () => {
 
   const handlePasswordChange = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const form = e.currentTarget;
     setLoading(true);
 
-    const formData = new FormData(e.currentTarget);
+    const formData = new FormData(form);
     const currentPassword = formData.get('currentPassword') as string;
     const newPassword = formData.get('newPassword') as string;
     const confirmPassword = formData.get('confirmPassword') as string;
@@ -134,7 +135,7 @@ const ProfileSettings = () => {
         description: 'Password changed successfully',
       });
 
-      e.currentTarget.reset();
+      form.reset();
     } catch (error: any) {
       toast({
         title: 'Error',

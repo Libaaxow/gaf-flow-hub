@@ -273,7 +273,8 @@ const SalesDashboard = () => {
 
   const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     const customerData = {
       name: formData.get('name') as string,
@@ -332,7 +333,7 @@ const SalesDashboard = () => {
       }
 
       // Reset form before closing dialog
-      e.currentTarget.reset();
+      form.reset();
       setPhoneNumber('');
       setShowOrderFields(false);
       setIsCustomerDialogOpen(false);
@@ -430,7 +431,8 @@ const SalesDashboard = () => {
     e.preventDefault();
     if (!editingOrder) return;
 
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
     
     const orderData = {
       job_title: formData.get('job_title') as string,
@@ -454,7 +456,7 @@ const SalesDashboard = () => {
       });
 
       // Reset form and close dialog in correct order
-      e.currentTarget.reset();
+      form.reset();
       setEditingOrder(null);
       setIsEditDialogOpen(false);
       fetchDashboardData();
