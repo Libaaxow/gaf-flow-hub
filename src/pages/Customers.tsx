@@ -22,9 +22,9 @@ interface Customer {
 
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-  phone: z.string().min(9, 'Phone must be at least 9 digits').optional().or(z.literal('')),
-  company_name: z.string().optional(),
+  phone: z.string().min(9, 'Phone must be at least 9 digits'),
+  email: z.string().email('Invalid email').optional().or(z.literal('').transform(() => null)),
+  company_name: z.string().optional().or(z.literal('').transform(() => null)),
 });
 
 const Customers = () => {
@@ -131,18 +131,24 @@ const Customers = () => {
     
     const customerData = {
       name: formData.get('name') as string,
-      email: (formData.get('email') as string) || null,
-      phone: (formData.get('phone') as string) || null,
-      company_name: (formData.get('company_name') as string) || null,
+      phone: phoneNumber,
+      email: (formData.get('email') as string) || '',
+      company_name: (formData.get('company_name') as string) || '',
       created_by: user?.id || null,
     };
 
     try {
-      customerSchema.parse(customerData);
+      const validatedData = customerSchema.parse(customerData);
 
       const { error } = await supabase
         .from('customers')
-        .insert([{ ...customerData, phone: phoneNumber }]);
+        .insert([{ 
+          name: validatedData.name,
+          phone: validatedData.phone,
+          email: validatedData.email || null,
+          company_name: validatedData.company_name || null,
+          created_by: user?.id || null,
+        }]);
 
       if (error) throw error;
 
