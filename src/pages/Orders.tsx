@@ -42,6 +42,43 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
     fetchCustomers();
+
+    // Set up realtime subscription for orders
+    const ordersChannel = supabase
+      .channel('orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        () => {
+          fetchOrders();
+        }
+      )
+      .subscribe();
+
+    // Set up realtime subscription for customers
+    const customersChannel = supabase
+      .channel('customers-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers',
+        },
+        () => {
+          fetchCustomers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(customersChannel);
+    };
   }, []);
 
   const fetchOrders = async () => {

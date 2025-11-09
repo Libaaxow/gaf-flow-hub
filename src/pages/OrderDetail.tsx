@@ -72,6 +72,78 @@ const OrderDetail = () => {
       fetchDesigners();
       fetchUserRole();
       fetchOrderHistory();
+
+      // Set up realtime subscriptions
+      const ordersChannel = supabase
+        .channel(`order-${id}-changes`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'orders',
+            filter: `id=eq.${id}`,
+          },
+          () => {
+            fetchOrderDetails();
+          }
+        )
+        .subscribe();
+
+      const filesChannel = supabase
+        .channel(`order-${id}-files`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'order_files',
+            filter: `order_id=eq.${id}`,
+          },
+          () => {
+            fetchOrderDetails();
+          }
+        )
+        .subscribe();
+
+      const commentsChannel = supabase
+        .channel(`order-${id}-comments`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'order_comments',
+            filter: `order_id=eq.${id}`,
+          },
+          () => {
+            fetchOrderDetails();
+          }
+        )
+        .subscribe();
+
+      const historyChannel = supabase
+        .channel(`order-${id}-history`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'order_history',
+            filter: `order_id=eq.${id}`,
+          },
+          () => {
+            fetchOrderHistory();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(ordersChannel);
+        supabase.removeChannel(filesChannel);
+        supabase.removeChannel(commentsChannel);
+        supabase.removeChannel(historyChannel);
+      };
     }
   }, [id, user]);
 

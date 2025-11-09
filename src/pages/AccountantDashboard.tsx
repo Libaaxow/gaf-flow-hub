@@ -153,6 +153,27 @@ const AccountantDashboard = () => {
     fetchAllData();
     fetchWorkflowOrders();
     fetchDesigners();
+
+    // Set up realtime subscription for orders
+    const ordersChannel = supabase
+      .channel('accountant-orders-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'orders',
+        },
+        () => {
+          fetchAllData();
+          fetchWorkflowOrders();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+    };
   }, []);
 
   useEffect(() => {

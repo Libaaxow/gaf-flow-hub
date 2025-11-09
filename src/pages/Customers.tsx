@@ -41,6 +41,26 @@ const Customers = () => {
 
   useEffect(() => {
     fetchCustomers();
+
+    // Set up realtime subscription for customers
+    const channel = supabase
+      .channel('customers-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'customers',
+        },
+        () => {
+          fetchCustomers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchCustomers = async () => {
