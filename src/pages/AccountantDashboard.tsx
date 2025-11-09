@@ -801,7 +801,7 @@ const AccountantDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-8">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full max-w-full">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
@@ -872,7 +872,7 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Pending Assignment</CardTitle>
                 <CardDescription>New orders from sales team awaiting designer assignment</CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto">
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>

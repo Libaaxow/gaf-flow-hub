@@ -632,7 +632,7 @@ const SalesDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full">
         {/* Header Section */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
@@ -751,7 +751,7 @@ const SalesDashboard = () => {
           <CardHeader>
             <CardTitle>Top 5 Customers by Revenue</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto custom-scrollbar">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1064,7 +1064,7 @@ const SalesDashboard = () => {
             </Dialog>
 
             <Card>
-              <CardContent className="p-0 overflow-x-auto">
+              <CardContent className="p-0 overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1222,7 +1222,7 @@ const SalesDashboard = () => {
             </div>
 
             <Card>
-              <CardContent className="p-0 overflow-x-auto">
+              <CardContent className="p-0 overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1317,7 +1317,7 @@ const SalesDashboard = () => {
             </div>
 
             <Card>
-              <CardContent className="p-0 overflow-x-auto">
+              <CardContent className="p-0 overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>

@@ -114,4 +114,43 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+  
+  /* Mobile-specific improvements */
+  @media (max-width: 640px) {
+    /* Better touch targets for mobile */
+    button, a[role="button"] {
+      min-height: 44px;
+    }
+    
+    /* Prevent text from being too small on mobile */
+    html {
+      font-size: 16px;
+    }
+    
+    /* Ensure proper spacing on mobile */
+    body {
+      -webkit-text-size-adjust: 100%;
+    }
+  }
 }
+
+@layer utilities {
+  /* Custom scrollbar for better mobile experience */
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-muted/20;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/50;
+  }
+}
+

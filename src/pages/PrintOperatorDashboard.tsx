@@ -199,7 +199,7 @@ const PrintOperatorDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Print Operator Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground">Manage print jobs and deliveries</p>
@@ -281,7 +281,7 @@ const PrintOperatorDashboard = () => {
               </Popover>
             </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto custom-scrollbar">
             {orders.length === 0 ? (
               <div className="text-center py-12">
                 <Printer className="mx-auto h-12 w-12 text-muted-foreground" />

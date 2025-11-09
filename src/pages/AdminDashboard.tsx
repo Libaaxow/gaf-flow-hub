@@ -266,7 +266,7 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full">
       <div>
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
         <p className="text-sm sm:text-base text-muted-foreground">Complete oversight and control of all jobs</p>
@@ -321,18 +321,18 @@ export default function AdminDashboard() {
           <CardTitle>Filter Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
                   className={cn(
-                    "justify-start text-left font-normal",
+                    "w-full justify-start text-left font-normal",
                     !dateFilter && "text-muted-foreground"
                   )}
                 >
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                  <span className="truncate">{dateFilter ? format(dateFilter, "PPP") : "Pick a date"}</span>
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -352,9 +352,10 @@ export default function AdminDashboard() {
             </Popover>
             
             <Input
-              placeholder="Search by job title or customer..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full"
             />
 
             <Select value={filterDesigner} onValueChange={setFilterDesigner}>

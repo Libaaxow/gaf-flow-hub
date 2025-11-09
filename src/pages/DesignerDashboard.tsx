@@ -220,7 +220,7 @@ const DesignerDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 w-full max-w-full">
         {/* Profile Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Avatar className="h-16 w-16">
@@ -318,8 +318,8 @@ const DesignerDashboard = () => {
               </div>
             </div>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
+              <CardContent className="overflow-x-auto custom-scrollbar">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead className="min-w-[100px]">Order ID</TableHead>
