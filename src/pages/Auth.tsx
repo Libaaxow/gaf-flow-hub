@@ -14,6 +14,7 @@ const authSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Name must be at least 2 characters').optional(),
+  whatsappNumber: z.string().min(10, 'WhatsApp number must be at least 10 characters').optional(),
 });
 
 const Auth = () => {
@@ -62,10 +63,11 @@ const Auth = () => {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
     const fullName = formData.get('fullName') as string;
+    const whatsappNumber = formData.get('whatsappNumber') as string;
     const avatarFile = formData.get('avatar') as File;
 
     try {
-      authSchema.parse({ email, password, fullName });
+      authSchema.parse({ email, password, fullName, whatsappNumber });
 
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email,
@@ -99,9 +101,15 @@ const Auth = () => {
 
           await supabase
             .from('profiles')
-            .update({ avatar_url: publicUrl })
+            .update({ avatar_url: publicUrl, whatsapp_number: whatsappNumber })
             .eq('id', authData.user.id);
         }
+      } else if (authData.user) {
+        // Update profile with WhatsApp number even if no avatar
+        await supabase
+          .from('profiles')
+          .update({ whatsapp_number: whatsappNumber })
+          .eq('id', authData.user.id);
       }
 
       toast({
@@ -247,6 +255,17 @@ const Auth = () => {
                     accept="image/*"
                   />
                   <p className="text-xs text-muted-foreground">Optional: Upload your profile picture</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="signup-whatsapp">WhatsApp Number</Label>
+                  <Input
+                    id="signup-whatsapp"
+                    name="whatsappNumber"
+                    type="tel"
+                    placeholder="+1234567890"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Required for receiving notifications</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email">Email</Label>
