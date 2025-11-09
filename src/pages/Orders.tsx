@@ -25,10 +25,16 @@ interface Order {
 }
 
 const orderSchema = z.object({
-  customer_id: z.string().uuid('Please select a customer'),
   job_title: z.string().min(3, 'Job title must be at least 3 characters'),
   description: z.string().optional(),
   order_value: z.number().min(0, 'Order value must be positive'),
+});
+
+const customerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().min(9, 'Phone must be at least 9 digits'),
+  email: z.string().email('Invalid email').optional().or(z.literal('').transform(() => null)),
+  company_name: z.string().optional().or(z.literal('').transform(() => null)),
 });
 
 const Orders = () => {
@@ -37,6 +43,9 @@ const Orders = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [existingCustomer, setExistingCustomer] = useState<any>(null);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -112,28 +121,92 @@ const Orders = () => {
     setCustomers(data || []);
   };
 
+  const handlePhoneCheck = async (phone: string) => {
+    if (phone.length < 9) return;
+    
+    setCheckingPhone(true);
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setExistingCustomer(data);
+        toast({
+          title: 'Customer Found',
+          description: `Existing customer: ${data.name}`,
+        });
+      } else {
+        setExistingCustomer(null);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
   const handleAddOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    const orderData = {
-      customer_id: formData.get('customer_id') as string,
-      job_title: formData.get('job_title') as string,
-      description: formData.get('description') as string,
-      order_value: parseFloat(formData.get('order_value') as string),
-      salesperson_id: user?.id,
-      delivery_date: formData.get('delivery_date') as string || null,
-    };
-
     try {
+      let customerId = existingCustomer?.id;
+
+      // Create new customer if doesn't exist
+      if (!existingCustomer) {
+        const customerData = {
+          name: formData.get('customer_name') as string,
+          phone: phoneNumber,
+          email: (formData.get('customer_email') as string) || '',
+          company_name: (formData.get('company_name') as string) || '',
+          created_by: user?.id,
+        };
+
+        const validatedCustomer = customerSchema.parse(customerData);
+
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert([{
+            name: validatedCustomer.name,
+            phone: validatedCustomer.phone,
+            email: validatedCustomer.email || null,
+            company_name: validatedCustomer.company_name || null,
+            created_by: user?.id,
+          }])
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      }
+
+      // Create order
+      const orderData = {
+        customer_id: customerId,
+        job_title: formData.get('job_title') as string,
+        description: formData.get('description') as string,
+        order_value: parseFloat(formData.get('order_value') as string),
+        salesperson_id: user?.id,
+        delivery_date: formData.get('delivery_date') as string || null,
+      };
+
       orderSchema.parse(orderData);
 
-      const { error } = await supabase
+      const { error: orderError } = await supabase
         .from('orders')
         .insert([orderData]);
 
-      if (error) throw error;
+      if (orderError) throw orderError;
 
       toast({
         title: 'Success',
@@ -142,6 +215,8 @@ const Orders = () => {
 
       form.reset();
       setIsDialogOpen(false);
+      setPhoneNumber('');
+      setExistingCustomer(null);
       fetchOrders();
     } catch (error: any) {
       toast({
@@ -196,7 +271,13 @@ const Orders = () => {
             <p className="text-muted-foreground">Track and manage all orders</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setPhoneNumber('');
+              setExistingCustomer(null);
+            }
+          }}>
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -208,37 +289,90 @@ const Orders = () => {
                 <DialogTitle>Create New Order</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddOrder} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="customer_id">Customer *</Label>
-                  <Select name="customer_id" required>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                {/* Customer Information */}
+                <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
+                  <h3 className="font-semibold">Customer Information</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input 
+                      id="phone" 
+                      type="tel" 
+                      value={phoneNumber}
+                      onChange={(e) => {
+                        setPhoneNumber(e.target.value);
+                        handlePhoneCheck(e.target.value);
+                      }}
+                      placeholder="Enter phone number"
+                      required 
+                    />
+                    {checkingPhone && (
+                      <p className="text-sm text-muted-foreground">Checking...</p>
+                    )}
+                    {existingCustomer && (
+                      <p className="text-sm text-success">✓ Existing customer found</p>
+                    )}
+                  </div>
+
+                  {existingCustomer ? (
+                    <div className="space-y-2 rounded-lg border p-3 bg-background">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="font-medium">{existingCustomer.name}</p>
+                      </div>
+                      {existingCustomer.company_name && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Company</p>
+                          <p className="font-medium">{existingCustomer.company_name}</p>
+                        </div>
+                      )}
+                      {existingCustomer.email && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium">{existingCustomer.email}</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : phoneNumber.length >= 9 ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="customer_name">Customer Name *</Label>
+                        <Input id="customer_name" name="customer_name" required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="customer_email">Email</Label>
+                        <Input id="customer_email" name="customer_email" type="email" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="company_name">Company Name</Label>
+                        <Input id="company_name" name="company_name" />
+                      </div>
+                    </>
+                  ) : null}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="job_title">Job Title *</Label>
-                  <Input id="job_title" name="job_title" required />
+
+                {/* Order Information */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold">Order Details</h3>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="job_title">Job Title *</Label>
+                    <Input id="job_title" name="job_title" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Description</Label>
+                    <Textarea id="description" name="description" rows={3} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="order_value">Order Value *</Label>
+                    <Input id="order_value" name="order_value" type="number" step="0.01" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="delivery_date">Delivery Date</Label>
+                    <Input id="delivery_date" name="delivery_date" type="date" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea id="description" name="description" rows={3} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="order_value">Order Value *</Label>
-                  <Input id="order_value" name="order_value" type="number" step="0.01" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="delivery_date">Delivery Date</Label>
-                  <Input id="delivery_date" name="delivery_date" type="date" />
-                </div>
+
                 <Button type="submit" className="w-full">Create Order</Button>
               </form>
             </DialogContent>
