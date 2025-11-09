@@ -90,8 +90,11 @@ const SalesDashboard = () => {
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
-  const [isOrderDialogOpen, setIsOrderDialogOpen] = useState(false);
+  const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
+  const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [existingCustomer, setExistingCustomer] = useState<any>(null);
+  const [checkingPhone, setCheckingPhone] = useState(false);
   const [showOrderFields, setShowOrderFields] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -347,27 +350,86 @@ const SalesDashboard = () => {
     }
   };
 
+  const handlePhoneCheck = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setCheckingPhone(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', phoneNumber)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      setExistingCustomer(data);
+      setPhoneCheckOpen(false);
+      setOrderFormOpen(true);
+
+      if (data) {
+        toast({
+          title: 'Customer Found',
+          description: `Proceeding with existing customer: ${data.name}`,
+        });
+      } else {
+        toast({
+          title: 'New Customer',
+          description: 'Please provide customer details',
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
   const handleAddOrder = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
-    const designerId = (formData.get('designer_id') as string) || null;
-    
-    const orderData = {
-      customer_id: formData.get('customer_id') as string,
-      job_title: formData.get('job_title') as string,
-      description: formData.get('description') as string,
-      print_type: formData.get('print_type') as string,
-      quantity: parseInt(formData.get('quantity') as string) || 1,
-      notes: formData.get('notes') as string || null,
-      order_value: parseFloat(formData.get('order_value') as string),
-      salesperson_id: user?.id,
-      delivery_date: formData.get('delivery_date') as string || null,
-      status: 'pending_accounting_review' as const,
-    };
-
     try {
       setUploadingFiles(true);
+      let customerId = existingCustomer?.id;
+
+      // Create new customer if doesn't exist
+      if (!existingCustomer) {
+        const customerData = {
+          name: formData.get('customer_name') as string,
+          phone: phoneNumber,
+          email: (formData.get('customer_email') as string) || null,
+          company_name: (formData.get('company_name') as string) || null,
+          created_by: user?.id,
+        };
+
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert([customerData])
+          .select()
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      }
+
+      // Create order
+      const orderData = {
+        customer_id: customerId,
+        job_title: formData.get('job_title') as string,
+        description: formData.get('description') as string,
+        print_type: formData.get('print_type') as string,
+        quantity: parseInt(formData.get('quantity') as string) || 1,
+        notes: formData.get('notes') as string || null,
+        order_value: parseFloat(formData.get('order_value') as string),
+        salesperson_id: user?.id,
+        delivery_date: formData.get('delivery_date') as string || null,
+        status: 'pending_accounting_review' as const,
+      };
 
       // Insert order
       const { data: newOrder, error: orderError } = await supabase
@@ -384,7 +446,6 @@ const SalesDashboard = () => {
         const files = Array.from(fileInput.files);
         
         for (const file of files) {
-          const fileExt = file.name.split('.').pop();
           const fileName = `${newOrder.id}/${Date.now()}_${file.name}`;
           
           // Upload file to storage
@@ -414,7 +475,10 @@ const SalesDashboard = () => {
         description: 'Job created successfully and sent to accountant for processing',
       });
 
-      setIsOrderDialogOpen(false);
+      e.currentTarget.reset();
+      setOrderFormOpen(false);
+      setPhoneNumber('');
+      setExistingCustomer(null);
       await fetchDashboardData();
     } catch (error: any) {
       toast({
@@ -727,144 +791,212 @@ const SalesDashboard = () => {
           <TabsContent value="orders" className="space-y-4">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">My Orders / Jobs</h2>
-              <Dialog open={isOrderDialogOpen} onOpenChange={setIsOrderDialogOpen}>
+              
+              {/* Phone Check Dialog */}
+              <Dialog open={phoneCheckOpen} onOpenChange={(open) => {
+                setPhoneCheckOpen(open);
+                if (!open) {
+                  setPhoneNumber('');
+                  setExistingCustomer(null);
+                }
+              }}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
                     New Job Request
                   </Button>
                 </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Enter Customer Phone Number</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handlePhoneCheck} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone_check">Phone Number *</Label>
+                      <Input 
+                        id="phone_check" 
+                        type="tel" 
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        placeholder="Enter phone number"
+                        required 
+                      />
+                      <p className="text-sm text-muted-foreground">
+                        We'll check if this customer already exists
+                      </p>
+                    </div>
+                    <Button type="submit" className="w-full" disabled={checkingPhone}>
+                      {checkingPhone ? 'Checking...' : 'Continue'}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+
+              {/* Order Form Dialog */}
+              <Dialog open={orderFormOpen} onOpenChange={(open) => {
+                setOrderFormOpen(open);
+                if (!open) {
+                  setPhoneNumber('');
+                  setExistingCustomer(null);
+                }
+              }}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Create New Job</DialogTitle>
                   </DialogHeader>
                   <form onSubmit={handleAddOrder} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="customer_id">Customer *</Label>
-                      <Select name="customer_id" required>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select existing or add new customer" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-background z-50">
-                          {customers.length === 0 ? (
-                            <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                              No customers found. Add a customer first.
+                    {/* Customer Information */}
+                    <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
+                      <h3 className="font-semibold">Customer Information</h3>
+                      
+                      <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <Input value={phoneNumber} disabled />
+                      </div>
+
+                      {existingCustomer ? (
+                        <div className="space-y-2 rounded-lg border p-3 bg-background">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Name</p>
+                            <p className="font-medium">{existingCustomer.name}</p>
+                          </div>
+                          {existingCustomer.company_name && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Company</p>
+                              <p className="font-medium">{existingCustomer.company_name}</p>
                             </div>
-                          ) : (
-                            customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
-                              </SelectItem>
-                            ))
                           )}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Don't see the customer? Add them in the "My Customers" tab first.
-                      </p>
+                          {existingCustomer.email && (
+                            <div>
+                              <p className="text-sm text-muted-foreground">Email</p>
+                              <p className="font-medium">{existingCustomer.email}</p>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="space-y-2">
+                            <Label htmlFor="customer_name">Customer Name *</Label>
+                            <Input id="customer_name" name="customer_name" required />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="customer_email">Email</Label>
+                            <Input id="customer_email" name="customer_email" type="email" />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="company_name">Company Name</Label>
+                            <Input id="company_name" name="company_name" />
+                          </div>
+                        </>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    {/* Job Details */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold">Job Details</h3>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="job_title">Job Title *</Label>
+                          <Input 
+                            id="job_title" 
+                            name="job_title" 
+                            placeholder="e.g., Business Cards - John Doe"
+                            required 
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="print_type">Print Type *</Label>
+                          <Select name="print_type" required>
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder="Select print type" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              <SelectItem value="business_card">Business Card</SelectItem>
+                              <SelectItem value="flyer">Flyer</SelectItem>
+                              <SelectItem value="banner">Banner</SelectItem>
+                              <SelectItem value="brochure">Brochure</SelectItem>
+                              <SelectItem value="poster">Poster</SelectItem>
+                              <SelectItem value="t_shirt">T-Shirt</SelectItem>
+                              <SelectItem value="mug">Mug</SelectItem>
+                              <SelectItem value="sticker">Sticker</SelectItem>
+                              <SelectItem value="other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
                       <div className="space-y-2">
-                        <Label htmlFor="job_title">Job Title *</Label>
+                        <Label htmlFor="description">Description *</Label>
+                        <Textarea 
+                          id="description" 
+                          name="description" 
+                          rows={3}
+                          placeholder="Detailed description of the job requirements..."
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="quantity">Quantity *</Label>
+                          <Input 
+                            id="quantity" 
+                            name="quantity" 
+                            type="number"
+                            min="1"
+                            defaultValue="1"
+                            required 
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="order_value">Order Value ($) *</Label>
+                          <Input 
+                            id="order_value" 
+                            name="order_value" 
+                            type="number" 
+                            step="0.01"
+                            min="0"
+                            placeholder="0.00"
+                            required 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="delivery_date">Expected Delivery Date *</Label>
                         <Input 
-                          id="job_title" 
-                          name="job_title" 
-                          placeholder="e.g., Business Cards - John Doe"
+                          id="delivery_date" 
+                          name="delivery_date" 
+                          type="date"
+                          min={new Date().toISOString().split('T')[0]}
                           required 
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="print_type">Print Type *</Label>
-                        <Select name="print_type" required>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder="Select print type" />
-                          </SelectTrigger>
-                          <SelectContent className="bg-background z-50">
-                            <SelectItem value="business_card">Business Card</SelectItem>
-                            <SelectItem value="flyer">Flyer</SelectItem>
-                            <SelectItem value="banner">Banner</SelectItem>
-                            <SelectItem value="brochure">Brochure</SelectItem>
-                            <SelectItem value="poster">Poster</SelectItem>
-                            <SelectItem value="t_shirt">T-Shirt</SelectItem>
-                            <SelectItem value="mug">Mug</SelectItem>
-                            <SelectItem value="sticker">Sticker</SelectItem>
-                            <SelectItem value="other">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="description">Description *</Label>
-                      <Textarea 
-                        id="description" 
-                        name="description" 
-                        rows={3}
-                        placeholder="Detailed description of the job requirements..."
-                        required
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="quantity">Quantity *</Label>
+                        <Label htmlFor="reference_files">Upload Reference Files</Label>
                         <Input 
-                          id="quantity" 
-                          name="quantity" 
-                          type="number"
-                          min="1"
-                          defaultValue="1"
-                          required 
+                          id="reference_files" 
+                          name="reference_files" 
+                          type="file"
+                          multiple
+                          accept=".pdf,.jpg,.jpeg,.png,.zip,.doc,.docx"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          Upload PDF, images, or ZIP files (max 20MB per file)
+                        </p>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="notes">Notes (Optional)</Label>
+                        <Textarea 
+                          id="notes" 
+                          name="notes" 
+                          rows={2}
+                          placeholder="Any special instructions or notes..."
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="order_value">Order Value ($) *</Label>
-                        <Input 
-                          id="order_value" 
-                          name="order_value" 
-                          type="number" 
-                          step="0.01"
-                          min="0"
-                          placeholder="0.00"
-                          required 
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="delivery_date">Expected Delivery Date *</Label>
-                      <Input 
-                        id="delivery_date" 
-                        name="delivery_date" 
-                        type="date"
-                        min={new Date().toISOString().split('T')[0]}
-                        required 
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="reference_files">Upload Reference Files</Label>
-                      <Input 
-                        id="reference_files" 
-                        name="reference_files" 
-                        type="file"
-                        multiple
-                        accept=".pdf,.jpg,.jpeg,.png,.zip,.doc,.docx"
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Upload PDF, images, or ZIP files (max 20MB per file)
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="notes">Notes (Optional)</Label>
-                      <Textarea 
-                        id="notes" 
-                        name="notes" 
-                        rows={2}
-                        placeholder="Any special instructions or notes..."
-                      />
                     </div>
 
                     <Button type="submit" className="w-full" disabled={uploadingFiles}>
