@@ -32,6 +32,10 @@ const Customers = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
+  const [checkingPhone, setCheckingPhone] = useState(false);
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [existingCustomer, setExistingCustomer] = useState<Customer | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -59,6 +63,47 @@ const Customers = () => {
     }
   };
 
+  const handlePhoneCheck = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setCheckingPhone(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('phone', phoneNumber)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setExistingCustomer(data);
+        toast({
+          title: 'Customer Found',
+          description: 'This phone number is already registered.',
+        });
+      } else {
+        setExistingCustomer(null);
+        setPhoneCheckOpen(false);
+        setIsDialogOpen(true);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setCheckingPhone(false);
+    }
+  };
+
+  const resetAndClose = () => {
+    setPhoneCheckOpen(false);
+    setExistingCustomer(null);
+    setPhoneNumber('');
+  };
+
   const handleAddCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -77,7 +122,7 @@ const Customers = () => {
 
       const { error } = await supabase
         .from('customers')
-        .insert([customerData]);
+        .insert([{ ...customerData, phone: phoneNumber }]);
 
       if (error) throw error;
 
@@ -88,6 +133,7 @@ const Customers = () => {
 
       form.reset();
       setIsDialogOpen(false);
+      setPhoneNumber('');
       fetchCustomers();
     } catch (error: any) {
       toast({
@@ -126,18 +172,80 @@ const Customers = () => {
             <p className="text-muted-foreground">Manage your customer database</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={phoneCheckOpen} onOpenChange={setPhoneCheckOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button onClick={() => { setPhoneNumber(''); setExistingCustomer(null); }}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Customer
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
+                <DialogTitle>
+                  {existingCustomer ? 'Customer Profile' : 'Check Phone Number'}
+                </DialogTitle>
+              </DialogHeader>
+              
+              {existingCustomer ? (
+                <div className="space-y-4">
+                  <div className="rounded-lg border p-4 space-y-3">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Name</p>
+                      <p className="font-medium">{existingCustomer.name}</p>
+                    </div>
+                    {existingCustomer.company_name && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Company</p>
+                        <p className="font-medium">{existingCustomer.company_name}</p>
+                      </div>
+                    )}
+                    {existingCustomer.email && (
+                      <div>
+                        <p className="text-sm text-muted-foreground">Email</p>
+                        <p className="font-medium">{existingCustomer.email}</p>
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-muted-foreground">Phone</p>
+                      <p className="font-medium">{existingCustomer.phone}</p>
+                    </div>
+                  </div>
+                  <Button onClick={resetAndClose} className="w-full">Close</Button>
+                </div>
+              ) : (
+                <form onSubmit={handlePhoneCheck} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone_check">Phone Number *</Label>
+                    <Input 
+                      id="phone_check" 
+                      type="tel" 
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="Enter phone number"
+                      required 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      We'll check if this customer already exists
+                    </p>
+                  </div>
+                  <Button type="submit" className="w-full" disabled={checkingPhone}>
+                    {checkingPhone ? 'Checking...' : 'Check'}
+                  </Button>
+                </form>
+              )}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
                 <DialogTitle>Add New Customer</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAddCustomer} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input id="phone" name="phone" type="tel" value={phoneNumber} disabled />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input id="name" name="name" required />
@@ -145,10 +253,6 @@ const Customers = () => {
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <Input id="email" name="email" type="email" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input id="phone" name="phone" type="tel" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company_name">Company Name</Label>
