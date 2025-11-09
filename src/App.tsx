@@ -16,6 +16,7 @@ import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ProfileSettings from "./pages/ProfileSettings";
 import PendingApproval from "./pages/PendingApproval";
+import CustomerOrderHistory from "./pages/CustomerOrderHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -99,6 +100,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <ProfileSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer-history"
+              element={
+                <ProtectedRoute>
+                  <CustomerOrderHistory />
                 </ProtectedRoute>
               }
             />
