@@ -18,6 +18,8 @@ interface UserWithRoles {
   full_name: string;
   email: string;
   commission_percentage: number;
+  phone?: string;
+  whatsapp_number?: string;
   roles: string[];
 }
 
@@ -204,6 +206,7 @@ const Users = () => {
 
     const fullName = formData.get('full_name') as string;
     const phone = formData.get('phone') as string;
+    const whatsappNumber = formData.get('whatsapp_number') as string;
 
     try {
       const { error } = await supabase
@@ -211,6 +214,7 @@ const Users = () => {
         .update({
           full_name: fullName,
           phone: phone || null,
+          whatsapp_number: whatsappNumber || null,
         })
         .eq('id', editingUser.id);
 
@@ -318,6 +322,16 @@ const Users = () => {
                   <Input id="phone" name="phone" type="tel" />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="whatsapp_number">WhatsApp Number (with country code)</Label>
+                  <Input 
+                    id="whatsapp_number" 
+                    name="whatsapp_number" 
+                    type="tel" 
+                    placeholder="+1234567890"
+                  />
+                  <p className="text-xs text-muted-foreground">Required for order notifications</p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="password">Initial Password</Label>
                   <Input id="password" name="password" type="password" required minLength={6} />
                 </div>
@@ -386,6 +400,11 @@ const Users = () => {
                       <div className="flex-1">
                         <CardTitle className="text-lg">{user.full_name}</CardTitle>
                         <p className="text-sm text-muted-foreground">{user.email}</p>
+                        {user.whatsapp_number && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            WhatsApp: {user.whatsapp_number}
+                          </p>
+                        )}
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -514,8 +533,19 @@ const Users = () => {
                 id="edit_phone"
                 name="phone"
                 type="tel"
-                defaultValue={editingUser?.id ? users.find(u => u.id === editingUser.id)?.email : ''}
+                defaultValue={editingUser?.phone || ''}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_whatsapp_number">WhatsApp Number (with country code)</Label>
+              <Input
+                id="edit_whatsapp_number"
+                name="whatsapp_number"
+                type="tel"
+                placeholder="+1234567890"
+                defaultValue={editingUser?.whatsapp_number || ''}
+              />
+              <p className="text-xs text-muted-foreground">Required for order notifications</p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>

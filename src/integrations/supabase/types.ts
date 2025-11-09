@@ -596,6 +596,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_pending_notifications: { Args: never; Returns: undefined }
+      send_whatsapp_notification: {
+        Args: {
+          notification_message: string
+          order_id_param: string
+          recipient_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role:
