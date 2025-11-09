@@ -470,9 +470,9 @@ const OrderDetail = () => {
                 </>
               )}
               {order.status === 'printed' && (
-                <Button onClick={() => handleUpdateOrder('status', 'delivered')} className="gap-2">
+                <Button onClick={() => handleUpdateOrder('status', 'ready_for_collection')} className="gap-2">
                   <CheckCircle className="h-4 w-4" />
-                  Mark as Delivered
+                  Ready for Collection
                 </Button>
               )}
             </div>
