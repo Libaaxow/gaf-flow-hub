@@ -472,13 +472,14 @@ const SalesDashboard = () => {
 
       toast({
         title: 'Success',
-        description: 'Job created successfully and sent to accountant for processing',
+        description: 'Order created successfully',
       });
 
+      // Reset form and close dialog
       e.currentTarget.reset();
-      setOrderFormOpen(false);
       setPhoneNumber('');
       setExistingCustomer(null);
+      setOrderFormOpen(false);
       await fetchDashboardData();
     } catch (error: any) {
       toast({
