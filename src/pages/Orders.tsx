@@ -42,7 +42,8 @@ const Orders = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
+  const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [existingCustomer, setExistingCustomer] = useState<any>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
@@ -121,27 +122,33 @@ const Orders = () => {
     setCustomers(data || []);
   };
 
-  const handlePhoneCheck = async (phone: string) => {
-    if (phone.length < 9) return;
-    
+  const handlePhoneCheck = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setCheckingPhone(true);
+    
     try {
       const { data, error } = await supabase
         .from('customers')
         .select('*')
-        .eq('phone', phone)
+        .eq('phone', phoneNumber)
         .maybeSingle();
 
       if (error) throw error;
 
+      setExistingCustomer(data);
+      setPhoneCheckOpen(false);
+      setOrderFormOpen(true);
+
       if (data) {
-        setExistingCustomer(data);
         toast({
           title: 'Customer Found',
-          description: `Existing customer: ${data.name}`,
+          description: `Proceeding with existing customer: ${data.name}`,
         });
       } else {
-        setExistingCustomer(null);
+        toast({
+          title: 'New Customer',
+          description: 'Please provide customer details',
+        });
       }
     } catch (error: any) {
       toast({
@@ -214,7 +221,7 @@ const Orders = () => {
       });
 
       form.reset();
-      setIsDialogOpen(false);
+      setOrderFormOpen(false);
       setPhoneNumber('');
       setExistingCustomer(null);
       fetchOrders();
@@ -271,8 +278,9 @@ const Orders = () => {
             <p className="text-muted-foreground">Track and manage all orders</p>
           </div>
           
-          <Dialog open={isDialogOpen} onOpenChange={(open) => {
-            setIsDialogOpen(open);
+          {/* Phone Check Dialog */}
+          <Dialog open={phoneCheckOpen} onOpenChange={(open) => {
+            setPhoneCheckOpen(open);
             if (!open) {
               setPhoneNumber('');
               setExistingCustomer(null);
@@ -284,6 +292,40 @@ const Orders = () => {
                 New Order
               </Button>
             </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Enter Customer Phone Number</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handlePhoneCheck} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="phone_check">Phone Number *</Label>
+                  <Input 
+                    id="phone_check" 
+                    type="tel" 
+                    value={phoneNumber}
+                    onChange={(e) => setPhoneNumber(e.target.value)}
+                    placeholder="Enter phone number"
+                    required 
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    We'll check if this customer already exists
+                  </p>
+                </div>
+                <Button type="submit" className="w-full" disabled={checkingPhone}>
+                  {checkingPhone ? 'Checking...' : 'Continue'}
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+
+          {/* Order Form Dialog */}
+          <Dialog open={orderFormOpen} onOpenChange={(open) => {
+            setOrderFormOpen(open);
+            if (!open) {
+              setPhoneNumber('');
+              setExistingCustomer(null);
+            }
+          }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Order</DialogTitle>
@@ -294,24 +336,8 @@ const Orders = () => {
                   <h3 className="font-semibold">Customer Information</h3>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number *</Label>
-                    <Input 
-                      id="phone" 
-                      type="tel" 
-                      value={phoneNumber}
-                      onChange={(e) => {
-                        setPhoneNumber(e.target.value);
-                        handlePhoneCheck(e.target.value);
-                      }}
-                      placeholder="Enter phone number"
-                      required 
-                    />
-                    {checkingPhone && (
-                      <p className="text-sm text-muted-foreground">Checking...</p>
-                    )}
-                    {existingCustomer && (
-                      <p className="text-sm text-success">✓ Existing customer found</p>
-                    )}
+                    <Label>Phone Number</Label>
+                    <Input value={phoneNumber} disabled />
                   </div>
 
                   {existingCustomer ? (
@@ -333,7 +359,7 @@ const Orders = () => {
                         </div>
                       )}
                     </div>
-                  ) : phoneNumber.length >= 9 ? (
+                  ) : (
                     <>
                       <div className="space-y-2">
                         <Label htmlFor="customer_name">Customer Name *</Label>
@@ -348,7 +374,7 @@ const Orders = () => {
                         <Input id="company_name" name="company_name" />
                       </div>
                     </>
-                  ) : null}
+                  )}
                 </div>
 
                 {/* Order Information */}
