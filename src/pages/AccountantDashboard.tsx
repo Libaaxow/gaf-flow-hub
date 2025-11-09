@@ -2,11 +2,10 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -15,11 +14,12 @@ import {
   CheckCircle, 
   AlertCircle,
   Plus,
-  Receipt,
   FileText,
   Users,
   Calendar as CalendarIcon,
-  Eye
+  Eye,
+  Download,
+  Filter
 } from 'lucide-react';
 import {
   Table,
@@ -49,7 +49,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -62,58 +62,26 @@ interface FinancialStats {
   profit: number;
   pendingCommissions: number;
   paidCommissions: number;
+  totalInvoices: number;
 }
 
-interface OrderWithDetails {
+interface Invoice {
   id: string;
-  job_title: string;
-  order_value: number;
+  invoice_number: string;
+  customer: { name: string };
+  invoice_date: string;
+  due_date: string;
+  total_amount: number;
   amount_paid: number;
-  payment_status: string;
-  payment_method?: string;
-  created_at: string;
-  customer: {
-    name: string;
-  };
+  status: string;
 }
 
-interface Commission {
+interface Customer {
   id: string;
-  commission_amount: number;
-  commission_percentage: number;
-  paid_status: string;
-  created_at: string;
-  order: {
-    job_title: string;
-  };
-  salesperson: {
-    full_name: string;
-  };
-}
-
-interface Expense {
-  id: string;
-  expense_date: string;
-  category: string;
-  description: string;
-  amount: number;
-  payment_method: string;
-  supplier_name?: string;
-  approval_status: string;
-}
-
-interface Payment {
-  id: string;
-  amount: number;
-  payment_method: string;
-  payment_date: string;
-  reference_number?: string;
-  order: {
-    job_title: string;
-    customer: {
-      name: string;
-    };
-  };
+  name: string;
+  email: string;
+  phone: string;
+  company_name: string;
 }
 
 const AccountantDashboard = () => {
@@ -127,27 +95,33 @@ const AccountantDashboard = () => {
     profit: 0,
     pendingCommissions: 0,
     paidCommissions: 0,
+    totalInvoices: 0,
   });
-  const [orders, setOrders] = useState<OrderWithDetails[]>([]);
-  const [commissions, setCommissions] = useState<Commission[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [payments, setPayments] = useState<Payment[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [commissions, setCommissions] = useState<any[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [payments, setPayments] = useState<any[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
+  const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   
-  // Order workflow states
+  // Workflow states
   const [workflowOrders, setWorkflowOrders] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
   const [selectedDesigner, setSelectedDesigner] = useState('');
   const [selectedOrderForAssignment, setSelectedOrderForAssignment] = useState('');
   
-  // Form states
+  // Payment form states
   const [selectedOrder, setSelectedOrder] = useState<string>('');
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   
+  // Expense form states
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [expenseCategory, setExpenseCategory] = useState('');
   const [expenseDescription, setExpenseDescription] = useState('');
@@ -156,19 +130,80 @@ const AccountantDashboard = () => {
   const [expenseSupplier, setExpenseSupplier] = useState('');
   const [expenseNotes, setExpenseNotes] = useState('');
 
+  // Customer form states
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
+
+  // Invoice form states
+  const [invoiceCustomer, setInvoiceCustomer] = useState('');
+  const [invoiceOrder, setInvoiceOrder] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceSubtotal, setInvoiceSubtotal] = useState('');
+  const [invoiceTax, setInvoiceTax] = useState('');
+  const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [invoiceTerms, setInvoiceTerms] = useState('');
+
+  // Report filter states
+  const [reportType, setReportType] = useState('profit_loss');
+  const [reportCustomer, setReportCustomer] = useState('all');
+
   useEffect(() => {
-    fetchFinancialData();
+    fetchAllData();
     fetchWorkflowOrders();
     fetchDesigners();
   }, []);
+
+  useEffect(() => {
+    fetchFinancialData();
+  }, [dateFilter]);
+
+  const fetchAllData = async () => {
+    await Promise.all([
+      fetchFinancialData(),
+      fetchCustomers(),
+      fetchInvoices(),
+    ]);
+  };
+
+  const fetchCustomers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('customers')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching customers:', error);
+    }
+  };
+
+  const fetchInvoices = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          customer:customers(name)
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setInvoices(data || []);
+    } catch (error: any) {
+      console.error('Error fetching invoices:', error);
+    }
+  };
 
   const fetchFinancialData = async () => {
     try {
       setLoading(true);
 
-      // Fetch orders with customer details filtered by date
-      const startDate = startOfDay(dateFilter).toISOString();
-      const endDate = endOfDay(dateFilter).toISOString();
+      const startDateFilter = startOfDay(dateFilter).toISOString();
+      const endDateFilter = endOfDay(dateFilter).toISOString();
       
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -182,13 +217,12 @@ const AccountantDashboard = () => {
           created_at,
           customer:customers(name)
         `)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
+        .gte('created_at', startDateFilter)
+        .lte('created_at', endDateFilter)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
 
-      // Fetch commissions
       const { data: commissionsData, error: commissionsError } = await supabase
         .from('commissions')
         .select(`
@@ -202,8 +236,7 @@ const AccountantDashboard = () => {
         `)
         .order('created_at', { ascending: false });
 
-      // Fetch salesperson and order details separately
-      let enrichedCommissions: Commission[] = [];
+      let enrichedCommissions: any[] = [];
       if (commissionsData) {
         const commissionsWithDetails = await Promise.all(
           commissionsData.map(async (comm) => {
@@ -233,7 +266,6 @@ const AccountantDashboard = () => {
 
       setCommissions(enrichedCommissions);
 
-      // Fetch expenses
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
         .select('*')
@@ -241,7 +273,6 @@ const AccountantDashboard = () => {
 
       if (expensesError) throw expensesError;
 
-      // Fetch payments
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`
@@ -263,7 +294,6 @@ const AccountantDashboard = () => {
       setExpenses(expensesData || []);
       setPayments(paymentsData || []);
 
-      // Calculate statistics
       const totalRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
       const collectedAmount = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
       const outstandingAmount = totalRevenue - collectedAmount;
@@ -271,6 +301,10 @@ const AccountantDashboard = () => {
       const profit = collectedAmount - totalExpenses;
       const pendingCommissions = commissionsData?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
+      
+      const { count: invoiceCount } = await supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true });
 
       setStats({
         totalRevenue,
@@ -280,6 +314,7 @@ const AccountantDashboard = () => {
         profit,
         pendingCommissions,
         paidCommissions,
+        totalInvoices: invoiceCount || 0,
       });
     } catch (error: any) {
       toast({
@@ -326,7 +361,6 @@ const AccountantDashboard = () => {
 
       if (error) throw error;
 
-      // Fetch related data separately
       const enrichedOrders = await Promise.all(
         (ordersData || []).map(async (order) => {
           let salesperson = null;
@@ -435,7 +469,6 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Insert payment record
       const { error: paymentError } = await supabase
         .from('payments')
         .insert([{
@@ -449,7 +482,6 @@ const AccountantDashboard = () => {
 
       if (paymentError) throw paymentError;
 
-      // Update order amount_paid
       const order = orders.find(o => o.id === selectedOrder);
       if (order) {
         const newAmountPaid = Number(order.amount_paid || 0) + parseFloat(paymentAmount);
@@ -472,7 +504,6 @@ const AccountantDashboard = () => {
         description: 'Payment recorded successfully',
       });
 
-      // Reset form
       setSelectedOrder('');
       setPaymentAmount('');
       setPaymentMethod('');
@@ -514,7 +545,7 @@ const AccountantDashboard = () => {
           supplier_name: expenseSupplier || null,
           notes: expenseNotes || null,
           recorded_by: user?.id,
-          approval_status: 'approved', // Auto-approve for accountants
+          approval_status: 'approved',
         }]);
 
       if (error) throw error;
@@ -524,7 +555,6 @@ const AccountantDashboard = () => {
         description: 'Expense recorded successfully',
       });
 
-      // Reset form
       setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
       setExpenseCategory('');
       setExpenseDescription('');
@@ -574,6 +604,122 @@ const AccountantDashboard = () => {
     }
   };
 
+  const handleCreateCustomer = async () => {
+    if (!customerName || !customerEmail) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please provide at least name and email',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { error } = await supabase
+        .from('customers')
+        .insert([{
+          name: customerName,
+          email: customerEmail,
+          phone: customerPhone || null,
+          company_name: customerCompany || null,
+          created_by: user?.id,
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Customer created successfully',
+      });
+
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+      setCustomerCompany('');
+      
+      fetchCustomers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!invoiceCustomer || !invoiceSubtotal) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please provide customer and subtotal',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Generate invoice number
+      const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+
+      const subtotal = parseFloat(invoiceSubtotal);
+      const tax = invoiceTax ? parseFloat(invoiceTax) : 0;
+      const total = subtotal + tax;
+
+      const { error } = await supabase
+        .from('invoices')
+        .insert([{
+          invoice_number: invoiceNumber,
+          customer_id: invoiceCustomer,
+          order_id: invoiceOrder || null,
+          due_date: invoiceDueDate || null,
+          subtotal: subtotal,
+          tax_amount: tax,
+          total_amount: total,
+          notes: invoiceNotes || null,
+          terms: invoiceTerms || null,
+          created_by: user?.id,
+          status: 'draft',
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Invoice ${invoiceNumber} created successfully`,
+      });
+
+      setInvoiceCustomer('');
+      setInvoiceOrder('');
+      setInvoiceDueDate('');
+      setInvoiceSubtotal('');
+      setInvoiceTax('');
+      setInvoiceNotes('');
+      setInvoiceTerms('');
+      
+      fetchInvoices();
+      fetchFinancialData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const generateReport = () => {
+    // This would generate PDF or export data based on selected filters
+    toast({
+      title: 'Report Generated',
+      description: `${reportType} report for ${reportCustomer === 'all' ? 'all customers' : 'selected customer'}`,
+    });
+  };
+
   const statCards = [
     {
       title: 'Total Revenue',
@@ -611,11 +757,11 @@ const AccountantDashboard = () => {
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
     },
     {
-      title: 'Pending Commissions',
-      value: `$${stats.pendingCommissions.toFixed(2)}`,
-      icon: AlertCircle,
-      description: 'Unpaid commissions',
-      color: 'text-yellow-600',
+      title: 'Total Invoices',
+      value: stats.totalInvoices,
+      icon: FileText,
+      description: 'Invoices created',
+      color: 'text-purple-600',
     },
   ];
 
@@ -688,23 +834,22 @@ const AccountantDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="workflow" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="workflow">Order Workflow</TabsTrigger>
-            <TabsTrigger value="payments">Payment Management</TabsTrigger>
-            <TabsTrigger value="commissions">Commissions</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-7">
+            <TabsTrigger value="workflow">Workflow</TabsTrigger>
+            <TabsTrigger value="invoices">Invoices</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
+            <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="commissions">Commissions</TabsTrigger>
             <TabsTrigger value="reports">Reports</TabsTrigger>
           </TabsList>
 
-          {/* Order Workflow Tab */}
+          {/* Workflow Tab */}
           <TabsContent value="workflow" className="space-y-4">
-            {/* Pending Orders Section */}
             <Card>
               <CardHeader>
                 <CardTitle>Orders Pending Assignment</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  New orders from sales team awaiting designer assignment
-                </p>
+                <CardDescription>New orders from sales team awaiting designer assignment</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -788,13 +933,10 @@ const AccountantDashboard = () => {
               </CardContent>
             </Card>
 
-            {/* Awaiting Approval Section */}
             <Card>
               <CardHeader>
                 <CardTitle>Orders Awaiting Approval</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Completed designs awaiting your approval to send to print
-                </p>
+                <CardDescription>Completed designs awaiting your approval</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -851,14 +993,286 @@ const AccountantDashboard = () => {
             </Card>
           </TabsContent>
 
-          {/* Payment Management Tab */}
+          {/* Invoices Tab */}
+          <TabsContent value="invoices" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Invoices</CardTitle>
+                    <CardDescription>Manage customer invoices</CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create Invoice
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px]">
+                      <DialogHeader>
+                        <DialogTitle>Create Invoice</DialogTitle>
+                        <DialogDescription>Create a new invoice for a customer</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="invoice-customer">Customer *</Label>
+                          <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select customer" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {customers.map((customer) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                  {customer.name} - {customer.company_name || 'No Company'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="invoice-order">Related Order (Optional)</Label>
+                          <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select order" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {orders.map((order) => (
+                                <SelectItem key={order.id} value={order.id}>
+                                  {order.job_title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="grid gap-2">
+                            <Label htmlFor="subtotal">Subtotal *</Label>
+                            <Input
+                              id="subtotal"
+                              type="number"
+                              step="0.01"
+                              value={invoiceSubtotal}
+                              onChange={(e) => setInvoiceSubtotal(e.target.value)}
+                              placeholder="0.00"
+                            />
+                          </div>
+                          <div className="grid gap-2">
+                            <Label htmlFor="tax">Tax Amount</Label>
+                            <Input
+                              id="tax"
+                              type="number"
+                              step="0.01"
+                              value={invoiceTax}
+                              onChange={(e) => setInvoiceTax(e.target.value)}
+                              placeholder="0.00"
+                            />
+                          </div>
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="due-date">Due Date</Label>
+                          <Input
+                            id="due-date"
+                            type="date"
+                            value={invoiceDueDate}
+                            onChange={(e) => setInvoiceDueDate(e.target.value)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="invoice-terms">Payment Terms</Label>
+                          <Textarea
+                            id="invoice-terms"
+                            value={invoiceTerms}
+                            onChange={(e) => setInvoiceTerms(e.target.value)}
+                            placeholder="Net 30 days"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="invoice-notes">Notes</Label>
+                          <Textarea
+                            id="invoice-notes"
+                            value={invoiceNotes}
+                            onChange={(e) => setInvoiceNotes(e.target.value)}
+                            placeholder="Additional notes"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleCreateInvoice}>Create Invoice</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice #</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoices.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          No invoices found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      invoices.map((invoice) => (
+                        <TableRow key={invoice.id}>
+                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                          <TableCell>{invoice.customer.name}</TableCell>
+                          <TableCell>{format(new Date(invoice.invoice_date), 'PP')}</TableCell>
+                          <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'PP') : '-'}</TableCell>
+                          <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
+                          <TableCell>${invoice.amount_paid.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              invoice.status === 'paid' ? 'default' :
+                              invoice.status === 'overdue' ? 'destructive' :
+                              'secondary'
+                            }>
+                              {invoice.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline">
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Customers Tab */}
+          <TabsContent value="customers" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Customers</CardTitle>
+                    <CardDescription>Manage customer database</CardDescription>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Customer
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[500px]">
+                      <DialogHeader>
+                        <DialogTitle>Add New Customer</DialogTitle>
+                        <DialogDescription>Create a new customer record</DialogDescription>
+                      </DialogHeader>
+                      <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                          <Label htmlFor="customer-name">Name *</Label>
+                          <Input
+                            id="customer-name"
+                            value={customerName}
+                            onChange={(e) => setCustomerName(e.target.value)}
+                            placeholder="Customer name"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="customer-email">Email *</Label>
+                          <Input
+                            id="customer-email"
+                            type="email"
+                            value={customerEmail}
+                            onChange={(e) => setCustomerEmail(e.target.value)}
+                            placeholder="customer@example.com"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="customer-phone">Phone</Label>
+                          <Input
+                            id="customer-phone"
+                            value={customerPhone}
+                            onChange={(e) => setCustomerPhone(e.target.value)}
+                            placeholder="+1234567890"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="customer-company">Company Name</Label>
+                          <Input
+                            id="customer-company"
+                            value={customerCompany}
+                            onChange={(e) => setCustomerCompany(e.target.value)}
+                            placeholder="Company name"
+                          />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button onClick={handleCreateCustomer}>Add Customer</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Company</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {customers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          No customers found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      customers.map((customer) => (
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-medium">{customer.name}</TableCell>
+                          <TableCell>{customer.email}</TableCell>
+                          <TableCell>{customer.phone || '-'}</TableCell>
+                          <TableCell>{customer.company_name || '-'}</TableCell>
+                          <TableCell>
+                            <Button size="sm" variant="outline">
+                              <Eye className="mr-2 h-4 w-4" />
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-4">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Payment Management</CardTitle>
-                    <p className="text-sm text-muted-foreground">Record and track customer payments</p>
+                    <CardDescription>Record and track customer payments</CardDescription>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -870,9 +1284,7 @@ const AccountantDashboard = () => {
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Record Payment</DialogTitle>
-                        <DialogDescription>
-                          Record a new payment for an order
-                        </DialogDescription>
+                        <DialogDescription>Record a new payment for an order</DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
@@ -922,16 +1334,16 @@ const AccountantDashboard = () => {
                             id="reference"
                             value={paymentReference}
                             onChange={(e) => setPaymentReference(e.target.value)}
-                            placeholder="Transaction reference"
+                            placeholder="TXN123456"
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="notes">Notes</Label>
+                          <Label htmlFor="payment-notes">Notes</Label>
                           <Textarea
-                            id="notes"
+                            id="payment-notes"
                             value={paymentNotes}
                             onChange={(e) => setPaymentNotes(e.target.value)}
-                            placeholder="Additional notes"
+                            placeholder="Additional payment notes"
                           />
                         </div>
                       </div>
@@ -946,61 +1358,6 @@ const AccountantDashboard = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Paid</TableHead>
-                      <TableHead>Outstanding</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment Method</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-medium">{order.job_title}</TableCell>
-                        <TableCell>{order.customer.name}</TableCell>
-                        <TableCell>${order.order_value.toFixed(2)}</TableCell>
-                        <TableCell>${order.amount_paid.toFixed(2)}</TableCell>
-                        <TableCell>${(order.order_value - order.amount_paid).toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              order.payment_status === 'paid'
-                                ? 'default'
-                                : order.payment_status === 'partial'
-                                ? 'secondary'
-                                : 'destructive'
-                            }
-                          >
-                            {order.payment_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {order.payment_method ? (
-                            <Badge variant="outline">
-                              {order.payment_method.replace('_', ' ')}
-                            </Badge>
-                          ) : (
-                            '-'
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-
-            {/* Recent Payments */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Payments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Order</TableHead>
                       <TableHead>Customer</TableHead>
@@ -1010,73 +1367,24 @@ const AccountantDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {payments.slice(0, 10).map((payment) => (
-                      <TableRow key={payment.id}>
-                        <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
-                        <TableCell>{payment.order.job_title}</TableCell>
-                        <TableCell>{payment.order.customer.name}</TableCell>
-                        <TableCell>${payment.amount.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {payment.payment_method.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{payment.reference_number || '-'}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Commissions Tab */}
-          <TabsContent value="commissions" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Commission Management</CardTitle>
-                <p className="text-sm text-muted-foreground">Track and pay salesperson commissions</p>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Salesperson</TableHead>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Rate</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissions.map((commission) => (
-                      <TableRow key={commission.id}>
-                        <TableCell>{format(new Date(commission.created_at), 'PP')}</TableCell>
-                        <TableCell>{commission.salesperson.full_name}</TableCell>
-                        <TableCell>{commission.order.job_title}</TableCell>
-                        <TableCell>{commission.commission_percentage}%</TableCell>
-                        <TableCell>${commission.commission_amount.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={commission.paid_status === 'paid' ? 'default' : 'destructive'}
-                          >
-                            {commission.paid_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {commission.paid_status === 'unpaid' && (
-                            <Button
-                              size="sm"
-                              onClick={() => handlePayCommission(commission.id)}
-                            >
-                              Mark as Paid
-                            </Button>
-                          )}
+                    {payments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No payments recorded
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      payments.map((payment) => (
+                        <TableRow key={payment.id}>
+                          <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
+                          <TableCell>{payment.order.job_title}</TableCell>
+                          <TableCell>{payment.order.customer.name}</TableCell>
+                          <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                          <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
+                          <TableCell>{payment.reference_number || '-'}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1089,8 +1397,8 @@ const AccountantDashboard = () => {
               <CardHeader>
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle>Expense Tracking</CardTitle>
-                    <p className="text-sm text-muted-foreground">Record operational expenses</p>
+                    <CardTitle>Expense Management</CardTitle>
+                    <CardDescription>Record and track business expenses</CardDescription>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
@@ -1102,52 +1410,40 @@ const AccountantDashboard = () => {
                     <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Record Expense</DialogTitle>
-                        <DialogDescription>
-                          Record a new operational expense
-                        </DialogDescription>
+                        <DialogDescription>Record a new business expense</DialogDescription>
                       </DialogHeader>
-                      <ScrollArea className="h-[400px] pr-4">
-                        <div className="grid gap-4 py-4">
+                      <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
-                          <Label htmlFor="expenseDate">Date *</Label>
+                          <Label htmlFor="expense-date">Date *</Label>
                           <Input
-                            id="expenseDate"
+                            id="expense-date"
                             type="date"
                             value={expenseDate}
                             onChange={(e) => setExpenseDate(e.target.value)}
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="category">Category *</Label>
-                          <Select value={expenseCategory} onValueChange={setExpenseCategory}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Printing Materials">Printing Materials</SelectItem>
-                              <SelectItem value="Ink">Ink</SelectItem>
-                              <SelectItem value="Paper">Paper</SelectItem>
-                              <SelectItem value="Machine Maintenance">Machine Maintenance</SelectItem>
-                              <SelectItem value="Utilities">Utilities</SelectItem>
-                              <SelectItem value="Rent">Rent</SelectItem>
-                              <SelectItem value="Salaries">Salaries</SelectItem>
-                              <SelectItem value="Other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="description">Description *</Label>
-                          <Textarea
-                            id="description"
-                            value={expenseDescription}
-                            onChange={(e) => setExpenseDescription(e.target.value)}
-                            placeholder="Describe the expense"
+                          <Label htmlFor="expense-category">Category *</Label>
+                          <Input
+                            id="expense-category"
+                            value={expenseCategory}
+                            onChange={(e) => setExpenseCategory(e.target.value)}
+                            placeholder="Supplies, Rent, Utilities, etc."
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="expenseAmount">Amount *</Label>
+                          <Label htmlFor="expense-description">Description *</Label>
                           <Input
-                            id="expenseAmount"
+                            id="expense-description"
+                            value={expenseDescription}
+                            onChange={(e) => setExpenseDescription(e.target.value)}
+                            placeholder="Brief description"
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label htmlFor="expense-amount">Amount *</Label>
+                          <Input
+                            id="expense-amount"
                             type="number"
                             step="0.01"
                             value={expenseAmount}
@@ -1156,7 +1452,7 @@ const AccountantDashboard = () => {
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="expenseMethod">Payment Method *</Label>
+                          <Label htmlFor="expense-method">Payment Method *</Label>
                           <Select value={expensePaymentMethod} onValueChange={setExpensePaymentMethod}>
                             <SelectTrigger>
                               <SelectValue placeholder="Select method" />
@@ -1171,25 +1467,24 @@ const AccountantDashboard = () => {
                           </Select>
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="supplier">Supplier Name</Label>
+                          <Label htmlFor="expense-supplier">Supplier Name</Label>
                           <Input
-                            id="supplier"
+                            id="expense-supplier"
                             value={expenseSupplier}
                             onChange={(e) => setExpenseSupplier(e.target.value)}
-                            placeholder="Supplier or vendor name"
+                            placeholder="Supplier name"
                           />
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="expenseNotes">Notes</Label>
+                          <Label htmlFor="expense-notes">Notes</Label>
                           <Textarea
-                            id="expenseNotes"
+                            id="expense-notes"
                             value={expenseNotes}
                             onChange={(e) => setExpenseNotes(e.target.value)}
                             placeholder="Additional notes"
                           />
                         </div>
                       </div>
-                      </ScrollArea>
                       <DialogFooter>
                         <Button onClick={handleRecordExpense}>Record Expense</Button>
                       </DialogFooter>
@@ -1204,42 +1499,93 @@ const AccountantDashboard = () => {
                       <TableHead>Date</TableHead>
                       <TableHead>Category</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead>Supplier</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Method</TableHead>
-                      <TableHead>Supplier</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((expense) => (
-                      <TableRow key={expense.id}>
-                        <TableCell>{format(new Date(expense.expense_date), 'PP')}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{expense.category}</Badge>
-                        </TableCell>
-                        <TableCell>{expense.description}</TableCell>
-                        <TableCell>${expense.amount.toFixed(2)}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {expense.payment_method.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{expense.supplier_name || '-'}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              expense.approval_status === 'approved'
-                                ? 'default'
-                                : expense.approval_status === 'rejected'
-                                ? 'destructive'
-                                : 'secondary'
-                            }
-                          >
-                            {expense.approval_status}
-                          </Badge>
+                    {expenses.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No expenses recorded
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      expenses.map((expense) => (
+                        <TableRow key={expense.id}>
+                          <TableCell>{format(new Date(expense.expense_date), 'PP')}</TableCell>
+                          <TableCell>{expense.category}</TableCell>
+                          <TableCell>{expense.description}</TableCell>
+                          <TableCell>{expense.supplier_name || '-'}</TableCell>
+                          <TableCell className="font-medium">${expense.amount.toFixed(2)}</TableCell>
+                          <TableCell className="capitalize">{expense.payment_method.replace('_', ' ')}</TableCell>
+                          <TableCell>
+                            <Badge variant={expense.approval_status === 'approved' ? 'default' : 'secondary'}>
+                              {expense.approval_status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Commissions Tab */}
+          <TabsContent value="commissions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Commission Management</CardTitle>
+                <CardDescription>Track and pay sales commissions</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Salesperson</TableHead>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commissions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          No commissions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      commissions.map((commission) => (
+                        <TableRow key={commission.id}>
+                          <TableCell className="font-medium">{commission.salesperson.full_name}</TableCell>
+                          <TableCell>{commission.order.job_title}</TableCell>
+                          <TableCell>{commission.commission_percentage}%</TableCell>
+                          <TableCell className="font-medium">${commission.commission_amount.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
+                              {commission.paid_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {commission.paid_status === 'unpaid' && (
+                              <Button 
+                                size="sm" 
+                                onClick={() => handlePayCommission(commission.id)}
+                              >
+                                Mark as Paid
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1248,86 +1594,164 @@ const AccountantDashboard = () => {
 
           {/* Reports Tab */}
           <TabsContent value="reports" className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Financial Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Revenue:</span>
-                      <span className="font-semibold">${stats.totalRevenue.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Amount Collected:</span>
-                      <span className="font-semibold text-green-600">${stats.collectedAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Outstanding:</span>
-                      <span className="font-semibold text-orange-600">${stats.outstandingAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Expenses:</span>
-                      <span className="font-semibold text-red-600">${stats.totalExpenses.toFixed(2)}</span>
-                    </div>
-                    <div className="border-t pt-2 flex justify-between">
-                      <span className="font-semibold">Net Profit:</span>
-                      <span className={`font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        ${stats.profit.toFixed(2)}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Commission Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Pending Commissions:</span>
-                      <span className="font-semibold text-orange-600">${stats.pendingCommissions.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Paid Commissions:</span>
-                      <span className="font-semibold text-green-600">${stats.paidCommissions.toFixed(2)}</span>
-                    </div>
-                    <div className="border-t pt-2 flex justify-between">
-                      <span className="font-semibold">Total Commissions:</span>
-                      <span className="font-bold">${(stats.pendingCommissions + stats.paidCommissions).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle>Advanced Reports</CardTitle>
+                <CardDescription>Generate detailed financial reports with filters</CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <Button variant="outline" className="justify-start">
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Generate Monthly Report
+              <CardContent className="space-y-6">
+                <div className="grid gap-4">
+                  <div className="grid gap-2">
+                    <Label>Report Type</Label>
+                    <Select value={reportType} onValueChange={setReportType}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select report type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="profit_loss">Profit & Loss Statement</SelectItem>
+                        <SelectItem value="customer_report">Customer Report</SelectItem>
+                        <SelectItem value="payments_received">Payments Received</SelectItem>
+                        <SelectItem value="expenses_report">Expenses Report</SelectItem>
+                        <SelectItem value="commissions_report">Commissions Report</SelectItem>
+                        <SelectItem value="invoice_summary">Invoice Summary</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="grid gap-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {startDate ? format(startDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => date && setStartDate(date)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="justify-start text-left font-normal">
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {endDate ? format(endDate, "PPP") : "Pick a date"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0">
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(date) => date && setEndDate(date)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-2">
+                    <Label>Filter by Customer</Label>
+                    <Select value={reportCustomer} onValueChange={setReportCustomer}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="All customers" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Customers</SelectItem>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <Button onClick={generateReport} className="w-full">
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate Report
                   </Button>
-                  <Button variant="outline" className="justify-start">
-                    <Receipt className="mr-2 h-4 w-4" />
-                    Export Transactions
-                  </Button>
-                  <Button variant="outline" className="justify-start">
-                    <AlertCircle className="mr-2 h-4 w-4" />
-                    Send Payment Reminders
-                  </Button>
+                </div>
+
+                <div className="space-y-4 pt-6 border-t">
+                  <h3 className="text-lg font-semibold">Report Summary</h3>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-green-600">${stats.totalRevenue.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">From all orders</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-red-600">${stats.totalExpenses.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">Approved expenses</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className={`text-2xl font-bold ${stats.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${stats.profit.toFixed(2)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">Revenue - Expenses</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-orange-600">${stats.outstandingAmount.toFixed(2)}</div>
+                        <p className="text-xs text-muted-foreground">Pending payments</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-blue-600">
+                          ${(stats.pendingCommissions + stats.paidCommissions).toFixed(2)}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Pending: ${stats.pendingCommissions.toFixed(2)} | Paid: ${stats.paidCommissions.toFixed(2)}
+                        </p>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-purple-600">{stats.totalInvoices}</div>
+                        <p className="text-xs text-muted-foreground">All invoices created</p>
+                      </CardContent>
+                    </Card>
+                  </div>
                 </div>
               </CardContent>
             </Card>
