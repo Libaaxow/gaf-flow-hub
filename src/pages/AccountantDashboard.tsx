@@ -879,8 +879,8 @@ const AccountantDashboard = () => {
                       <TableHead className="min-w-[150px]">Job Title</TableHead>
                       <TableHead className="min-w-[150px]">Customer</TableHead>
                       <TableHead className="min-w-[150px]">Salesperson</TableHead>
-                      <TableHead className="min-w-[120px]">Order Value</TableHead>
-                      <TableHead className="min-w-[120px]">Created</TableHead>
+                      <TableHead className="min-w-[100px]">Order Value</TableHead>
+                      <TableHead className="min-w-[100px]">Created</TableHead>
                       <TableHead className="min-w-[150px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -959,16 +959,16 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Awaiting Approval</CardTitle>
                 <CardDescription>Completed designs awaiting your approval</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Job Title</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Designer</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Completed</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[150px]">Job Title</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[150px]">Designer</TableHead>
+                      <TableHead className="min-w-[100px]">Order Value</TableHead>
+                      <TableHead className="min-w-[100px]">Completed</TableHead>
+                      <TableHead className="min-w-[200px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1018,17 +1018,17 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Ready for Collection</CardTitle>
                 <CardDescription>Printed orders waiting for customer pickup - Mark as completed when collected</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Job Title</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Designer</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Payment Status</TableHead>
-                      <TableHead>Ready Since</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[150px]">Job Title</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[150px]">Designer</TableHead>
+                      <TableHead className="min-w-[100px]">Order Value</TableHead>
+                      <TableHead className="min-w-[120px]">Payment Status</TableHead>
+                      <TableHead className="min-w-[100px]">Ready Since</TableHead>
+                      <TableHead className="min-w-[180px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1109,7 +1109,7 @@ const AccountantDashboard = () => {
           <TabsContent value="invoices" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Invoices</CardTitle>
                     <CardDescription>Manage customer invoices</CardDescription>
@@ -1216,18 +1216,18 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Paid</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[120px]">Invoice #</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[100px]">Date</TableHead>
+                      <TableHead className="min-w-[100px]">Due Date</TableHead>
+                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[80px]">Paid</TableHead>
+                      <TableHead className="min-w-[100px]">Status</TableHead>
+                      <TableHead className="min-w-[100px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1274,7 +1274,7 @@ const AccountantDashboard = () => {
           <TabsContent value="customers" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Customers</CardTitle>
                     <CardDescription>Manage customer database</CardDescription>
@@ -1337,15 +1337,15 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Company</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[150px]">Name</TableHead>
+                      <TableHead className="min-w-[180px]">Email</TableHead>
+                      <TableHead className="min-w-[130px]">Phone</TableHead>
+                      <TableHead className="min-w-[150px]">Company</TableHead>
+                      <TableHead className="min-w-[100px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1381,7 +1381,7 @@ const AccountantDashboard = () => {
           <TabsContent value="payments" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Payment Management</CardTitle>
                     <CardDescription>Record and track customer payments</CardDescription>
@@ -1466,16 +1466,16 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Reference</TableHead>
+                      <TableHead className="min-w-[100px]">Date</TableHead>
+                      <TableHead className="min-w-[150px]">Order</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[120px]">Method</TableHead>
+                      <TableHead className="min-w-[120px]">Reference</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1507,7 +1507,7 @@ const AccountantDashboard = () => {
           <TabsContent value="expenses" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Expense Management</CardTitle>
                     <CardDescription>Record and track business expenses</CardDescription>
@@ -1604,17 +1604,17 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Supplier</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead className="min-w-[100px]">Date</TableHead>
+                      <TableHead className="min-w-[120px]">Category</TableHead>
+                      <TableHead className="min-w-[180px]">Description</TableHead>
+                      <TableHead className="min-w-[150px]">Supplier</TableHead>
+                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[120px]">Method</TableHead>
+                      <TableHead className="min-w-[100px]">Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1654,16 +1654,16 @@ const AccountantDashboard = () => {
                 <CardTitle>Commission Management</CardTitle>
                 <CardDescription>Track and pay sales commissions</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Salesperson</TableHead>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                      <TableHead className="min-w-[150px]">Order</TableHead>
+                      <TableHead className="min-w-[100px]">Percentage</TableHead>
+                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[100px]">Status</TableHead>
+                      <TableHead className="min-w-[130px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
