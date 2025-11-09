@@ -86,6 +86,7 @@ const Users = () => {
     const password = formData.get('password') as string;
     const fullName = formData.get('full_name') as string;
     const phone = formData.get('phone') as string;
+    const whatsappNumber = formData.get('whatsapp_number') as string;
 
     try {
       // Create user account
@@ -102,11 +103,15 @@ const Users = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update phone if provided
-        if (phone) {
+        // Update phone and WhatsApp number if provided
+        const updates: any = {};
+        if (phone) updates.phone = phone;
+        if (whatsappNumber) updates.whatsapp_number = whatsappNumber;
+        
+        if (Object.keys(updates).length > 0) {
           await supabase
             .from('profiles')
-            .update({ phone })
+            .update(updates)
             .eq('id', data.user.id);
         }
 
