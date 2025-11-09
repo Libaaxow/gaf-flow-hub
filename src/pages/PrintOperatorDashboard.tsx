@@ -120,7 +120,7 @@ const PrintOperatorDashboard = () => {
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name)')
-        .in('status', ['ready_for_print', 'designed', 'printing', 'printed', 'on_hold' as any])
+        .in('status', ['ready_for_print', 'designed', 'printing', 'printed', 'ready_for_collection', 'on_hold' as any])
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
@@ -176,6 +176,7 @@ const PrintOperatorDashboard = () => {
       designed: { label: 'Ready for Print', className: 'bg-info text-info-foreground' },
       printing: { label: 'Printing', className: 'bg-primary text-primary-foreground' },
       printed: { label: 'Printed', className: 'bg-success text-success-foreground' },
+      ready_for_collection: { label: 'Ready for Collection', className: 'bg-info text-info-foreground' },
       on_hold: { label: 'On Hold', className: 'bg-destructive text-destructive-foreground' },
       delivered: { label: 'Delivered', className: 'bg-success text-success-foreground' },
     };

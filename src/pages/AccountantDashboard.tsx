@@ -356,7 +356,7 @@ const AccountantDashboard = () => {
           *,
           customers (name)
         `)
-        .in('status', ['pending_accounting_review', 'awaiting_accounting_approval'])
+        .in('status', ['pending_accounting_review', 'awaiting_accounting_approval', 'ready_for_collection'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -973,6 +973,97 @@ const AccountantDashboard = () => {
                               >
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Approve & Send to Print
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => navigate(`/orders/${order.id}`)}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Orders Ready for Collection</CardTitle>
+                <CardDescription>Printed orders waiting for customer pickup - Mark as completed when collected</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Job Title</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Designer</TableHead>
+                      <TableHead>Order Value</TableHead>
+                      <TableHead>Payment Status</TableHead>
+                      <TableHead>Ready Since</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {workflowOrders.filter(o => o.status === 'ready_for_collection').length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No orders ready for collection
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      workflowOrders.filter(o => o.status === 'ready_for_collection').map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell className="font-medium">{order.job_title}</TableCell>
+                          <TableCell>{order.customers?.name}</TableCell>
+                          <TableCell>{order.designer?.full_name || '-'}</TableCell>
+                          <TableCell>${order.order_value?.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              order.payment_status === 'paid' ? 'default' : 
+                              order.payment_status === 'partial' ? 'secondary' : 
+                              'destructive'
+                            }>
+                              {order.payment_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{format(new Date(order.updated_at), 'PP')}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                onClick={async () => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('orders')
+                                      .update({ status: 'completed' })
+                                      .eq('id', order.id);
+
+                                    if (error) throw error;
+
+                                    toast({
+                                      title: 'Success',
+                                      description: 'Order marked as completed - Customer has collected',
+                                    });
+
+                                    fetchWorkflowOrders();
+                                  } catch (error: any) {
+                                    toast({
+                                      title: 'Error',
+                                      description: error.message,
+                                      variant: 'destructive',
+                                    });
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Mark Collected
                               </Button>
                               <Button 
                                 size="sm" 

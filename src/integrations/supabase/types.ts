@@ -566,6 +566,7 @@ export type Database = {
         | "pending_accounting_review"
         | "awaiting_accounting_approval"
         | "ready_for_print"
+        | "ready_for_collection"
       payment_method:
         | "cash"
         | "bank_transfer"
@@ -730,6 +731,7 @@ export const Constants = {
         "pending_accounting_review",
         "awaiting_accounting_approval",
         "ready_for_print",
+        "ready_for_collection",
       ],
       payment_method: [
         "cash",

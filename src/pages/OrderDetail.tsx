@@ -368,6 +368,8 @@ const OrderDetail = () => {
       ready_for_print: 'bg-success',
       printing: 'bg-primary',
       printed: 'bg-success',
+      ready_for_collection: 'bg-info',
+      completed: 'bg-success',
       on_hold: 'bg-destructive',
       delivered: 'bg-success',
     };
@@ -641,8 +643,15 @@ const OrderDetail = () => {
                     <SelectItem value="approved">Approved</SelectItem>
                     <SelectItem value="printing">Printing</SelectItem>
                     <SelectItem value="printed">Printed</SelectItem>
+                    {userRole === 'print_operator' ? (
+                      <SelectItem value="ready_for_collection">Ready for Collection</SelectItem>
+                    ) : (
+                      <>
+                        <SelectItem value="ready_for_collection">Ready for Collection</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </>
+                    )}
                     <SelectItem value="on_hold">On Hold</SelectItem>
-                    <SelectItem value="delivered">Delivered</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
