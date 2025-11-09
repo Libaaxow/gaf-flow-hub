@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { UserPlus, Clock, CheckCircle, Trash2, KeyRound, Edit2 } from 'lucide-react';
+import { UserPlus, Clock, CheckCircle, Trash2, KeyRound, Edit2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { RoleManager } from '@/components/RoleManager';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface UserWithRoles {
   id: string;
@@ -21,6 +22,15 @@ interface UserWithRoles {
   roles: string[];
 }
 
+const AVAILABLE_ROLES = [
+  { value: 'admin', label: 'Admin', color: 'destructive' },
+  { value: 'sales', label: 'Sales', color: 'success' },
+  { value: 'designer', label: 'Designer', color: 'primary' },
+  { value: 'print_operator', label: 'Print Operator', color: 'accent' },
+  { value: 'accountant', label: 'Accountant', color: 'warning' },
+  { value: 'marketing', label: 'Marketing', color: 'secondary' },
+];
+
 const Users = () => {
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,6 +39,9 @@ const Users = () => {
   const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [resetPasswordUser, setResetPasswordUser] = useState<UserWithRoles | null>(null);
+  const [isAssignRoleDialogOpen, setIsAssignRoleDialogOpen] = useState(false);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -258,6 +271,87 @@ const Users = () => {
     }
   };
 
+  const handleAssignRolesByEmail = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const email = formData.get('assign_email') as string;
+
+    if (selectedRoles.length === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one role',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsAssigning(true);
+
+    try {
+      // Find user by email in profiles
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .single();
+
+      if (profileError || !profile) {
+        toast({
+          title: 'Error',
+          description: 'User not found with this email address',
+          variant: 'destructive',
+        });
+        setIsAssigning(false);
+        return;
+      }
+
+      // Delete existing roles for this user
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', profile.id);
+
+      // Insert new roles
+      const roleInserts = selectedRoles.map(role => ({
+        user_id: profile.id,
+        role: role as 'admin' | 'sales' | 'designer' | 'print_operator' | 'accountant' | 'marketing',
+      }));
+
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert(roleInserts);
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Success',
+        description: `Roles assigned to ${email} successfully`,
+      });
+
+      form.reset();
+      setSelectedRoles([]);
+      setIsAssignRoleDialogOpen(false);
+      fetchUsers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleToggleRole = (role: string) => {
+    setSelectedRoles(prev =>
+      prev.includes(role)
+        ? prev.filter(r => r !== role)
+        : [...prev, role]
+    );
+  };
+
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
       admin: 'bg-destructive',
@@ -293,13 +387,75 @@ const Users = () => {
             <h1 className="text-3xl font-bold tracking-tight">Users</h1>
             <p className="text-muted-foreground">Manage team members and roles</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Create User
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-2">
+            <Dialog open={isAssignRoleDialogOpen} onOpenChange={setIsAssignRoleDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline">
+                  <Mail className="h-4 w-4 mr-2" />
+                  Assign Role by Email
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Assign Roles by Email</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleAssignRolesByEmail} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="assign_email">User Email</Label>
+                    <Input
+                      id="assign_email"
+                      name="assign_email"
+                      type="email"
+                      placeholder="user@example.com"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Enter the email address of the user you want to assign roles to
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <Label>Select Roles</Label>
+                    {AVAILABLE_ROLES.map((role) => (
+                      <div key={role.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`assign-${role.value}`}
+                          checked={selectedRoles.includes(role.value)}
+                          onCheckedChange={() => handleToggleRole(role.value)}
+                        />
+                        <Label
+                          htmlFor={`assign-${role.value}`}
+                          className="text-sm font-normal cursor-pointer"
+                        >
+                          {role.label}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAssignRoleDialogOpen(false);
+                        setSelectedRoles([]);
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={isAssigning}>
+                      {isAssigning ? 'Assigning...' : 'Assign Roles'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Create User
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create New User</DialogTitle>
@@ -330,6 +486,7 @@ const Users = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {pendingUsers.length > 0 && (
