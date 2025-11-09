@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +33,7 @@ const Customers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchCustomers();
@@ -67,6 +69,7 @@ const Customers = () => {
       email: (formData.get('email') as string) || null,
       phone: (formData.get('phone') as string) || null,
       company_name: (formData.get('company_name') as string) || null,
+      created_by: user?.id || null,
     };
 
     try {
