@@ -677,7 +677,7 @@ const SalesDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {statCards.map((card) => {
             const Icon = card.icon;
             return (
@@ -700,7 +700,7 @@ const SalesDashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Monthly Sales</CardTitle>
@@ -751,14 +751,14 @@ const SalesDashboard = () => {
           <CardHeader>
             <CardTitle>Top 5 Customers by Revenue</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Company</TableHead>
-                  <TableHead>Total Orders</TableHead>
-                  <TableHead className="text-right">Total Spent</TableHead>
+                  <TableHead className="min-w-[150px]">Customer</TableHead>
+                  <TableHead className="min-w-[150px]">Company</TableHead>
+                  <TableHead className="min-w-[100px]">Total Orders</TableHead>
+                  <TableHead className="text-right min-w-[120px]">Total Spent</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -782,16 +782,16 @@ const SalesDashboard = () => {
 
         {/* Tabs for Customers, Orders, and Commissions */}
         <Tabs defaultValue="orders" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="orders">My Orders</TabsTrigger>
-            <TabsTrigger value="customers">My Customers</TabsTrigger>
-            <TabsTrigger value="commissions">Commission Tracker</TabsTrigger>
+          <TabsList className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto">
+            <TabsTrigger value="orders" className="text-xs sm:text-sm">My Orders</TabsTrigger>
+            <TabsTrigger value="customers" className="text-xs sm:text-sm">My Customers</TabsTrigger>
+            <TabsTrigger value="commissions" className="text-xs sm:text-sm">Commission</TabsTrigger>
           </TabsList>
 
           {/* Orders Tab */}
           <TabsContent value="orders" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">My Orders / Jobs</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold">My Orders / Jobs</h2>
               
               {/* Phone Check Dialog */}
               <Dialog open={phoneCheckOpen} onOpenChange={(open) => {
@@ -1064,18 +1064,18 @@ const SalesDashboard = () => {
             </Dialog>
 
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Job Title</TableHead>
-                      <TableHead>Designer</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead className="text-right">Value</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="min-w-[100px]">Order ID</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[150px]">Job Title</TableHead>
+                      <TableHead className="min-w-[150px]">Designer</TableHead>
+                      <TableHead className="min-w-[120px]">Status</TableHead>
+                      <TableHead className="min-w-[100px]">Payment</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Value</TableHead>
+                      <TableHead className="text-center min-w-[100px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1148,8 +1148,8 @@ const SalesDashboard = () => {
 
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">My Customers</h2>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl sm:text-2xl font-bold">My Customers</h2>
               <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
@@ -1222,15 +1222,15 @@ const SalesDashboard = () => {
             </div>
 
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Customer Name</TableHead>
-                      <TableHead>Contact</TableHead>
-                      <TableHead className="text-center">Total Orders</TableHead>
-                      <TableHead className="text-right">Total Spent</TableHead>
-                      <TableHead>Last Order</TableHead>
+                      <TableHead className="min-w-[150px]">Customer Name</TableHead>
+                      <TableHead className="min-w-[150px]">Contact</TableHead>
+                      <TableHead className="text-center min-w-[120px]">Total Orders</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Total Spent</TableHead>
+                      <TableHead className="min-w-[120px]">Last Order</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1273,9 +1273,9 @@ const SalesDashboard = () => {
 
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-4">
-            <h2 className="text-2xl font-bold">Commission Tracker</h2>
+            <h2 className="text-xl sm:text-2xl font-bold">Commission Tracker</h2>
             
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm font-medium">Total Commission</CardTitle>
@@ -1317,15 +1317,15 @@ const SalesDashboard = () => {
             </div>
 
             <Card>
-              <CardContent className="p-0">
+              <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Job Name</TableHead>
-                      <TableHead className="text-right">Order Value</TableHead>
-                      <TableHead className="text-center">Commission %</TableHead>
-                      <TableHead className="text-right">Commission Amount</TableHead>
-                      <TableHead>Payment Status</TableHead>
+                      <TableHead className="min-w-[150px]">Job Name</TableHead>
+                      <TableHead className="text-right min-w-[120px]">Order Value</TableHead>
+                      <TableHead className="text-center min-w-[120px]">Commission %</TableHead>
+                      <TableHead className="text-right min-w-[140px]">Commission Amount</TableHead>
+                      <TableHead className="min-w-[120px]">Payment Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

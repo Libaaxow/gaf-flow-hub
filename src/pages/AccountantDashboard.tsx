@@ -802,10 +802,10 @@ const AccountantDashboard = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Accountant Dashboard</h1>
-            <p className="text-muted-foreground">Financial management and reporting</p>
+            <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Financial management and reporting</p>
           </div>
           <Popover>
             <PopoverTrigger asChild>
@@ -838,7 +838,7 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat) => (
             <Card key={stat.title}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -855,14 +855,14 @@ const AccountantDashboard = () => {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="workflow" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="workflow">Workflow</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="customers">Customers</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="commissions">Commissions</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1">
+            <TabsTrigger value="workflow" className="text-xs sm:text-sm">Workflow</TabsTrigger>
+            <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoices</TabsTrigger>
+            <TabsTrigger value="customers" className="text-xs sm:text-sm">Customers</TabsTrigger>
+            <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
+            <TabsTrigger value="expenses" className="text-xs sm:text-sm">Expenses</TabsTrigger>
+            <TabsTrigger value="commissions" className="text-xs sm:text-sm">Commissions</TabsTrigger>
+            <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
           </TabsList>
 
           {/* Workflow Tab */}
@@ -872,16 +872,16 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Pending Assignment</CardTitle>
                 <CardDescription>New orders from sales team awaiting designer assignment</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Job Title</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Salesperson</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Action</TableHead>
+                      <TableHead className="min-w-[150px]">Job Title</TableHead>
+                      <TableHead className="min-w-[150px]">Customer</TableHead>
+                      <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                      <TableHead className="min-w-[120px]">Order Value</TableHead>
+                      <TableHead className="min-w-[120px]">Created</TableHead>
+                      <TableHead className="min-w-[150px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

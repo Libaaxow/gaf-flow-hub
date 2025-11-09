@@ -201,11 +201,11 @@ const PrintOperatorDashboard = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Print Operator Dashboard</h1>
-          <p className="text-muted-foreground">Manage print jobs and deliveries</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Print Operator Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Manage print jobs and deliveries</p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Ready for Print</CardTitle>
@@ -249,7 +249,7 @@ const PrintOperatorDashboard = () => {
 
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle>Print Jobs</CardTitle>
               <Popover>
                 <PopoverTrigger asChild>
@@ -281,7 +281,7 @@ const PrintOperatorDashboard = () => {
               </Popover>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             {orders.length === 0 ? (
               <div className="text-center py-12">
                 <Printer className="mx-auto h-12 w-12 text-muted-foreground" />
@@ -294,15 +294,15 @@ const PrintOperatorDashboard = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Job Title</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Designer</TableHead>
-                    <TableHead>Print Type</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Files</TableHead>
-                    <TableHead>Delivery Date</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="min-w-[150px]">Job Title</TableHead>
+                    <TableHead className="min-w-[150px]">Customer</TableHead>
+                    <TableHead className="min-w-[150px]">Designer</TableHead>
+                    <TableHead className="min-w-[120px]">Print Type</TableHead>
+                    <TableHead className="min-w-[100px]">Quantity</TableHead>
+                    <TableHead className="min-w-[80px]">Files</TableHead>
+                    <TableHead className="min-w-[130px]">Delivery Date</TableHead>
+                    <TableHead className="min-w-[120px]">Status</TableHead>
+                    <TableHead className="min-w-[120px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

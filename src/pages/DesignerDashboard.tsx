@@ -222,19 +222,19 @@ const DesignerDashboard = () => {
     <Layout>
       <div className="space-y-6">
         {/* Profile Header */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <Avatar className="h-16 w-16">
             <AvatarImage src="" />
             <AvatarFallback>{profile?.full_name?.charAt(0) || 'D'}</AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
-            <p className="text-muted-foreground">Designer Dashboard</p>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Designer Dashboard</p>
           </div>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Jobs Assigned</CardTitle>
@@ -276,9 +276,9 @@ const DesignerDashboard = () => {
         {/* Jobs Table with Filters */}
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <CardTitle>My Assigned Jobs</CardTitle>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -307,28 +307,28 @@ const DesignerDashboard = () => {
                     />
                   </PopoverContent>
                 </Popover>
-                <Tabs value={filter} onValueChange={setFilter} className="w-auto">
-                  <TabsList>
-                    <TabsTrigger value="all">All Jobs</TabsTrigger>
-                    <TabsTrigger value="in-progress">In Progress</TabsTrigger>
-                    <TabsTrigger value="ready">Ready for Print</TabsTrigger>
-                    <TabsTrigger value="completed">Completed</TabsTrigger>
+                <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
+                  <TabsList className="grid grid-cols-2 sm:inline-flex w-full sm:w-auto">
+                    <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                    <TabsTrigger value="in-progress" className="text-xs sm:text-sm">In Progress</TabsTrigger>
+                    <TabsTrigger value="ready" className="text-xs sm:text-sm">Ready</TabsTrigger>
+                    <TabsTrigger value="completed" className="text-xs sm:text-sm">Completed</TabsTrigger>
                   </TabsList>
                 </Tabs>
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Job Title</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Deadline</TableHead>
-                  <TableHead>Salesperson</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead className="min-w-[100px]">Order ID</TableHead>
+                  <TableHead className="min-w-[150px]">Customer</TableHead>
+                  <TableHead className="min-w-[150px]">Job Title</TableHead>
+                  <TableHead className="min-w-[120px]">Status</TableHead>
+                  <TableHead className="min-w-[120px]">Deadline</TableHead>
+                  <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                  <TableHead className="min-w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

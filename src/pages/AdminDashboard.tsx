@@ -268,12 +268,12 @@ export default function AdminDashboard() {
     <Layout>
       <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-muted-foreground">Complete oversight and control of all jobs</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Complete oversight and control of all jobs</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
@@ -321,7 +321,7 @@ export default function AdminDashboard() {
           <CardTitle>Filter Orders</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-6">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             <Popover>
               <PopoverTrigger asChild>
                 <Button
@@ -426,12 +426,12 @@ export default function AdminDashboard() {
               filteredOrders.map((order) => (
                 <div
                   key={order.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h3 className="font-semibold">{order.job_title}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <h3 className="font-semibold truncate">{order.job_title}</h3>
                       <Badge className={getStatusColor(order.status)}>
                         {order.status.replace('_', ' ')}
                       </Badge>
@@ -440,18 +440,18 @@ export default function AdminDashboard() {
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Customer: {order.customers?.name || 'N/A'}</p>
-                      <p>Designer: {order.designer?.full_name || 'Unassigned'}</p>
-                      <p>Salesperson: {order.salesperson?.full_name || 'N/A'}</p>
+                      <p className="truncate">Customer: {order.customers?.name || 'N/A'}</p>
+                      <p className="truncate">Designer: {order.designer?.full_name || 'Unassigned'}</p>
+                      <p className="truncate">Salesperson: {order.salesperson?.full_name || 'N/A'}</p>
                       <p>Created: {format(new Date(order.created_at), 'MMM dd, yyyy')}</p>
                       {order.delivery_date && (
                         <p>Delivery: {format(new Date(order.delivery_date), 'MMM dd, yyyy')}</p>
                       )}
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold">${order.order_value?.toLocaleString() || '0'}</p>
-                    <Button variant="outline" size="sm" className="mt-2">
+                  <div className="sm:text-right flex sm:flex-col items-center sm:items-end gap-2">
+                    <p className="text-xl sm:text-2xl font-bold">${order.order_value?.toLocaleString() || '0'}</p>
+                    <Button variant="outline" size="sm" className="whitespace-nowrap">
                       View Details
                     </Button>
                   </div>
