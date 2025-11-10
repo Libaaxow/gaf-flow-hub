@@ -998,7 +998,7 @@ const AccountantDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full max-w-full">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full overflow-x-hidden">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -1160,9 +1160,9 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="workflow" className="space-y-3 sm:space-y-4">
-          <div className="overflow-x-auto custom-scrollbar">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 min-w-max sm:min-w-0">
+        <Tabs defaultValue="workflow" className="space-y-3 sm:space-y-4 w-full">
+          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-7 gap-1">
               <TabsTrigger value="workflow" className="text-xs sm:text-sm whitespace-nowrap">Workflow</TabsTrigger>
               <TabsTrigger value="invoices" className="text-xs sm:text-sm whitespace-nowrap">Invoices</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm whitespace-nowrap">Customers</TabsTrigger>
@@ -1181,17 +1181,17 @@ const AccountantDashboard = () => {
                 <CardDescription className="text-xs sm:text-sm">New orders from sales team awaiting designer assignment</CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[150px]">Job Title</TableHead>
-                      <TableHead className="min-w-[150px]">Customer</TableHead>
-                      <TableHead className="min-w-[150px]">Salesperson</TableHead>
-                      <TableHead className="min-w-[100px]">Order Value</TableHead>
-                      <TableHead className="min-w-[100px]">Invoice Status</TableHead>
-                      <TableHead className="min-w-[100px]">Created</TableHead>
-                      <TableHead className="min-w-[200px]">Action</TableHead>
+                      <TableHead className="min-w-[120px]">Job Title</TableHead>
+                      <TableHead className="min-w-[120px]">Customer</TableHead>
+                      <TableHead className="min-w-[120px]">Salesperson</TableHead>
+                      <TableHead className="min-w-[90px]">Value</TableHead>
+                      <TableHead className="min-w-[90px]">Invoice</TableHead>
+                      <TableHead className="min-w-[90px]">Created</TableHead>
+                      <TableHead className="min-w-[150px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1401,7 +1401,7 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Awaiting Approval</CardTitle>
                 <CardDescription>Completed designs awaiting your approval</CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1494,7 +1494,7 @@ const AccountantDashboard = () => {
                 <CardTitle>Orders Ready for Collection</CardTitle>
                 <CardDescription>Printed orders waiting for customer pickup - Mark as completed when collected</CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1702,7 +1702,7 @@ const AccountantDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1833,7 +1833,7 @@ const AccountantDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1898,7 +1898,7 @@ const AccountantDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0 relative z-10">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -2112,7 +2112,7 @@ const AccountantDashboard = () => {
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2164,7 +2164,7 @@ const AccountantDashboard = () => {
                 <CardDescription>Track and pay sales commissions</CardDescription>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto custom-scrollbar">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2388,7 +2388,7 @@ const AccountantDashboard = () => {
                       <CardDescription className="text-xs sm:text-sm">All commissions within the selected date range</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 sm:p-6 sm:pt-0">
-                      <div className="overflow-x-auto custom-scrollbar">
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2436,7 +2436,7 @@ const AccountantDashboard = () => {
                       <CardDescription className="text-xs sm:text-sm">All expenses within the selected date range</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 sm:p-6 sm:pt-0">
-                      <div className="overflow-x-auto custom-scrollbar">
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2492,7 +2492,7 @@ const AccountantDashboard = () => {
                       <CardDescription className="text-xs sm:text-sm">All payments received within the selected date range</CardDescription>
                     </CardHeader>
                     <CardContent className="p-0 sm:p-6 sm:pt-0">
-                      <div className="overflow-x-auto custom-scrollbar">
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
                       <Table>
                         <TableHeader>
                           <TableRow>
