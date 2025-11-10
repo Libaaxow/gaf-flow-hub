@@ -262,7 +262,17 @@ export default function AdminDashboard() {
       // Fetch invoices
       const { data: invoicesData } = await supabase
         .from('invoices')
-        .select('*, customer:customers(name)')
+        .select(`
+          *,
+          customer:customers(name, email, phone),
+          invoice_items(
+            id,
+            description,
+            quantity,
+            unit_price,
+            amount
+          )
+        `)
         .order('created_at', { ascending: false });
       
       setInvoices(invoicesData || []);
