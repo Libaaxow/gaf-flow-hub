@@ -186,6 +186,7 @@ const Customers = () => {
   );
 
   const fetchCustomerDetails = async (customerId: string) => {
+    console.log('Fetching details for customer:', customerId);
     setLoadingDetails(true);
     try {
       // Fetch orders
@@ -195,7 +196,11 @@ const Customers = () => {
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
-      if (ordersError) throw ordersError;
+      console.log('Orders data:', orders);
+      if (ordersError) {
+        console.error('Orders error:', ordersError);
+        throw ordersError;
+      }
 
       // Fetch invoices
       const { data: invoices, error: invoicesError } = await supabase
@@ -213,11 +218,16 @@ const Customers = () => {
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
-      if (invoicesError) throw invoicesError;
+      console.log('Invoices data:', invoices);
+      if (invoicesError) {
+        console.error('Invoices error:', invoicesError);
+        throw invoicesError;
+      }
 
       setCustomerOrders(orders || []);
       setCustomerInvoices(invoices || []);
     } catch (error: any) {
+      console.error('Error fetching customer details:', error);
       toast({
         title: 'Error',
         description: error.message,
@@ -229,17 +239,23 @@ const Customers = () => {
   };
 
   const toggleCustomerDetails = async (customerId: string) => {
+    console.log('Toggle customer details:', customerId);
+    console.log('Current expanded customer:', expandedCustomer);
+    
     if (expandedCustomer === customerId) {
+      console.log('Collapsing customer');
       setExpandedCustomer(null);
       setCustomerOrders([]);
       setCustomerInvoices([]);
     } else {
+      console.log('Expanding customer');
       setExpandedCustomer(customerId);
       await fetchCustomerDetails(customerId);
     }
   };
 
   const handleViewInvoice = (invoice: any) => {
+    console.log('View invoice:', invoice);
     setSelectedInvoice(invoice);
     setInvoiceDialogOpen(true);
   };
