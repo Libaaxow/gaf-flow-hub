@@ -282,6 +282,8 @@ const AccountantDashboard = () => {
           salesperson_id,
           order_id
         `)
+        .gte('created_at', startDateFilter)
+        .lte('created_at', endDateFilter)
         .order('created_at', { ascending: false });
 
       let enrichedCommissions: any[] = [];
@@ -317,6 +319,8 @@ const AccountantDashboard = () => {
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
         .select('*')
+        .gte('expense_date', startDateFilter)
+        .lte('expense_date', endDateFilter)
         .order('expense_date', { ascending: false });
 
       if (expensesError) throw expensesError;
@@ -334,6 +338,8 @@ const AccountantDashboard = () => {
             customer:customers(name)
           )
         `)
+        .gte('payment_date', startDateFilter)
+        .lte('payment_date', endDateFilter)
         .order('payment_date', { ascending: false });
 
       if (paymentsError) throw paymentsError;
@@ -2299,6 +2305,155 @@ const AccountantDashboard = () => {
                       </CardContent>
                     </Card>
                   </div>
+                </div>
+
+                {/* Detailed Reports Section */}
+                <div className="space-y-6 pt-6 border-t">
+                  <h3 className="text-lg font-semibold">Detailed Reports</h3>
+
+                  {/* Commissions Report */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Commissions Report</CardTitle>
+                      <CardDescription>All commissions within the selected date range</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto custom-scrollbar">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                            <TableHead className="min-w-[200px]">Order</TableHead>
+                            <TableHead className="min-w-[100px]">Percentage</TableHead>
+                            <TableHead className="min-w-[120px]">Amount</TableHead>
+                            <TableHead className="min-w-[100px]">Status</TableHead>
+                            <TableHead className="min-w-[130px]">Created Date</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {commissions.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                No commissions found for the selected period
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            commissions.map((commission) => (
+                              <TableRow key={commission.id}>
+                                <TableCell className="font-medium">{commission.salesperson.full_name}</TableCell>
+                                <TableCell>{commission.order.job_title}</TableCell>
+                                <TableCell>{commission.commission_percentage}%</TableCell>
+                                <TableCell className="font-medium">${commission.commission_amount.toFixed(2)}</TableCell>
+                                <TableCell>
+                                  <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
+                                    {commission.paid_status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>{format(new Date(commission.created_at), 'PPp')}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  {/* Expenses Report */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Expenses Report</CardTitle>
+                      <CardDescription>All expenses within the selected date range</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto custom-scrollbar">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[130px]">Date</TableHead>
+                            <TableHead className="min-w-[150px]">Category</TableHead>
+                            <TableHead className="min-w-[200px]">Description</TableHead>
+                            <TableHead className="min-w-[120px]">Amount</TableHead>
+                            <TableHead className="min-w-[150px]">Supplier</TableHead>
+                            <TableHead className="min-w-[120px]">Payment Method</TableHead>
+                            <TableHead className="min-w-[100px]">Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {expenses.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                No expenses found for the selected period
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            expenses.map((expense) => (
+                              <TableRow key={expense.id}>
+                                <TableCell>{format(new Date(expense.expense_date), 'PP')}</TableCell>
+                                <TableCell className="font-medium">{expense.category}</TableCell>
+                                <TableCell>{expense.description}</TableCell>
+                                <TableCell className="font-medium">${expense.amount.toFixed(2)}</TableCell>
+                                <TableCell>{expense.supplier_name || '-'}</TableCell>
+                                <TableCell className="capitalize">{expense.payment_method}</TableCell>
+                                <TableCell>
+                                  <Badge 
+                                    variant={
+                                      expense.approval_status === 'approved' ? 'default' :
+                                      expense.approval_status === 'rejected' ? 'destructive' :
+                                      'secondary'
+                                    }
+                                  >
+                                    {expense.approval_status}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+
+                  {/* Payments Report */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Payments Report</CardTitle>
+                      <CardDescription>All payments received within the selected date range</CardDescription>
+                    </CardHeader>
+                    <CardContent className="overflow-x-auto custom-scrollbar">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="min-w-[130px]">Payment Date</TableHead>
+                            <TableHead className="min-w-[150px]">Customer</TableHead>
+                            <TableHead className="min-w-[200px]">Order</TableHead>
+                            <TableHead className="min-w-[120px]">Amount</TableHead>
+                            <TableHead className="min-w-[120px]">Payment Method</TableHead>
+                            <TableHead className="min-w-[150px]">Reference</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {payments.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                No payments found for the selected period
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            payments.map((payment) => (
+                              <TableRow key={payment.id}>
+                                <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
+                                <TableCell className="font-medium">
+                                  {payment.order?.customer?.name || '-'}
+                                </TableCell>
+                                <TableCell>{payment.order?.job_title || '-'}</TableCell>
+                                <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                                <TableCell className="capitalize">{payment.payment_method}</TableCell>
+                                <TableCell>{payment.reference_number || '-'}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
                 </div>
               </CardContent>
             </Card>
