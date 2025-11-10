@@ -374,7 +374,7 @@ const Customers = () => {
           </Dialog>
         </div>
 
-        <div className="relative">
+        <div className="relative mb-6">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search customers..."
@@ -384,131 +384,138 @@ const Customers = () => {
           />
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCustomers.map((customer) => (
-            <Card key={customer.id} className="overflow-hidden">
-              <CardHeader 
-                className="cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => toggleCustomerDetails(customer.id)}
-              >
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">{customer.name}</CardTitle>
-                  {expandedCustomer === customer.id ? (
-                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                  ) : (
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Email</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Phone</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Company</th>
+                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredCustomers.map((customer) => (
+                    <>
+                      <tr key={customer.id} className="border-b hover:bg-muted/30 transition-colors">
+                        <td className="px-6 py-4 font-medium">{customer.name}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{customer.email || '-'}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{customer.phone || '-'}</td>
+                        <td className="px-6 py-4 text-muted-foreground">{customer.company_name || '-'}</td>
+                        <td className="px-6 py-4">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => toggleCustomerDetails(customer.id)}
+                            className="gap-2"
+                          >
+                            <Package className="h-4 w-4" />
+                            View
+                          </Button>
+                        </td>
+                      </tr>
+                      {expandedCustomer === customer.id && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-4 bg-muted/20">
+                            {loadingDetails ? (
+                              <div className="flex items-center justify-center py-8">
+                                <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                {/* Orders Section */}
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Package className="h-4 w-4 text-muted-foreground" />
+                                    <h4 className="font-semibold">Orders ({customerOrders.length})</h4>
+                                  </div>
+                                  {customerOrders.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {customerOrders.slice(0, 5).map((order) => (
+                                        <div key={order.id} className="p-3 bg-background rounded-lg border">
+                                          <div className="flex justify-between items-start mb-1">
+                                            <span className="font-medium text-sm">{order.job_title}</span>
+                                            <Badge variant="outline" className="text-xs">
+                                              {order.status}
+                                            </Badge>
+                                          </div>
+                                          <span className="text-sm text-muted-foreground">
+                                            ${order.order_value?.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      ))}
+                                      {customerOrders.length > 5 && (
+                                        <p className="text-sm text-muted-foreground">
+                                          +{customerOrders.length - 5} more orders
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">No orders yet</p>
+                                  )}
+                                </div>
+
+                                {/* Invoices Section */}
+                                <div>
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                    <h4 className="font-semibold">Invoices ({customerInvoices.length})</h4>
+                                  </div>
+                                  {customerInvoices.length > 0 ? (
+                                    <div className="space-y-2">
+                                      {customerInvoices.slice(0, 5).map((invoice) => (
+                                        <div 
+                                          key={invoice.id} 
+                                          className="p-3 bg-background rounded-lg border cursor-pointer hover:border-primary transition-colors"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleViewInvoice(invoice);
+                                          }}
+                                        >
+                                          <div className="flex justify-between items-start mb-1">
+                                            <span className="font-medium text-sm">{invoice.invoice_number}</span>
+                                            <Badge variant="outline" className="text-xs">
+                                              {invoice.status}
+                                            </Badge>
+                                          </div>
+                                          <div className="flex justify-between text-sm text-muted-foreground">
+                                            <span>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</span>
+                                            <span className="font-medium">${invoice.total_amount?.toFixed(2)}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                      {customerInvoices.length > 5 && (
+                                        <p className="text-sm text-muted-foreground">
+                                          +{customerInvoices.length - 5} more invoices
+                                        </p>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">No invoices yet</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                  {filteredCustomers.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                        No customers found
+                      </td>
+                    </tr>
                   )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {customer.company_name && (
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {customer.company_name}
-                  </p>
-                )}
-                {customer.email && (
-                  <p className="text-sm text-muted-foreground">{customer.email}</p>
-                )}
-                {customer.phone && (
-                  <p className="text-sm text-muted-foreground">{customer.phone}</p>
-                )}
-
-                {/* Expanded Details */}
-                {expandedCustomer === customer.id && (
-                  <div className="mt-4 pt-4 border-t space-y-4">
-                    {loadingDetails ? (
-                      <div className="flex items-center justify-center py-4">
-                        <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
-                      </div>
-                    ) : (
-                      <>
-                        {/* Orders Section */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <Package className="h-4 w-4 text-muted-foreground" />
-                            <h4 className="font-semibold text-sm">Orders ({customerOrders.length})</h4>
-                          </div>
-                          {customerOrders.length > 0 ? (
-                            <div className="space-y-2">
-                              {customerOrders.slice(0, 3).map((order) => (
-                                <div key={order.id} className="text-xs p-2 bg-muted/50 rounded">
-                                  <div className="flex justify-between items-start">
-                                    <span className="font-medium">{order.job_title}</span>
-                                    <Badge variant="outline" className="text-xs">
-                                      {order.status}
-                                    </Badge>
-                                  </div>
-                                  <span className="text-muted-foreground">
-                                    ${order.order_value?.toFixed(2)}
-                                  </span>
-                                </div>
-                              ))}
-                              {customerOrders.length > 3 && (
-                                <p className="text-xs text-muted-foreground">
-                                  +{customerOrders.length - 3} more orders
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No orders yet</p>
-                          )}
-                        </div>
-
-                        {/* Invoices Section */}
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <h4 className="font-semibold text-sm">Invoices ({customerInvoices.length})</h4>
-                          </div>
-                          {customerInvoices.length > 0 ? (
-                            <div className="space-y-2">
-                              {customerInvoices.slice(0, 3).map((invoice) => (
-                                <div 
-                                  key={invoice.id} 
-                                  className="text-xs p-2 bg-muted/50 rounded cursor-pointer hover:bg-muted transition-colors"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewInvoice(invoice);
-                                  }}
-                                >
-                                  <div className="flex justify-between items-start">
-                                    <span className="font-medium">{invoice.invoice_number}</span>
-                                    <Badge variant="outline" className="text-xs">
-                                      {invoice.status}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex justify-between text-muted-foreground">
-                                    <span>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</span>
-                                    <span className="font-medium">${invoice.total_amount?.toFixed(2)}</span>
-                                  </div>
-                                </div>
-                              ))}
-                              {customerInvoices.length > 3 && (
-                                <p className="text-xs text-muted-foreground">
-                                  +{customerInvoices.length - 3} more invoices
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-muted-foreground">No invoices yet</p>
-                          )}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredCustomers.length === 0 && (
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-muted-foreground">No customers found</p>
-            </CardContent>
-          </Card>
-        )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Invoice Dialog */}
