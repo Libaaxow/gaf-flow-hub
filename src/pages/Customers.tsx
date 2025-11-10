@@ -6,10 +6,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronDown, ChevronUp, FileText, Package } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { InvoiceDialog } from '@/components/InvoiceDialog';
+import { Badge } from '@/components/ui/badge';
+import { format } from 'date-fns';
 
 interface Customer {
   id: string;
@@ -36,6 +39,12 @@ const Customers = () => {
   const [checkingPhone, setCheckingPhone] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [existingCustomer, setExistingCustomer] = useState<Customer | null>(null);
+  const [expandedCustomer, setExpandedCustomer] = useState<string | null>(null);
+  const [customerOrders, setCustomerOrders] = useState<any[]>([]);
+  const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -176,6 +185,65 @@ const Customers = () => {
     customer.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const fetchCustomerDetails = async (customerId: string) => {
+    setLoadingDetails(true);
+    try {
+      // Fetch orders
+      const { data: orders, error: ordersError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+
+      if (ordersError) throw ordersError;
+
+      // Fetch invoices
+      const { data: invoices, error: invoicesError } = await supabase
+        .from('invoices')
+        .select(`
+          *,
+          invoice_items(
+            id,
+            description,
+            quantity,
+            unit_price,
+            amount
+          )
+        `)
+        .eq('customer_id', customerId)
+        .order('created_at', { ascending: false });
+
+      if (invoicesError) throw invoicesError;
+
+      setCustomerOrders(orders || []);
+      setCustomerInvoices(invoices || []);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
+  const toggleCustomerDetails = async (customerId: string) => {
+    if (expandedCustomer === customerId) {
+      setExpandedCustomer(null);
+      setCustomerOrders([]);
+      setCustomerInvoices([]);
+    } else {
+      setExpandedCustomer(customerId);
+      await fetchCustomerDetails(customerId);
+    }
+  };
+
+  const handleViewInvoice = (invoice: any) => {
+    setSelectedInvoice(invoice);
+    setInvoiceDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -302,9 +370,19 @@ const Customers = () => {
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredCustomers.map((customer) => (
-            <Card key={customer.id}>
-              <CardHeader>
-                <CardTitle className="text-lg">{customer.name}</CardTitle>
+            <Card key={customer.id} className="overflow-hidden">
+              <CardHeader 
+                className="cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => toggleCustomerDetails(customer.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">{customer.name}</CardTitle>
+                  {expandedCustomer === customer.id ? (
+                    <ChevronUp className="h-5 w-5 text-muted-foreground" />
+                  ) : (
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="space-y-2">
                 {customer.company_name && (
@@ -317,6 +395,91 @@ const Customers = () => {
                 )}
                 {customer.phone && (
                   <p className="text-sm text-muted-foreground">{customer.phone}</p>
+                )}
+
+                {/* Expanded Details */}
+                {expandedCustomer === customer.id && (
+                  <div className="mt-4 pt-4 border-t space-y-4">
+                    {loadingDetails ? (
+                      <div className="flex items-center justify-center py-4">
+                        <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Orders Section */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                            <h4 className="font-semibold text-sm">Orders ({customerOrders.length})</h4>
+                          </div>
+                          {customerOrders.length > 0 ? (
+                            <div className="space-y-2">
+                              {customerOrders.slice(0, 3).map((order) => (
+                                <div key={order.id} className="text-xs p-2 bg-muted/50 rounded">
+                                  <div className="flex justify-between items-start">
+                                    <span className="font-medium">{order.job_title}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {order.status}
+                                    </Badge>
+                                  </div>
+                                  <span className="text-muted-foreground">
+                                    ${order.order_value?.toFixed(2)}
+                                  </span>
+                                </div>
+                              ))}
+                              {customerOrders.length > 3 && (
+                                <p className="text-xs text-muted-foreground">
+                                  +{customerOrders.length - 3} more orders
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No orders yet</p>
+                          )}
+                        </div>
+
+                        {/* Invoices Section */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <h4 className="font-semibold text-sm">Invoices ({customerInvoices.length})</h4>
+                          </div>
+                          {customerInvoices.length > 0 ? (
+                            <div className="space-y-2">
+                              {customerInvoices.slice(0, 3).map((invoice) => (
+                                <div 
+                                  key={invoice.id} 
+                                  className="text-xs p-2 bg-muted/50 rounded cursor-pointer hover:bg-muted transition-colors"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleViewInvoice(invoice);
+                                  }}
+                                >
+                                  <div className="flex justify-between items-start">
+                                    <span className="font-medium">{invoice.invoice_number}</span>
+                                    <Badge variant="outline" className="text-xs">
+                                      {invoice.status}
+                                    </Badge>
+                                  </div>
+                                  <div className="flex justify-between text-muted-foreground">
+                                    <span>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</span>
+                                    <span className="font-medium">${invoice.total_amount?.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              ))}
+                              {customerInvoices.length > 3 && (
+                                <p className="text-xs text-muted-foreground">
+                                  +{customerInvoices.length - 3} more invoices
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground">No invoices yet</p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -331,6 +494,15 @@ const Customers = () => {
           </Card>
         )}
       </div>
+
+      {/* Invoice Dialog */}
+      {selectedInvoice && (
+        <InvoiceDialog
+          open={invoiceDialogOpen}
+          onOpenChange={setInvoiceDialogOpen}
+          order={selectedInvoice}
+        />
+      )}
     </Layout>
   );
 };
