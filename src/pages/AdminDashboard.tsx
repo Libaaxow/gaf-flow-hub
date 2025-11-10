@@ -109,6 +109,7 @@ export default function AdminDashboard() {
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
   const [invoiceSubtotal, setInvoiceSubtotal] = useState('');
   const [invoiceTax, setInvoiceTax] = useState('');
+  const [invoiceDescription, setInvoiceDescription] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -407,6 +408,7 @@ export default function AdminDashboard() {
       setInvoiceDueDate('');
       setInvoiceSubtotal('');
       setInvoiceTax('');
+      setInvoiceDescription('');
       setInvoiceNotes('');
       
       fetchAllData();
@@ -950,6 +952,15 @@ export default function AdminDashboard() {
                   value={invoiceTax}
                   onChange={(e) => setInvoiceTax(e.target.value)}
                   placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-description">Description</Label>
+                <Input
+                  id="invoice-description"
+                  value={invoiceDescription}
+                  onChange={(e) => setInvoiceDescription(e.target.value)}
+                  placeholder="Invoice description"
                 />
               </div>
               <div className="grid gap-2">
