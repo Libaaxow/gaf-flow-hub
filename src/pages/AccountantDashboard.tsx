@@ -1585,8 +1585,8 @@ const AccountantDashboard = () => {
           {/* Payments Tab */}
           <TabsContent value="payments" className="space-y-4">
             <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
+              <CardHeader className="relative z-20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <CardTitle>Payment Management</CardTitle>
                     <CardDescription>Record and track customer payments</CardDescription>
@@ -1596,14 +1596,15 @@ const AccountantDashboard = () => {
                       console.log('Opening payment dialog');
                       setPaymentDialogOpen(true);
                     }}
-                    className="shrink-0"
+                    className="shrink-0 relative z-30"
+                    type="button"
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Record Payment
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="overflow-x-auto custom-scrollbar relative z-10">
                 <Table>
                   <TableHeader>
                     <TableRow>
