@@ -18,41 +18,44 @@ export type Database = {
         Row: {
           commission_amount: number
           commission_percentage: number
+          commission_type: string
           created_at: string | null
           id: string
           order_id: string
           paid_at: string | null
           paid_by: string | null
           paid_status: string | null
-          salesperson_id: string
+          user_id: string
         }
         Insert: {
           commission_amount: number
           commission_percentage: number
+          commission_type?: string
           created_at?: string | null
           id?: string
           order_id: string
           paid_at?: string | null
           paid_by?: string | null
           paid_status?: string | null
-          salesperson_id: string
+          user_id: string
         }
         Update: {
           commission_amount?: number
           commission_percentage?: number
+          commission_type?: string
           created_at?: string | null
           id?: string
           order_id?: string
           paid_at?: string | null
           paid_by?: string | null
           paid_status?: string | null
-          salesperson_id?: string
+          user_id?: string
         }
         Relationships: [
           {
             foreignKeyName: "commissions_order_id_fkey"
             columns: ["order_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },

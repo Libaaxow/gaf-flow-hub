@@ -279,8 +279,9 @@ const AccountantDashboard = () => {
           commission_percentage,
           paid_status,
           created_at,
-          salesperson_id,
-          order_id
+          user_id,
+          order_id,
+          commission_type
         `)
         .gte('created_at', startDateFilter)
         .lte('created_at', endDateFilter)
@@ -290,10 +291,10 @@ const AccountantDashboard = () => {
       if (commissionsData) {
         const commissionsWithDetails = await Promise.all(
           commissionsData.map(async (comm) => {
-            const { data: salesperson } = await supabase
+            const { data: user } = await supabase
               .from('profiles')
               .select('full_name')
-              .eq('id', comm.salesperson_id)
+              .eq('id', comm.user_id)
               .single();
 
             const { data: order } = await supabase
@@ -304,7 +305,7 @@ const AccountantDashboard = () => {
 
             return {
               ...comm,
-              salesperson: salesperson || { full_name: 'Unknown' },
+              user: user || { full_name: 'Unknown' },
               order: order || { job_title: 'Unknown' },
             };
           })
@@ -2168,7 +2169,8 @@ const AccountantDashboard = () => {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                      <TableHead className="min-w-[150px]">User</TableHead>
+                      <TableHead className="min-w-[100px]">Type</TableHead>
                       <TableHead className="min-w-[150px]">Order</TableHead>
                       <TableHead className="min-w-[100px]">Percentage</TableHead>
                       <TableHead className="min-w-[100px]">Amount</TableHead>
@@ -2179,14 +2181,20 @@ const AccountantDashboard = () => {
                   <TableBody>
                     {commissions.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No commissions found
                         </TableCell>
                       </TableRow>
                     ) : (
                       commissions.map((commission) => (
                         <TableRow key={commission.id}>
-                          <TableCell className="font-medium">{commission.salesperson.full_name}</TableCell>
+                          <TableCell className="font-medium">{commission.user.full_name}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {commission.commission_type === 'sales' ? 'Sales' : 
+                               commission.commission_type === 'design' ? 'Design' : 'Print'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{commission.order.job_title}</TableCell>
                           <TableCell>{commission.commission_percentage}%</TableCell>
                           <TableCell className="font-medium">${commission.commission_amount.toFixed(2)}</TableCell>
@@ -2392,7 +2400,8 @@ const AccountantDashboard = () => {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="min-w-[150px]">Salesperson</TableHead>
+                            <TableHead className="min-w-[150px]">User</TableHead>
+                            <TableHead className="min-w-[100px]">Type</TableHead>
                             <TableHead className="min-w-[200px]">Order</TableHead>
                             <TableHead className="min-w-[100px]">Percentage</TableHead>
                             <TableHead className="min-w-[120px]">Amount</TableHead>
@@ -2403,14 +2412,20 @@ const AccountantDashboard = () => {
                         <TableBody>
                           {commissions.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                                 No commissions found for the selected period
                               </TableCell>
                             </TableRow>
                           ) : (
                             commissions.map((commission) => (
                               <TableRow key={commission.id}>
-                                <TableCell className="font-medium">{commission.salesperson.full_name}</TableCell>
+                                <TableCell className="font-medium">{commission.user.full_name}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline">
+                                    {commission.commission_type === 'sales' ? 'Sales' : 
+                                     commission.commission_type === 'design' ? 'Design' : 'Print'}
+                                  </Badge>
+                                </TableCell>
                                 <TableCell>{commission.order.job_title}</TableCell>
                                 <TableCell>{commission.commission_percentage}%</TableCell>
                                 <TableCell className="font-medium">${commission.commission_amount.toFixed(2)}</TableCell>

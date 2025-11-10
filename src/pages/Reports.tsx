@@ -49,33 +49,48 @@ const Reports = () => {
 
   const fetchReports = async () => {
     try {
-      // Fetch salesperson reports
+      // Fetch all sales commissions
       const { data: commissions } = await supabase
         .from('commissions')
         .select(`
-          salesperson_id,
+          user_id,
           commission_amount,
-          orders (order_value),
-          profiles:salesperson_id (id, full_name)
-        `);
+          commission_type,
+          orders (order_value)
+        `)
+        .eq('commission_type', 'sales');
 
       const salesMap = new Map<string, SalespersonReport>();
       
+      // Get unique user IDs
+      const userIds = Array.from(new Set(commissions?.map(c => c.user_id).filter(Boolean)));
+      
+      // Fetch profiles for all users at once
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', userIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
       commissions?.forEach((commission: any) => {
-        const id = commission.profiles?.id;
-        if (!id) return;
+        const userId = commission.user_id;
+        if (!userId) return;
 
-        if (!salesMap.has(id)) {
-          salesMap.set(id, {
-            id,
-            full_name: commission.profiles.full_name,
+        const profile = profileMap.get(userId);
+        if (!profile) return;
+
+        if (!salesMap.has(userId)) {
+          salesMap.set(userId, {
+            id: userId,
+            full_name: profile.full_name,
             totalSales: 0,
             totalCommission: 0,
             orderCount: 0,
           });
         }
 
-        const report = salesMap.get(id)!;
+        const report = salesMap.get(userId)!;
         report.totalSales += Number(commission.orders?.order_value || 0);
         report.totalCommission += Number(commission.commission_amount || 0);
         report.orderCount += 1;

@@ -237,7 +237,7 @@ const SalesDashboard = () => {
           *,
           orders (job_title, order_value, payment_status)
         `)
-        .eq('salesperson_id', user?.id)
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false });
 
       if (commissionsError) throw commissionsError;

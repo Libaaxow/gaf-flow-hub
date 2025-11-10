@@ -56,7 +56,7 @@ const Dashboard = () => {
         const { data: commissions } = await supabase
           .from('commissions')
           .select('commission_amount')
-          .eq('salesperson_id', user?.id);
+          .eq('user_id', user?.id);
 
         const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
 
