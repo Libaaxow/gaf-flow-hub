@@ -2295,12 +2295,12 @@ const AccountantDashboard = () => {
 
           {/* Payment Dialog - Separate from tab content */}
           <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-            <DialogContent className="sm:max-w-[500px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>Record Payment</DialogTitle>
                 <DialogDescription>Record a new payment for an invoice</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
+              <div className="grid gap-4 py-4 overflow-y-auto pr-2">
                 <div className="grid gap-2">
                   <Label htmlFor="payment-customer">Customer *</Label>
                   <Select value={paymentCustomer} onValueChange={(value) => {
@@ -2421,7 +2421,7 @@ const AccountantDashboard = () => {
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="mt-2">
                 <Button onClick={handleRecordPayment}>Record Payment</Button>
               </DialogFooter>
             </DialogContent>
