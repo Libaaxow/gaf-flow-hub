@@ -18,18 +18,27 @@ interface InvoiceData {
 
 // Convert image to base64
 const loadImageAsBase64 = (url: string): Promise<string> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
     img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      ctx?.drawImage(img, 0, 0);
-      resolve(canvas.toDataURL("image/png"));
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL("image/png"));
+        } else {
+          resolve("");
+        }
+      } catch (error) {
+        console.error("Canvas error:", error);
+        resolve("");
+      }
     };
-    img.onerror = reject;
+    img.onerror = () => resolve("");
     img.src = url;
   });
 };
@@ -41,12 +50,15 @@ export const generateInvoicePDF = async (invoiceNumber: string, data: InvoiceDat
     format: "a4",
   });
 
-  // Load and add logo
+// Load and add logo
   try {
     const logoBase64 = await loadImageAsBase64(logoImage);
-    pdf.addImage(logoBase64, "PNG", 20, 15, 40, 15);
+    if (logoBase64) {
+      pdf.addImage(logoBase64, "PNG", 20, 15, 40, 15);
+    }
   } catch (error) {
     console.error("Error loading logo:", error);
+    // Continue without logo if it fails to load
   }
 
   // Company Header - Right aligned
