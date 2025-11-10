@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InvoiceTemplate } from "./InvoiceTemplate";
 import { generateInvoicePDF } from "@/utils/generateInvoicePDF";
 import { Download } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -21,6 +21,7 @@ interface InvoiceDialogProps {
 
 export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
   if (!order) return null;
 
@@ -78,11 +79,18 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
       const success = generateInvoicePDF(order.invoice_number || order.id, invoiceData);
       
       if (success) {
-        toast.success("Invoice downloaded successfully!");
+        toast({
+          title: "Success",
+          description: "Invoice downloaded successfully!",
+        });
       }
     } catch (error) {
       console.error("Error in handleDownloadPDF:", error);
-      toast.error("Failed to generate PDF. Please check the console for details.");
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please check the console for details.",
+        variant: "destructive",
+      });
     } finally {
       setIsGenerating(false);
     }
