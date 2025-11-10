@@ -191,8 +191,25 @@ const AccountantDashboard = () => {
       )
       .subscribe();
 
+    // Set up realtime subscription for invoices
+    const invoicesChannel = supabase
+      .channel('accountant-invoices-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'invoices',
+        },
+        () => {
+          fetchInvoices();
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(invoicesChannel);
     };
   }, []);
 
