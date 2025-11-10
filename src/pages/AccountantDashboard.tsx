@@ -137,6 +137,7 @@ const AccountantDashboard = () => {
   const [customerCompany, setCustomerCompany] = useState('');
 
   // Invoice form states
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
@@ -478,10 +479,10 @@ const AccountantDashboard = () => {
   };
 
   const handleRecordPayment = async () => {
-    if (!selectedOrder || !paymentAmount || !paymentMethod) {
+    if (!selectedOrder || !paymentAmount || !paymentMethod || !paymentReference) {
       toast({
         title: 'Missing Information',
-        description: 'Please fill in all required fields',
+        description: 'Please fill in all required fields including receipt number',
         variant: 'destructive',
       });
       return;
@@ -671,10 +672,10 @@ const AccountantDashboard = () => {
   };
 
   const handleCreateInvoice = async () => {
-    if (!invoiceCustomer || !invoiceSubtotal) {
+    if (!invoiceNumber || !invoiceCustomer || !invoiceSubtotal) {
       toast({
         title: 'Missing Information',
-        description: 'Please provide customer and subtotal',
+        description: 'Please provide invoice number, customer and subtotal',
         variant: 'destructive',
       });
       return;
@@ -682,10 +683,6 @@ const AccountantDashboard = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-
-      // Generate invoice number
-      const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
-      const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
 
       const subtotal = parseFloat(invoiceSubtotal);
       const tax = invoiceTax ? parseFloat(invoiceTax) : 0;
@@ -714,6 +711,7 @@ const AccountantDashboard = () => {
         description: `Invoice ${invoiceNumber} created successfully`,
       });
 
+      setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
       setInvoiceDueDate('');
@@ -1128,6 +1126,15 @@ const AccountantDashboard = () => {
                       </DialogHeader>
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
+                          <Label htmlFor="invoice-number">Invoice Number *</Label>
+                          <Input
+                            id="invoice-number"
+                            value={invoiceNumber}
+                            onChange={(e) => setInvoiceNumber(e.target.value)}
+                            placeholder="INV-00001"
+                          />
+                        </div>
+                        <div className="grid gap-2">
                           <Label htmlFor="invoice-customer">Customer *</Label>
                           <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
                             <SelectTrigger>
@@ -1441,12 +1448,12 @@ const AccountantDashboard = () => {
                           </Select>
                         </div>
                         <div className="grid gap-2">
-                          <Label htmlFor="reference">Reference Number</Label>
+                          <Label htmlFor="reference">Receipt Number *</Label>
                           <Input
                             id="reference"
                             value={paymentReference}
                             onChange={(e) => setPaymentReference(e.target.value)}
-                            placeholder="TXN123456"
+                            placeholder="RCP-00001"
                           />
                         </div>
                         <div className="grid gap-2">
@@ -1475,7 +1482,7 @@ const AccountantDashboard = () => {
                       <TableHead className="min-w-[150px]">Customer</TableHead>
                       <TableHead className="min-w-[100px]">Amount</TableHead>
                       <TableHead className="min-w-[120px]">Method</TableHead>
-                      <TableHead className="min-w-[120px]">Reference</TableHead>
+                      <TableHead className="min-w-[120px]">Receipt #</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
