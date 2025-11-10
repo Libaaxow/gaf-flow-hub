@@ -950,15 +950,18 @@ const AccountantDashboard = () => {
                                 <DialogTrigger asChild>
                                   <Button 
                                     size="sm" 
-                                    variant="outline"
+                                    variant={order.invoice_count > 0 ? "secondary" : "outline"}
+                                    disabled={order.invoice_count > 0}
                                     onClick={() => {
-                                      setInvoiceOrder(order.id);
-                                      setInvoiceCustomer(order.customer_id);
-                                      setInvoiceSubtotal(order.order_value?.toString() || '');
+                                      if (order.invoice_count === 0) {
+                                        setInvoiceOrder(order.id);
+                                        setInvoiceCustomer(order.customer_id);
+                                        setInvoiceSubtotal(order.order_value?.toString() || '');
+                                      }
                                     }}
                                   >
                                     <FileText className="mr-2 h-4 w-4" />
-                                    Create Invoice
+                                    {order.invoice_count > 0 ? 'Invoice Created' : 'Create Invoice'}
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
