@@ -50,7 +50,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, subDays, subMonths, subYears, startOfYear, endOfYear } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
@@ -105,7 +105,7 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
   
@@ -186,7 +186,7 @@ const AccountantDashboard = () => {
 
   useEffect(() => {
     fetchFinancialData();
-  }, [dateFilter]);
+  }, [startDate, endDate]);
 
   const fetchAllData = async () => {
     await Promise.all([
@@ -238,8 +238,8 @@ const AccountantDashboard = () => {
     try {
       setLoading(true);
 
-      const startDateFilter = startOfDay(dateFilter).toISOString();
-      const endDateFilter = endOfDay(dateFilter).toISOString();
+      const startDateFilter = startOfDay(startDate).toISOString();
+      const endDateFilter = endOfDay(endDate).toISOString();
       
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -803,6 +803,47 @@ const AccountantDashboard = () => {
     }
   };
 
+  const handleDateRangePreset = (preset: string) => {
+    setDateRangePreset(preset);
+    const now = new Date();
+    
+    switch (preset) {
+      case 'today':
+        setStartDate(startOfDay(now));
+        setEndDate(endOfDay(now));
+        break;
+      case 'last_7_days':
+        setStartDate(startOfDay(subDays(now, 7)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'last_30_days':
+        setStartDate(startOfDay(subDays(now, 30)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'this_month':
+        setStartDate(startOfMonth(now));
+        setEndDate(endOfMonth(now));
+        break;
+      case 'last_month':
+        const lastMonth = subMonths(now, 1);
+        setStartDate(startOfMonth(lastMonth));
+        setEndDate(endOfMonth(lastMonth));
+        break;
+      case 'this_year':
+        setStartDate(startOfYear(now));
+        setEndDate(endOfYear(now));
+        break;
+      case 'last_year':
+        const lastYear = subYears(now, 1);
+        setStartDate(startOfYear(lastYear));
+        setEndDate(endOfYear(lastYear));
+        break;
+      case 'custom':
+        // Keep current dates for custom selection
+        break;
+    }
+  };
+
   const generateReport = () => {
     // This would generate PDF or export data based on selected filters
     toast({
@@ -872,39 +913,114 @@ const AccountantDashboard = () => {
   return (
     <Layout>
       <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full max-w-full">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">Financial management and reporting</p>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">Financial management and reporting</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "justify-start text-left font-normal"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <div className="p-3 space-y-2 border-b">
+                    <div className="font-semibold text-sm">Select Date Range</div>
+                    <div className="flex gap-2">
+                      <Calendar
+                        mode="single"
+                        selected={startDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setStartDate(date);
+                            setDateRangePreset('custom');
+                          }
+                        }}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                      <div className="border-l mx-2" />
+                      <Calendar
+                        mode="single"
+                        selected={endDate}
+                        onSelect={(date) => {
+                          if (date) {
+                            setEndDate(date);
+                            setDateRangePreset('custom');
+                          }
+                        }}
+                        disabled={(date) => date < startDate}
+                        initialFocus
+                        className={cn("p-3 pointer-events-auto")}
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "justify-start text-left font-normal",
-                  !dateFilter && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFilter}
-                onSelect={(date) => {
-                  if (date) {
-                    setDateFilter(date);
-                    fetchFinancialData();
-                  }
-                }}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          
+          {/* Quick Date Filters */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant={dateRangePreset === 'today' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('today')}
+            >
+              Today
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last_7_days' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('last_7_days')}
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last_30_days' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('last_30_days')}
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              variant={dateRangePreset === 'this_month' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('this_month')}
+            >
+              This Month
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last_month' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('last_month')}
+            >
+              Last Month
+            </Button>
+            <Button
+              variant={dateRangePreset === 'this_year' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('this_year')}
+            >
+              This Year
+            </Button>
+            <Button
+              variant={dateRangePreset === 'last_year' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => handleDateRangePreset('last_year')}
+            >
+              Last Year
+            </Button>
+          </div>
         </div>
 
         {/* Stats Grid */}
