@@ -434,11 +434,11 @@ const AccountantDashboard = () => {
         .from('invoices')
         .select('id')
         .eq('order_id', selectedOrderForAssignment)
-        .maybeSingle();
+        .limit(1);
 
       if (invoiceError) throw invoiceError;
 
-      if (!invoiceData) {
+      if (!invoiceData || invoiceData.length === 0) {
         toast({
           title: 'Invoice Required',
           description: 'Please create an invoice for this order before assigning a designer',
