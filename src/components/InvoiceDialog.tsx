@@ -34,17 +34,22 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
   if (!order) return null;
 
   // Parse order items from the order data
-  const items = order.order_items?.map((item: any) => ({
-    description: item.description || item.item_name || "Item",
-    quantity: item.quantity || 1,
-    unitPrice: item.unit_price || 0,
-    amount: (item.quantity || 1) * (item.unit_price || 0),
-  })) || [{
-    description: order.job_title || "Service",
-    quantity: 1,
-    unitPrice: order.order_value || 0,
-    amount: order.order_value || 0,
-  }];
+  const items = order.order_items && order.order_items.length > 0
+    ? order.order_items.map((item: any) => ({
+        description: item.description || item.item_name || "Item",
+        quantity: item.quantity || 1,
+        unitPrice: item.unit_price || 0,
+        amount: (item.quantity || 1) * (item.unit_price || 0),
+      }))
+    : [{
+        description: order.job_title || "Service",
+        quantity: 1,
+        unitPrice: order.order_value || 0,
+        amount: order.order_value || 0,
+      }];
+
+  console.log("Invoice Dialog - Order:", order);
+  console.log("Invoice Dialog - Items:", items);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
