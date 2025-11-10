@@ -114,7 +114,7 @@ export default function AdminDashboard() {
       // Fetch order history for today's activity
       const { data: historyData } = await supabase
         .from('order_history')
-        .select('*, orders(job_title, customers(name))')
+        .select('*, orders(job_title, status, customers(name))')
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });

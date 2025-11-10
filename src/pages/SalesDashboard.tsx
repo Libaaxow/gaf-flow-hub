@@ -180,7 +180,7 @@ const SalesDashboard = () => {
       // Fetch order history for today's activity
       const { data: historyData } = await supabase
         .from('order_history')
-        .select('*, orders(job_title, customers(name))')
+        .select('*, orders(job_title, status, customers(name))')
         .eq('user_id', user?.id)
         .gte('created_at', startDate)
         .lte('created_at', endDate)
