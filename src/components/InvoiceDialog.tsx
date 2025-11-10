@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,22 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
   const handleDownloadPDF = async () => {
     setIsGenerating(true);
     try {
-      await generateInvoicePDF(order.id);
+      const invoiceData = {
+        invoiceNumber: order.invoice_number || order.id || "N/A",
+        invoiceDate: format(new Date(order.invoice_date || order.created_at || Date.now()), "MMMM d, yyyy"),
+        customerName: order.customer?.name || order.customers?.name || order.customer_name || "N/A",
+        customerContact: order.customer?.phone || order.customer?.email || order.customers?.phone || order.customers?.email,
+        items: items,
+        status: (
+          order.status === "paid" || order.payment_status === "paid"
+            ? "PAID"
+            : order.status === "partial" || order.payment_status === "partial"
+            ? "PARTIAL"
+            : "UNPAID"
+        ) as "PAID" | "UNPAID" | "PARTIAL",
+      };
+      
+      await generateInvoicePDF(order.invoice_number || order.id, invoiceData);
     } catch (error) {
       console.error("Error generating PDF:", error);
     } finally {
