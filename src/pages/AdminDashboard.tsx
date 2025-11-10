@@ -912,10 +912,9 @@ export default function AdminDashboard() {
                 <Label htmlFor="invoice-order">Related Order (Optional)</Label>
                 <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Select order" />
+                    <SelectValue placeholder="Select order (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
                     {orders.map((order) => (
                       <SelectItem key={order.id} value={order.id}>
                         {order.job_title}
