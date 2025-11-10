@@ -56,7 +56,10 @@ const DesignerDashboard = () => {
   useEffect(() => {
     fetchUserRole();
     fetchDesignerData();
-    setupRealtimeSubscription();
+    
+    const cleanup = setupRealtimeSubscription();
+    
+    return cleanup;
   }, [user]);
 
   const fetchUserRole = async () => {
@@ -76,42 +79,37 @@ const DesignerDashboard = () => {
   };
 
   const setupRealtimeSubscription = () => {
+    if (!user?.id) return () => {};
+    
     const channel = supabase
       .channel('designer-orders')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `designer_id=eq.${user?.id}`,
-        },
-        async (payload) => {
-          // Fetch salesperson name for notification
-          const { data: salespersonData } = await supabase
-            .from('profiles')
-            .select('full_name')
-            .eq('id', payload.new.salesperson_id)
-            .single();
-
-          toast({
-            title: '🎨 New Job Assigned!',
-            description: `${payload.new.job_title} by ${salespersonData?.full_name || 'Unknown Salesperson'}`,
-          });
-          
-          fetchDesignerData();
-        }
-      )
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'orders',
-          filter: `designer_id=eq.${user?.id}`,
         },
-        () => {
-          fetchDesignerData();
+        async (payload: any) => {
+          // Check if this order was just assigned to the current designer
+          if (payload.new.designer_id === user?.id && payload.old.designer_id !== user?.id) {
+            // Fetch customer and salesperson data for notification
+            const { data: customerData } = await supabase
+              .from('customers')
+              .select('name')
+              .eq('id', payload.new.customer_id)
+              .single();
+
+            toast({
+              title: '🎨 New Job Assigned!',
+              description: `${payload.new.job_title} for ${customerData?.name || 'Unknown Customer'}`,
+            });
+          }
+          
+          // Refresh data if the order involves this designer
+          if (payload.new.designer_id === user?.id || payload.old.designer_id === user?.id) {
+            fetchDesignerData();
+          }
         }
       )
       .subscribe();
