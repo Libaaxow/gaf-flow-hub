@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip, Calendar as CalendarIcon } from 'lucide-react';
+import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip, Calendar as CalendarIcon, DollarSign } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -32,6 +33,8 @@ interface Stats {
   printing: number;
   printed: number;
   delivered: number;
+  totalCommissions: number;
+  paidCommissions: number;
 }
 
 const PrintOperatorDashboard = () => {
@@ -39,7 +42,15 @@ const PrintOperatorDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [stats, setStats] = useState<Stats>({ readyForPrint: 0, printing: 0, printed: 0, delivered: 0 });
+  const [commissions, setCommissions] = useState<any[]>([]);
+  const [stats, setStats] = useState<Stats>({ 
+    readyForPrint: 0, 
+    printing: 0, 
+    printed: 0, 
+    delivered: 0,
+    totalCommissions: 0,
+    paidCommissions: 0
+  });
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
@@ -113,6 +124,22 @@ const PrintOperatorDashboard = () => {
     try {
       setLoading(true);
 
+      // Fetch commissions for print operator
+      const { data: commissionsData } = await supabase
+        .from('commissions')
+        .select(`
+          *,
+          orders (job_title, order_value, customers(name))
+        `)
+        .eq('user_id', user?.id)
+        .eq('commission_type', 'print')
+        .order('created_at', { ascending: false });
+
+      setCommissions(commissionsData || []);
+
+      const totalCommissions = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
+      const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
+
       // Fetch orders filtered by date
       const startDate = startOfDay(dateFilter).toISOString();
       const endDate = endOfDay(dateFilter).toISOString();
@@ -157,7 +184,14 @@ const PrintOperatorDashboard = () => {
         const printed = ordersWithDesigner.filter(o => o.status === 'printed').length;
         const delivered = ordersWithDesigner.filter(o => o.status === 'delivered').length;
 
-        setStats({ readyForPrint, printing, printed, delivered });
+        setStats({ 
+          readyForPrint, 
+          printing, 
+          printed, 
+          delivered,
+          totalCommissions,
+          paidCommissions
+        });
       }
     } catch (error: any) {
       toast({
@@ -238,49 +272,59 @@ const PrintOperatorDashboard = () => {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Delivered</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
+              <DollarSign className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.delivered}</div>
+              <div className="text-2xl font-bold">${stats.totalCommissions.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                ${stats.paidCommissions.toFixed(2)} paid
+              </p>
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle>Print Jobs</CardTitle>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "justify-start text-left font-normal",
-                      !dateFilter && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={dateFilter}
-                    onSelect={(date) => {
-                      if (date) {
-                        setDateFilter(date);
-                        fetchPrintData();
-                      }
-                    }}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </CardHeader>
+        <Tabs defaultValue="jobs" className="w-full">
+          <TabsList>
+            <TabsTrigger value="jobs">Print Jobs</TabsTrigger>
+            <TabsTrigger value="commissions">My Commissions</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="jobs" className="mt-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardTitle>Print Jobs</CardTitle>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !dateFilter && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFilter}
+                        onSelect={(date) => {
+                          if (date) {
+                            setDateFilter(date);
+                            fetchPrintData();
+                          }
+                        }}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </CardHeader>
           <CardContent className="overflow-x-auto custom-scrollbar">
             {orders.length === 0 ? (
               <div className="text-center py-12">
@@ -364,6 +408,66 @@ const PrintOperatorDashboard = () => {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="commissions" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Print Commissions</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Order Value</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Commission</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commissions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No commissions found. Make sure your commission percentage is set in your profile.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      commissions.map((commission) => (
+                        <TableRow key={commission.id}>
+                          <TableCell className="font-medium">
+                            {commission.orders?.job_title || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {commission.orders?.customers?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            ${commission.orders?.order_value?.toFixed(2) || '0.00'}
+                          </TableCell>
+                          <TableCell>{commission.commission_percentage}%</TableCell>
+                          <TableCell className="font-bold">
+                            ${commission.commission_amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
+                              {commission.paid_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(commission.created_at), 'PP')}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
