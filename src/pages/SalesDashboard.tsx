@@ -754,18 +754,37 @@ const SalesDashboard = () => {
               {orderHistory.length === 0 ? (
                 <p className="text-center text-muted-foreground py-4">No activity recorded today</p>
               ) : (
-                orderHistory.slice(0, 10).map((history) => (
-                  <div key={history.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                    <div className="text-xs text-muted-foreground min-w-[50px]">
-                      {format(new Date(history.created_at), 'HH:mm')}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">
-                        {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                ))
+                orderHistory
+                  .filter((history) => history.action === 'Order Created')
+                  .slice(0, 10)
+                  .map((history) => {
+                    const orderStatus = history.orders?.status || 'pending';
+                    const statusText = orderStatus === 'completed' 
+                      ? 'Completed' 
+                      : orderStatus === 'printing' 
+                      ? 'In Print' 
+                      : orderStatus === 'designing'
+                      ? 'In Design'
+                      : orderStatus === 'ready_for_print'
+                      ? 'Ready for Print'
+                      : 'Pending';
+                    
+                    return (
+                      <div key={history.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                        <div className="text-xs text-muted-foreground min-w-[50px]">
+                          {format(new Date(history.created_at), 'HH:mm')}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">
+                            {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Status: {statusText}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })
               )}
             </div>
           </CardContent>
