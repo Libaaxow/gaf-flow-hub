@@ -107,13 +107,22 @@ export default function AdminDashboard() {
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
-  const [invoiceSubtotal, setInvoiceSubtotal] = useState('');
   const [invoiceTax, setInvoiceTax] = useState('');
-  const [invoiceDescription, setInvoiceDescription] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  
+  // Invoice items state
+  interface InvoiceItem {
+    description: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }
+  const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
+    { description: '', quantity: 1, unit_price: 0, amount: 0 }
+  ]);
 
   // Stats
   const [stats, setStats] = useState({
@@ -362,39 +371,96 @@ export default function AdminDashboard() {
     }
   };
 
+  const addInvoiceItem = () => {
+    setInvoiceItems([...invoiceItems, { description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+  };
+
+  const removeInvoiceItem = (index: number) => {
+    if (invoiceItems.length > 1) {
+      setInvoiceItems(invoiceItems.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+    const newItems = [...invoiceItems];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // Auto-calculate amount
+    if (field === 'quantity' || field === 'unit_price') {
+      newItems[index].amount = newItems[index].quantity * newItems[index].unit_price;
+    }
+    
+    setInvoiceItems(newItems);
+  };
+
+  const calculateInvoiceSubtotal = () => {
+    return invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+  };
+
   const handleCreateInvoice = async () => {
-    if (!invoiceNumber || !invoiceCustomer || !invoiceSubtotal) {
+    if (!invoiceNumber || !invoiceCustomer || invoiceItems.length === 0) {
       toast({
         title: 'Validation Error',
-        description: 'Please fill in all required fields',
+        description: 'Please fill in all required fields and add at least one item',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate all items have descriptions
+    const hasEmptyDescriptions = invoiceItems.some(item => !item.description.trim());
+    if (hasEmptyDescriptions) {
+      toast({
+        title: 'Validation Error',
+        description: 'All items must have a description',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      const subtotal = parseFloat(invoiceSubtotal);
+      const subtotal = calculateInvoiceSubtotal();
       const tax = parseFloat(invoiceTax) || 0;
       const total = subtotal + tax;
 
-      const { error } = await supabase.from('invoices').insert([
-        {
-          invoice_number: invoiceNumber,
-          customer_id: invoiceCustomer,
-          order_id: invoiceOrder || null,
-          invoice_date: new Date().toISOString().split('T')[0],
-          due_date: invoiceDueDate || null,
-          subtotal,
-          tax_amount: tax,
-          total_amount: total,
-          amount_paid: 0,
-          status: 'draft',
-          notes: invoiceNotes || null,
-          created_by: user?.id,
-        },
-      ]);
+      // Insert invoice
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([
+          {
+            invoice_number: invoiceNumber,
+            customer_id: invoiceCustomer,
+            order_id: invoiceOrder || null,
+            invoice_date: new Date().toISOString().split('T')[0],
+            due_date: invoiceDueDate || null,
+            subtotal,
+            tax_amount: tax,
+            total_amount: total,
+            amount_paid: 0,
+            status: 'draft',
+            notes: invoiceNotes || null,
+            created_by: user?.id,
+          },
+        ])
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (invoiceError) throw invoiceError;
+
+      // Insert invoice items
+      const itemsToInsert = invoiceItems.map(item => ({
+        invoice_id: invoiceData.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
 
       toast({
         title: 'Success',
@@ -406,10 +472,9 @@ export default function AdminDashboard() {
       setInvoiceCustomer('');
       setInvoiceOrder('');
       setInvoiceDueDate('');
-      setInvoiceSubtotal('');
       setInvoiceTax('');
-      setInvoiceDescription('');
       setInvoiceNotes('');
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
       fetchAllData();
     } catch (error: any) {
@@ -934,16 +999,77 @@ export default function AdminDashboard() {
                   onChange={(e) => setInvoiceDueDate(e.target.value)}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="subtotal">Subtotal *</Label>
-                <Input
-                  id="subtotal"
-                  type="number"
-                  value={invoiceSubtotal}
-                  onChange={(e) => setInvoiceSubtotal(e.target.value)}
-                  placeholder="0.00"
-                />
+              {/* Invoice Items */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Invoice Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+                
+                {invoiceItems.map((item, index) => (
+                  <Card key={index} className="p-4">
+                    <div className="grid gap-3">
+                      <div className="grid gap-2">
+                        <Label>Description *</Label>
+                        <Input
+                          value={item.description}
+                          onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                          placeholder="Item description"
+                        />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="grid gap-2">
+                          <Label>Quantity *</Label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Unit Price *</Label>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={item.unit_price}
+                            onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>Amount</Label>
+                          <Input
+                            type="number"
+                            value={item.amount.toFixed(2)}
+                            disabled
+                            className="bg-muted"
+                          />
+                        </div>
+                      </div>
+                      {invoiceItems.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => removeInvoiceItem(index)}
+                        >
+                          Remove Item
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+
+                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  <span className="font-semibold">Subtotal:</span>
+                  <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                </div>
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="tax">Tax Amount</Label>
                 <Input
@@ -954,14 +1080,12 @@ export default function AdminDashboard() {
                   placeholder="0.00"
                 />
               </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invoice-description">Description</Label>
-                <Input
-                  id="invoice-description"
-                  value={invoiceDescription}
-                  onChange={(e) => setInvoiceDescription(e.target.value)}
-                  placeholder="Invoice description"
-                />
+              
+              <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
+                <span className="font-semibold text-lg">Total:</span>
+                <span className="text-2xl font-bold">
+                  ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
+                </span>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="invoice-notes">Notes</Label>
