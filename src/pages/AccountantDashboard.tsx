@@ -602,10 +602,16 @@ const AccountantDashboard = () => {
         }
 
         // Update associated invoice if exists
-        const { data: orderInvoices } = await supabase
+        const { data: orderInvoices, error: invoiceFetchError } = await supabase
           .from('invoices')
           .select('*')
           .eq('order_id', selectedOrder);
+
+        console.log('Checking for invoices:', { orderId: selectedOrder, invoicesFound: orderInvoices?.length });
+
+        if (invoiceFetchError) {
+          console.error('Error fetching invoices:', invoiceFetchError);
+        }
 
         if (orderInvoices && orderInvoices.length > 0) {
           const invoice = orderInvoices[0];
@@ -622,7 +628,15 @@ const AccountantDashboard = () => {
             invoiceStatus = 'sent';
           }
 
-          console.log('Updating invoice:', { invoiceId: invoice.id, invoiceNewAmountPaid, invoiceStatus });
+          console.log('Updating invoice:', { 
+            invoiceId: invoice.id, 
+            currentAmountPaid: invoice.amount_paid,
+            paymentAmount: parseFloat(paymentAmount),
+            invoiceNewAmountPaid, 
+            invoiceTotal,
+            newStatus: invoiceStatus,
+            oldStatus: invoice.status
+          });
 
           const { error: invoiceUpdateError } = await supabase
             .from('invoices')
@@ -634,8 +648,16 @@ const AccountantDashboard = () => {
 
           if (invoiceUpdateError) {
             console.error('Invoice update error:', invoiceUpdateError);
-            throw invoiceUpdateError;
+            toast({
+              title: 'Warning',
+              description: 'Payment recorded but invoice status may not be updated. Check permissions.',
+              variant: 'destructive',
+            });
+          } else {
+            console.log('Invoice updated successfully');
           }
+        } else {
+          console.log('No invoice found for this order');
         }
       }
 
@@ -654,6 +676,7 @@ const AccountantDashboard = () => {
       
       fetchFinancialData();
       fetchWorkflowOrders();
+      fetchInvoices(); // Refresh invoices to show updated status
     } catch (error: any) {
       console.error('Payment recording error:', error);
       toast({
@@ -1712,10 +1735,11 @@ const AccountantDashboard = () => {
                           <TableCell>
                             <Badge variant={
                               invoice.status === 'paid' ? 'default' :
+                              invoice.status === 'partially_paid' ? 'secondary' :
                               invoice.status === 'overdue' ? 'destructive' :
-                              'secondary'
+                              'outline'
                             }>
-                              {invoice.status}
+                              {invoice.status === 'partially_paid' ? 'Partially Paid' : invoice.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
