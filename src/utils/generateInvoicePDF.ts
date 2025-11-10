@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -118,7 +118,7 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     `$${item.amount.toFixed(2)}`
   ]);
 
-  (pdf as any).autoTable({
+  autoTable(pdf, {
     startY: 105,
     head: [['Description', 'Qty', 'Unit Price', 'Amount']],
     body: tableData,
