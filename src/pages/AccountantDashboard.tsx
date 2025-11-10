@@ -961,12 +961,12 @@ const AccountantDashboard = () => {
                                     Create Invoice
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[600px]">
+                                <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
                                   <DialogHeader>
                                     <DialogTitle>Create Invoice</DialogTitle>
                                     <DialogDescription>Create a new invoice for this order</DialogDescription>
                                   </DialogHeader>
-                                  <div className="grid gap-4 py-4">
+                                  <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
                                     <div className="grid gap-2">
                                       <Label htmlFor="workflow-invoice-number">Invoice Number *</Label>
                                       <Input
@@ -1290,12 +1290,12 @@ const AccountantDashboard = () => {
                         Create Invoice
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[600px]">
+                    <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
                       <DialogHeader>
                         <DialogTitle>Create Invoice</DialogTitle>
                         <DialogDescription>Create a new invoice for a customer</DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
+                      <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
                         <div className="grid gap-2">
                           <Label htmlFor="invoice-number">Invoice Number *</Label>
                           <Input
