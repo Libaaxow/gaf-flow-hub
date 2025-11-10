@@ -155,6 +155,7 @@ const AccountantDashboard = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
+  const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -215,7 +216,14 @@ const AccountantDashboard = () => {
         .from('invoices')
         .select(`
           *,
-          customer:customers(name)
+          customer:customers(name, email, phone),
+          invoice_items(
+            id,
+            description,
+            quantity,
+            unit_price,
+            amount
+          )
         `)
         .order('created_at', { ascending: false });
 
@@ -1493,7 +1501,14 @@ const AccountantDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button size="sm" variant="outline">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedInvoiceForView(invoice);
+                                setInvoiceDialogOpen(true);
+                              }}
+                            >
                               <Eye className="mr-2 h-4 w-4" />
                               View
                             </Button>
@@ -2119,7 +2134,7 @@ const AccountantDashboard = () => {
       <InvoiceDialog
         open={invoiceDialogOpen}
         onOpenChange={setInvoiceDialogOpen}
-        order={selectedOrderForInvoice}
+        order={selectedOrderForInvoice || selectedInvoiceForView}
       />
     </Layout>
   );

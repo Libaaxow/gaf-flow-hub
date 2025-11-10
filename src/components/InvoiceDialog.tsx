@@ -33,8 +33,15 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
 
   if (!order) return null;
 
-  // Parse order items from the order data
-  const items = order.order_items && order.order_items.length > 0
+  // Parse order items - handle both orders and invoices
+  const items = order.invoice_items 
+    ? order.invoice_items.map((item: any) => ({
+        description: item.description || "Item",
+        quantity: item.quantity || 1,
+        unitPrice: item.unit_price || 0,
+        amount: item.amount || 0,
+      }))
+    : order.order_items && order.order_items.length > 0
     ? order.order_items.map((item: any) => ({
         description: item.description || item.item_name || "Item",
         quantity: item.quantity || 1,
@@ -44,8 +51,8 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     : [{
         description: order.job_title || "Service",
         quantity: 1,
-        unitPrice: order.order_value || 0,
-        amount: order.order_value || 0,
+        unitPrice: order.order_value || order.total_amount || 0,
+        amount: order.order_value || order.total_amount || 0,
       }];
 
   console.log("Invoice Dialog - Order:", order);
@@ -59,15 +66,15 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         </DialogHeader>
 
         <InvoiceTemplate
-          invoiceNumber={order.id || "N/A"}
-          invoiceDate={new Date(order.created_at || Date.now())}
-          customerName={order.customers?.name || order.customer_name || "N/A"}
-          customerContact={order.customers?.phone || order.customers?.email}
+          invoiceNumber={order.invoice_number || order.id || "N/A"}
+          invoiceDate={new Date(order.invoice_date || order.created_at || Date.now())}
+          customerName={order.customer?.name || order.customers?.name || order.customer_name || "N/A"}
+          customerContact={order.customer?.phone || order.customer?.email || order.customers?.phone || order.customers?.email}
           items={items}
           status={
-            order.payment_status === "paid"
+            order.status === "paid" || order.payment_status === "paid"
               ? "PAID"
-              : order.payment_status === "partial"
+              : order.status === "partial" || order.payment_status === "partial"
               ? "PARTIAL"
               : "UNPAID"
           }
