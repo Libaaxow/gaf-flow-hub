@@ -8,13 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon, Download, Activity } from 'lucide-react';
+import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon, Download, Activity, Plus, FileText } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { generateDailyActivityPDF } from '@/utils/generateDailyActivityPDF';
 import { useAuth } from '@/contexts/AuthContext';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { z } from 'zod';
+import { InvoiceDialog } from '@/components/InvoiceDialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface Order {
   id: string;
@@ -45,7 +51,29 @@ interface Salesperson {
 interface Customer {
   id: string;
   name: string;
+  email: string | null;
+  phone: string | null;
+  company_name: string | null;
+  created_at: string;
 }
+
+interface Invoice {
+  id: string;
+  invoice_number: string;
+  customer: { name: string };
+  invoice_date: string;
+  due_date: string | null;
+  total_amount: number;
+  amount_paid: number;
+  status: string;
+}
+
+const customerSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().min(9, 'Phone must be at least 9 digits'),
+  email: z.string().email('Invalid email').optional().or(z.literal('').transform(() => null)),
+  company_name: z.string().optional().or(z.literal('').transform(() => null)),
+});
 
 export default function AdminDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -66,6 +94,25 @@ export default function AdminDashboard() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+
+  // Customer form states
+  const [customerName, setCustomerName] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerCompany, setCustomerCompany] = useState('');
+  const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
+
+  // Invoice form states
+  const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [invoiceCustomer, setInvoiceCustomer] = useState('');
+  const [invoiceOrder, setInvoiceOrder] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceSubtotal, setInvoiceSubtotal] = useState('');
+  const [invoiceTax, setInvoiceTax] = useState('');
+  const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
 
   // Stats
   const [stats, setStats] = useState({
@@ -197,10 +244,18 @@ export default function AdminDashboard() {
       // Fetch customers
       const { data: customersData } = await supabase
         .from('customers')
-        .select('id, name')
+        .select('id, name, email, phone, company_name, created_at')
         .order('name');
 
       setCustomers(customersData || []);
+
+      // Fetch invoices
+      const { data: invoicesData } = await supabase
+        .from('invoices')
+        .select('*, customer:customers(name)')
+        .order('created_at', { ascending: false });
+      
+      setInvoices(invoicesData || []);
 
     } catch (error: any) {
       toast({
@@ -265,6 +320,140 @@ export default function AdminDashboard() {
     return colors[status] || 'bg-gray-500';
   };
 
+  const handleCreateCustomer = async () => {
+    try {
+      const validatedData = customerSchema.parse({
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail || null,
+        company_name: customerCompany || null,
+      });
+
+      const { error } = await supabase
+        .from('customers')
+        .insert([{ 
+          name: validatedData.name,
+          phone: validatedData.phone,
+          email: validatedData.email,
+          company_name: validatedData.company_name,
+          created_by: user?.id 
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Customer created successfully',
+      });
+
+      setIsCustomerDialogOpen(false);
+      setCustomerName('');
+      setCustomerEmail('');
+      setCustomerPhone('');
+      setCustomerCompany('');
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to create customer',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleCreateInvoice = async () => {
+    if (!invoiceNumber || !invoiceCustomer || !invoiceSubtotal) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const subtotal = parseFloat(invoiceSubtotal);
+      const tax = parseFloat(invoiceTax) || 0;
+      const total = subtotal + tax;
+
+      const { error } = await supabase.from('invoices').insert([
+        {
+          invoice_number: invoiceNumber,
+          customer_id: invoiceCustomer,
+          order_id: invoiceOrder || null,
+          invoice_date: new Date().toISOString().split('T')[0],
+          due_date: invoiceDueDate || null,
+          subtotal,
+          tax_amount: tax,
+          total_amount: total,
+          amount_paid: 0,
+          status: 'draft',
+          notes: invoiceNotes || null,
+          created_by: user?.id,
+        },
+      ]);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Invoice ${invoiceNumber} created successfully`,
+      });
+
+      // Reset form
+      setInvoiceNumber('');
+      setInvoiceCustomer('');
+      setInvoiceOrder('');
+      setInvoiceDueDate('');
+      setInvoiceSubtotal('');
+      setInvoiceTax('');
+      setInvoiceNotes('');
+      
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleUpdateInvoiceStatus = async (invoiceId: string, newStatus: string) => {
+    try {
+      const invoice = invoices.find(inv => inv.id === invoiceId);
+      if (!invoice) return;
+
+      let updateData: any = { status: newStatus };
+
+      if (newStatus === 'paid') {
+        updateData.amount_paid = invoice.total_amount;
+      } else if (newStatus === 'unpaid') {
+        updateData.amount_paid = 0;
+      }
+
+      const { error } = await supabase
+        .from('invoices')
+        .update(updateData)
+        .eq('id', invoiceId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: `Invoice marked as ${newStatus}`,
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDownloadActivityReport = async () => {
     try {
       const { data: profileData } = await supabase
@@ -321,7 +510,14 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
-      <div className="space-y-4 sm:space-y-6 w-full max-w-full">
+      <Tabs defaultValue="orders" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="orders">Orders</TabsTrigger>
+          <TabsTrigger value="customers">Customers</TabsTrigger>
+          <TabsTrigger value="invoices">Invoices</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="orders" className="space-y-4 sm:space-y-6 w-full max-w-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
@@ -572,7 +768,289 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </TabsContent>
+
+    <TabsContent value="customers" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Customer Management</h2>
+          <p className="text-muted-foreground">Create and manage customers</p>
+        </div>
+        <Dialog open={isCustomerDialogOpen} onOpenChange={setIsCustomerDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Customer
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Create New Customer</DialogTitle>
+              <DialogDescription>Add a new customer to the system</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="name">Name *</Label>
+                <Input
+                  id="name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Customer name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="phone">Phone *</Label>
+                <Input
+                  id="phone"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Phone number"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={customerEmail}
+                  onChange={(e) => setCustomerEmail(e.target.value)}
+                  placeholder="Email address"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="company">Company Name</Label>
+                <Input
+                  id="company"
+                  value={customerCompany}
+                  onChange={(e) => setCustomerCompany(e.target.value)}
+                  placeholder="Company name"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateCustomer}>Create Customer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Customers</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Phone</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Created</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customers.map((customer) => (
+                <TableRow key={customer.id}>
+                  <TableCell className="font-medium">{customer.name}</TableCell>
+                  <TableCell>{customer.phone || '-'}</TableCell>
+                  <TableCell>{customer.email || '-'}</TableCell>
+                  <TableCell>{customer.company_name || '-'}</TableCell>
+                  <TableCell>{format(new Date(customer.created_at), 'MMM d, yyyy')}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </TabsContent>
+
+    <TabsContent value="invoices" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Invoice Management</h2>
+          <p className="text-muted-foreground">Create and manage invoices</p>
+        </div>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Create Invoice
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Create New Invoice</DialogTitle>
+              <DialogDescription>Create a new invoice for a customer</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-number">Invoice Number *</Label>
+                <Input
+                  id="invoice-number"
+                  value={invoiceNumber}
+                  onChange={(e) => setInvoiceNumber(e.target.value)}
+                  placeholder="INV-00001"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-customer">Customer *</Label>
+                <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-order">Related Order (Optional)</Label>
+                <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">None</SelectItem>
+                    {orders.map((order) => (
+                      <SelectItem key={order.id} value={order.id}>
+                        {order.job_title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="due-date">Due Date</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={invoiceDueDate}
+                  onChange={(e) => setInvoiceDueDate(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="subtotal">Subtotal *</Label>
+                <Input
+                  id="subtotal"
+                  type="number"
+                  value={invoiceSubtotal}
+                  onChange={(e) => setInvoiceSubtotal(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="tax">Tax Amount</Label>
+                <Input
+                  id="tax"
+                  type="number"
+                  value={invoiceTax}
+                  onChange={(e) => setInvoiceTax(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-notes">Notes</Label>
+                <Input
+                  id="invoice-notes"
+                  value={invoiceNotes}
+                  onChange={(e) => setInvoiceNotes(e.target.value)}
+                  placeholder="Additional notes"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleCreateInvoice}>Create Invoice</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Invoices</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Invoice #</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Paid</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoices.map((invoice) => (
+                <TableRow key={invoice.id}>
+                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                  <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
+                  <TableCell>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
+                  <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : '-'}</TableCell>
+                  <TableCell>${invoice.total_amount.toLocaleString()}</TableCell>
+                  <TableCell>${invoice.amount_paid.toLocaleString()}</TableCell>
+                  <TableCell>
+                    <Badge variant={invoice.status === 'paid' ? 'default' : invoice.status === 'unpaid' ? 'destructive' : 'secondary'}>
+                      {invoice.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedInvoice(invoice);
+                          setInvoiceDialogOpen(true);
+                        }}
+                      >
+                        <FileText className="h-4 w-4" />
+                      </Button>
+                      {invoice.status !== 'paid' && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleUpdateInvoiceStatus(invoice.id, 'paid')}
+                        >
+                          Mark Paid
+                        </Button>
+                      )}
+                      {invoice.status === 'paid' && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => handleUpdateInvoiceStatus(invoice.id, 'unpaid')}
+                        >
+                          Mark Unpaid
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </TabsContent>
+
+    </Tabs>
+
+    {selectedInvoice && (
+      <InvoiceDialog
+        open={invoiceDialogOpen}
+        onOpenChange={setInvoiceDialogOpen}
+        order={selectedInvoice}
+      />
+    )}
     </Layout>
   );
 }
