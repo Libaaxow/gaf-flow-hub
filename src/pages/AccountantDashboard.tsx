@@ -150,6 +150,9 @@ const AccountantDashboard = () => {
   const [reportType, setReportType] = useState('profit_loss');
   const [reportCustomer, setReportCustomer] = useState('all');
 
+  // Dialog states
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchAllData();
     fetchWorkflowOrders();
@@ -530,6 +533,8 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      console.log('Recording payment:', { selectedOrder, paymentAmount, paymentMethod, paymentReference });
+
       const { error: paymentError } = await supabase
         .from('payments')
         .insert([{
@@ -541,12 +546,17 @@ const AccountantDashboard = () => {
           recorded_by: user?.id,
         }]);
 
-      if (paymentError) throw paymentError;
+      if (paymentError) {
+        console.error('Payment insert error:', paymentError);
+        throw paymentError;
+      }
 
       const order = orders.find(o => o.id === selectedOrder);
       if (order) {
         const newAmountPaid = Number(order.amount_paid || 0) + parseFloat(paymentAmount);
         const newPaymentStatus = newAmountPaid >= order.order_value ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid';
+
+        console.log('Updating order payment status:', { newAmountPaid, newPaymentStatus });
 
         const { error: updateError } = await supabase
           .from('orders')
@@ -557,7 +567,10 @@ const AccountantDashboard = () => {
           })
           .eq('id', selectedOrder);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Order update error:', updateError);
+          throw updateError;
+        }
       }
 
       toast({
@@ -565,15 +578,18 @@ const AccountantDashboard = () => {
         description: 'Payment recorded successfully',
       });
 
+      // Reset form and close dialog
       setSelectedOrder('');
       setPaymentAmount('');
       setPaymentMethod('');
       setPaymentReference('');
       setPaymentNotes('');
+      setPaymentDialogOpen(false);
       
       fetchFinancialData();
       fetchWorkflowOrders();
     } catch (error: any) {
+      console.error('Payment recording error:', error);
       toast({
         title: 'Error',
         description: error.message,
@@ -1575,7 +1591,7 @@ const AccountantDashboard = () => {
                     <CardTitle>Payment Management</CardTitle>
                     <CardDescription>Record and track customer payments</CardDescription>
                   </div>
-                  <Dialog>
+                  <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="mr-2 h-4 w-4" />
