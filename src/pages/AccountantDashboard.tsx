@@ -1593,12 +1593,18 @@ const AccountantDashboard = () => {
                   </div>
                   <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button className="z-10 relative pointer-events-auto">
+                      <Button 
+                        className="z-[100] relative pointer-events-auto cursor-pointer"
+                        onClick={(e) => {
+                          console.log('Record Payment button clicked!');
+                          e.stopPropagation();
+                        }}
+                      >
                         <Plus className="mr-2 h-4 w-4" />
                         Record Payment
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px] z-50">
+                    <DialogContent className="sm:max-w-[500px]">
                       <DialogHeader>
                         <DialogTitle>Record Payment</DialogTitle>
                         <DialogDescription>Record a new payment for an order</DialogDescription>
