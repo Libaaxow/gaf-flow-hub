@@ -600,6 +600,43 @@ const AccountantDashboard = () => {
           console.error('Order update error:', updateError);
           throw updateError;
         }
+
+        // Update associated invoice if exists
+        const { data: orderInvoices } = await supabase
+          .from('invoices')
+          .select('*')
+          .eq('order_id', selectedOrder);
+
+        if (orderInvoices && orderInvoices.length > 0) {
+          const invoice = orderInvoices[0];
+          const invoiceNewAmountPaid = Number(invoice.amount_paid || 0) + parseFloat(paymentAmount);
+          const invoiceTotal = Number(invoice.total_amount);
+          
+          // Determine invoice status based on payment
+          let invoiceStatus = 'draft';
+          if (invoiceNewAmountPaid >= invoiceTotal) {
+            invoiceStatus = 'paid';
+          } else if (invoiceNewAmountPaid > 0) {
+            invoiceStatus = 'partially_paid';
+          } else if (invoice.status === 'sent') {
+            invoiceStatus = 'sent';
+          }
+
+          console.log('Updating invoice:', { invoiceId: invoice.id, invoiceNewAmountPaid, invoiceStatus });
+
+          const { error: invoiceUpdateError } = await supabase
+            .from('invoices')
+            .update({
+              amount_paid: invoiceNewAmountPaid,
+              status: invoiceStatus,
+            })
+            .eq('id', invoice.id);
+
+          if (invoiceUpdateError) {
+            console.error('Invoice update error:', invoiceUpdateError);
+            throw invoiceUpdateError;
+          }
+        }
       }
 
       toast({
