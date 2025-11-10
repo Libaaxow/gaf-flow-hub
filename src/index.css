@@ -152,5 +152,74 @@ All colors MUST be HSL.
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     @apply bg-muted-foreground/50;
   }
+  
+  /* Responsive table container */
+  .table-container {
+    @apply w-full overflow-x-auto custom-scrollbar;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Mobile-optimized cards */
+  .mobile-card {
+    @apply w-full;
+  }
+  
+  /* Better touch targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Hide on mobile */
+  .hide-mobile {
+    @apply hidden sm:block;
+  }
+  
+  /* Show only on mobile */
+  .show-mobile {
+    @apply block sm:hidden;
+  }
+  
+  /* Responsive text sizes */
+  .text-responsive-xs {
+    @apply text-xs sm:text-sm;
+  }
+  
+  .text-responsive-sm {
+    @apply text-sm sm:text-base;
+  }
+  
+  .text-responsive-base {
+    @apply text-base sm:text-lg;
+  }
+  
+  .text-responsive-lg {
+    @apply text-lg sm:text-xl;
+  }
+  
+  /* Responsive spacing */
+  .spacing-responsive {
+    @apply space-y-2 sm:space-y-4;
+  }
+  
+  .padding-responsive {
+    @apply p-3 sm:p-4 md:p-6;
+  }
+  
+  /* Responsive grid */
+  .grid-responsive-1 {
+    @apply grid grid-cols-1;
+  }
+  
+  .grid-responsive-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2;
+  }
+  
+  .grid-responsive-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3;
+  }
+  
+  .grid-responsive-4 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4;
+  }
 }
 

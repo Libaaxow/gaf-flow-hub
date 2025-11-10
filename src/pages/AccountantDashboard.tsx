@@ -1090,15 +1090,15 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat) => (
-            <Card key={stat.title}>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
+            <Card key={stat.title} className="mobile-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
-              <CardContent>
-                <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+              <CardContent className="p-4 sm:p-6 pt-0 sm:pt-0">
+                <div className={`text-xl sm:text-2xl font-bold ${stat.color}`}>{stat.value}</div>
                 <p className="text-xs text-muted-foreground">{stat.description}</p>
               </CardContent>
             </Card>
@@ -1106,26 +1106,29 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="workflow" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1">
-            <TabsTrigger value="workflow" className="text-xs sm:text-sm">Workflow</TabsTrigger>
-            <TabsTrigger value="invoices" className="text-xs sm:text-sm">Invoices</TabsTrigger>
-            <TabsTrigger value="customers" className="text-xs sm:text-sm">Customers</TabsTrigger>
-            <TabsTrigger value="payments" className="text-xs sm:text-sm">Payments</TabsTrigger>
-            <TabsTrigger value="expenses" className="text-xs sm:text-sm">Expenses</TabsTrigger>
-            <TabsTrigger value="commissions" className="text-xs sm:text-sm">Commissions</TabsTrigger>
-            <TabsTrigger value="reports" className="text-xs sm:text-sm">Reports</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="workflow" className="space-y-3 sm:space-y-4">
+          <div className="overflow-x-auto custom-scrollbar">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1 min-w-max sm:min-w-0">
+              <TabsTrigger value="workflow" className="text-xs sm:text-sm whitespace-nowrap">Workflow</TabsTrigger>
+              <TabsTrigger value="invoices" className="text-xs sm:text-sm whitespace-nowrap">Invoices</TabsTrigger>
+              <TabsTrigger value="customers" className="text-xs sm:text-sm whitespace-nowrap">Customers</TabsTrigger>
+              <TabsTrigger value="payments" className="text-xs sm:text-sm whitespace-nowrap">Payments</TabsTrigger>
+              <TabsTrigger value="expenses" className="text-xs sm:text-sm whitespace-nowrap">Expenses</TabsTrigger>
+              <TabsTrigger value="commissions" className="text-xs sm:text-sm whitespace-nowrap">Commissions</TabsTrigger>
+              <TabsTrigger value="reports" className="text-xs sm:text-sm whitespace-nowrap">Reports</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* Workflow Tab */}
-          <TabsContent value="workflow" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Orders Pending Assignment</CardTitle>
-                <CardDescription>New orders from sales team awaiting designer assignment</CardDescription>
+          <TabsContent value="workflow" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Orders Pending Assignment</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">New orders from sales team awaiting designer assignment</CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
-                <Table>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="min-w-[150px]">Job Title</TableHead>
@@ -1335,6 +1338,7 @@ const AccountantDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
 
@@ -1524,17 +1528,17 @@ const AccountantDashboard = () => {
           </TabsContent>
 
           {/* Invoices Tab */}
-          <TabsContent value="invoices" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <TabsContent value="invoices" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                   <div>
-                    <CardTitle>Invoices</CardTitle>
-                    <CardDescription>Manage customer invoices</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Invoices</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Manage customer invoices</CardDescription>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button size="sm" className="w-full sm:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         Create Invoice
                       </Button>
@@ -1643,7 +1647,8 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1700,22 +1705,23 @@ const AccountantDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Customers Tab */}
-          <TabsContent value="customers" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <TabsContent value="customers" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                   <div>
-                    <CardTitle>Customers</CardTitle>
-                    <CardDescription>Manage customer database</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Customers</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Manage customer database</CardDescription>
                   </div>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button size="sm" className="w-full sm:w-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         Add Customer
                       </Button>
@@ -1771,7 +1777,8 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -1807,25 +1814,27 @@ const AccountantDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Payments Tab */}
-          <TabsContent value="payments" className="space-y-4">
-            <Card>
-              <CardHeader className="relative z-20">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <TabsContent value="payments" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6 relative z-20">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
                   <div>
-                    <CardTitle>Payment Management</CardTitle>
-                    <CardDescription>Record and track customer payments</CardDescription>
+                    <CardTitle className="text-base sm:text-lg">Payment Management</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Record and track customer payments</CardDescription>
                   </div>
                   <Button 
                     onClick={() => {
                       console.log('Opening payment dialog');
                       setPaymentDialogOpen(true);
                     }}
-                    className="shrink-0 relative z-30"
+                    size="sm"
+                    className="w-full sm:w-auto shrink-0 relative z-30"
                     type="button"
                   >
                     <Plus className="mr-2 h-4 w-4" />
@@ -1833,39 +1842,41 @@ const AccountantDashboard = () => {
                   </Button>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar relative z-10">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[100px]">Date</TableHead>
-                      <TableHead className="min-w-[150px]">Order</TableHead>
-                      <TableHead className="min-w-[150px]">Customer</TableHead>
-                      <TableHead className="min-w-[100px]">Amount</TableHead>
-                      <TableHead className="min-w-[120px]">Method</TableHead>
-                      <TableHead className="min-w-[120px]">Receipt #</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {payments.length === 0 ? (
+              <CardContent className="p-0 sm:p-6 sm:pt-0 relative z-10">
+                <div className="overflow-x-auto custom-scrollbar">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                          No payments recorded
-                        </TableCell>
+                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead className="min-w-[150px]">Order</TableHead>
+                        <TableHead className="min-w-[150px]">Customer</TableHead>
+                        <TableHead className="min-w-[100px]">Amount</TableHead>
+                        <TableHead className="min-w-[120px]">Method</TableHead>
+                        <TableHead className="min-w-[120px]">Receipt #</TableHead>
                       </TableRow>
-                    ) : (
-                      payments.map((payment) => (
-                        <TableRow key={payment.id}>
-                          <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
-                          <TableCell>{payment.order.job_title}</TableCell>
-                          <TableCell>{payment.order.customer.name}</TableCell>
-                          <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                          <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
-                          <TableCell>{payment.reference_number || '-'}</TableCell>
+                    </TableHeader>
+                    <TableBody>
+                      {payments.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                            No payments recorded
+                          </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : (
+                        payments.map((payment) => (
+                          <TableRow key={payment.id}>
+                            <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
+                            <TableCell>{payment.order.job_title}</TableCell>
+                            <TableCell>{payment.order.customer.name}</TableCell>
+                            <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                            <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
+                            <TableCell>{payment.reference_number || '-'}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -2045,7 +2056,8 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2084,6 +2096,7 @@ const AccountantDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -2095,7 +2108,8 @@ const AccountantDashboard = () => {
                 <CardTitle>Commission Management</CardTitle>
                 <CardDescription>Track and pay sales commissions</CardDescription>
               </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2141,18 +2155,19 @@ const AccountantDashboard = () => {
                     )}
                   </TableBody>
                 </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* Reports Tab */}
-          <TabsContent value="reports" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Advanced Reports</CardTitle>
-                <CardDescription>Generate detailed financial reports with filters</CardDescription>
+          <TabsContent value="reports" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="text-base sm:text-lg">Advanced Reports</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Generate detailed financial reports with filters</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent className="p-4 sm:p-6 space-y-6">
                 <div className="grid gap-4">
                   <div className="grid gap-2">
                     <Label>Report Type</Label>
@@ -2237,9 +2252,9 @@ const AccountantDashboard = () => {
                 </div>
 
                 <div className="space-y-4 pt-6 border-t">
-                  <h3 className="text-lg font-semibold">Report Summary</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <Card>
+                  <h3 className="text-base sm:text-lg font-semibold">Report Summary</h3>
+                  <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2">
+                    <Card className="mobile-card">
                       <CardHeader className="pb-3">
                         <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
                       </CardHeader>
@@ -2308,16 +2323,17 @@ const AccountantDashboard = () => {
                 </div>
 
                 {/* Detailed Reports Section */}
-                <div className="space-y-6 pt-6 border-t">
-                  <h3 className="text-lg font-semibold">Detailed Reports</h3>
+                <div className="space-y-4 sm:space-y-6 pt-4 sm:pt-6 border-t">
+                  <h3 className="text-base sm:text-lg font-semibold">Detailed Reports</h3>
 
                   {/* Commissions Report */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Commissions Report</CardTitle>
-                      <CardDescription>All commissions within the selected date range</CardDescription>
+                  <Card className="mobile-card">
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg">Commissions Report</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">All commissions within the selected date range</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto custom-scrollbar">
+                    <CardContent className="p-0 sm:p-6 sm:pt-0">
+                      <div className="overflow-x-auto custom-scrollbar">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2354,16 +2370,18 @@ const AccountantDashboard = () => {
                           )}
                         </TableBody>
                       </Table>
+                      </div>
                     </CardContent>
                   </Card>
 
                   {/* Expenses Report */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Expenses Report</CardTitle>
-                      <CardDescription>All expenses within the selected date range</CardDescription>
+                  <Card className="mobile-card">
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg">Expenses Report</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">All expenses within the selected date range</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto custom-scrollbar">
+                    <CardContent className="p-0 sm:p-6 sm:pt-0">
+                      <div className="overflow-x-auto custom-scrollbar">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2408,16 +2426,18 @@ const AccountantDashboard = () => {
                           )}
                         </TableBody>
                       </Table>
+                      </div>
                     </CardContent>
                   </Card>
 
                   {/* Payments Report */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Payments Report</CardTitle>
-                      <CardDescription>All payments received within the selected date range</CardDescription>
+                  <Card className="mobile-card">
+                    <CardHeader className="p-4 sm:p-6">
+                      <CardTitle className="text-base sm:text-lg">Payments Report</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">All payments received within the selected date range</CardDescription>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto custom-scrollbar">
+                    <CardContent className="p-0 sm:p-6 sm:pt-0">
+                      <div className="overflow-x-auto custom-scrollbar">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -2452,6 +2472,7 @@ const AccountantDashboard = () => {
                           )}
                         </TableBody>
                       </Table>
+                      </div>
                     </CardContent>
                   </Card>
                 </div>
