@@ -166,8 +166,16 @@ const AccountantDashboard = () => {
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
   const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any>(null);
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
+
+  // Invoice payment form states
+  const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
+  const [invoicePaymentMethod, setInvoicePaymentMethod] = useState('');
+  const [invoicePaymentReference, setInvoicePaymentReference] = useState('');
+  const [invoicePaymentNotes, setInvoicePaymentNotes] = useState('');
 
   useEffect(() => {
     fetchAllData();
@@ -722,6 +730,107 @@ const AccountantDashboard = () => {
       fetchInvoices(); // Refresh invoices to show updated status
     } catch (error: any) {
       console.error('Payment recording error:', error);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRecordInvoicePayment = async () => {
+    if (!selectedInvoiceForPayment || !invoicePaymentAmount || !invoicePaymentMethod || !invoicePaymentReference) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all required fields including receipt number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const paymentAmountNum = parseFloat(invoicePaymentAmount);
+      const invoice = selectedInvoiceForPayment;
+      
+      // Record payment in payments table (linked to order if invoice has one)
+      if (invoice.order_id) {
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            order_id: invoice.order_id,
+            amount: paymentAmountNum,
+            payment_method: invoicePaymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
+            reference_number: invoicePaymentReference || null,
+            notes: invoicePaymentNotes || `Payment for invoice ${invoice.invoice_number}`,
+            recorded_by: user?.id,
+          }]);
+
+        if (paymentError) throw paymentError;
+      }
+
+      // Update invoice amount_paid and status
+      const newAmountPaid = Number(invoice.amount_paid || 0) + paymentAmountNum;
+      const invoiceTotal = Number(invoice.total_amount);
+      
+      let invoiceStatus = invoice.status;
+      if (newAmountPaid >= invoiceTotal) {
+        invoiceStatus = 'paid';
+      } else if (newAmountPaid > 0) {
+        invoiceStatus = 'partially_paid';
+      }
+
+      const { error: invoiceUpdateError } = await supabase
+        .from('invoices')
+        .update({
+          amount_paid: newAmountPaid,
+          status: invoiceStatus,
+        })
+        .eq('id', invoice.id);
+
+      if (invoiceUpdateError) throw invoiceUpdateError;
+
+      // If invoice is linked to an order, update order payment status too
+      if (invoice.order_id) {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('amount_paid, order_value')
+          .eq('id', invoice.order_id)
+          .single();
+
+        if (orderData) {
+          const orderNewAmountPaid = Number(orderData.amount_paid || 0) + paymentAmountNum;
+          const orderPaymentStatus = orderNewAmountPaid >= orderData.order_value ? 'paid' : 
+                                     orderNewAmountPaid > 0 ? 'partial' : 'unpaid';
+
+          await supabase
+            .from('orders')
+            .update({
+              amount_paid: orderNewAmountPaid,
+              payment_status: orderPaymentStatus,
+            })
+            .eq('id', invoice.order_id);
+        }
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Payment recorded successfully',
+      });
+
+      // Reset form and close dialog
+      setSelectedInvoiceForPayment(null);
+      setInvoicePaymentAmount('');
+      setInvoicePaymentMethod('');
+      setInvoicePaymentReference('');
+      setInvoicePaymentNotes('');
+      setInvoicePaymentDialogOpen(false);
+      
+      fetchFinancialData();
+      fetchInvoices();
+    } catch (error: any) {
+      console.error('Invoice payment recording error:', error);
       toast({
         title: 'Error',
         description: error.message,
@@ -1983,17 +2092,32 @@ const AccountantDashboard = () => {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedInvoiceForView(invoice);
-                                setInvoiceDialogOpen(true);
-                              }}
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedInvoiceForView(invoice);
+                                  setInvoiceDialogOpen(true);
+                                }}
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View
+                              </Button>
+                              {invoice.status !== 'paid' && (
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => {
+                                    setSelectedInvoiceForPayment(invoice);
+                                    setInvoicePaymentDialogOpen(true);
+                                  }}
+                                >
+                                  <DollarSign className="mr-2 h-4 w-4" />
+                                  Record Payment
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -2790,6 +2914,88 @@ const AccountantDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Invoice Payment Recording Dialog */}
+      <Dialog open={invoicePaymentDialogOpen} onOpenChange={setInvoicePaymentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Invoice Payment</DialogTitle>
+            <DialogDescription>
+              Record a payment received for invoice {selectedInvoiceForPayment?.invoice_number}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedInvoiceForPayment && (
+            <div className="space-y-4">
+              <div className="bg-muted p-3 rounded-md space-y-1">
+                <p className="text-sm"><strong>Invoice:</strong> {selectedInvoiceForPayment.invoice_number}</p>
+                <p className="text-sm"><strong>Customer:</strong> {selectedInvoiceForPayment.customer?.name}</p>
+                <p className="text-sm"><strong>Total Amount:</strong> ${selectedInvoiceForPayment.total_amount.toFixed(2)}</p>
+                <p className="text-sm"><strong>Amount Paid:</strong> ${selectedInvoiceForPayment.amount_paid.toFixed(2)}</p>
+                <p className="text-sm font-medium text-destructive">
+                  <strong>Outstanding:</strong> ${(selectedInvoiceForPayment.total_amount - selectedInvoiceForPayment.amount_paid).toFixed(2)}
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="invoice-payment-amount">Payment Amount *</Label>
+                <Input
+                  id="invoice-payment-amount"
+                  type="number"
+                  step="0.01"
+                  value={invoicePaymentAmount}
+                  onChange={(e) => setInvoicePaymentAmount(e.target.value)}
+                  placeholder="0.00"
+                  max={selectedInvoiceForPayment.total_amount - selectedInvoiceForPayment.amount_paid}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-payment-method">Payment Method *</Label>
+                <Select value={invoicePaymentMethod} onValueChange={setInvoicePaymentMethod}>
+                  <SelectTrigger id="invoice-payment-method">
+                    <SelectValue placeholder="Select method" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-payment-reference">Receipt/Reference Number *</Label>
+                <Input
+                  id="invoice-payment-reference"
+                  value={invoicePaymentReference}
+                  onChange={(e) => setInvoicePaymentReference(e.target.value)}
+                  placeholder="Enter receipt or reference number"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-payment-notes">Notes (Optional)</Label>
+                <Textarea
+                  id="invoice-payment-notes"
+                  value={invoicePaymentNotes}
+                  onChange={(e) => setInvoicePaymentNotes(e.target.value)}
+                  placeholder="Additional notes about this payment"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInvoicePaymentDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleRecordInvoicePayment}>
+              Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Invoice Dialog */}
       <InvoiceDialog
