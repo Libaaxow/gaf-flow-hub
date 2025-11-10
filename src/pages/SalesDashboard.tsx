@@ -448,10 +448,15 @@ const SalesDashboard = () => {
         for (const file of files) {
           const fileName = `${newOrder.id}/${Date.now()}_${file.name}`;
           
-          // Upload file to storage
+          // Upload file to storage without any compression or transformation
+          // Preserves original size, resolution, and color mode (CMYK, etc.)
           const { error: uploadError } = await supabase.storage
             .from('order-files')
-            .upload(fileName, file);
+            .upload(fileName, file, {
+              contentType: file.type || 'application/octet-stream',
+              cacheControl: '3600',
+              upsert: false
+            });
 
           if (uploadError) throw uploadError;
 

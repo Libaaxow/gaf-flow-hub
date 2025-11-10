@@ -295,9 +295,15 @@ const OrderDetail = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${id}/${Date.now()}.${fileExt}`;
       
+      // Upload file without any compression or transformation
+      // Preserves original size, resolution, and color mode (CMYK, etc.)
       const { error: uploadError } = await supabase.storage
         .from('order-files')
-        .upload(fileName, file);
+        .upload(fileName, file, {
+          contentType: file.type || 'application/octet-stream',
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
