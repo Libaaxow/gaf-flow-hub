@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { format } from "date-fns";
+import logoImg from "@/assets/gaf-media-logo-full.png";
 
 interface InvoiceItem {
   description: string;
@@ -51,13 +52,8 @@ export const generateCustomerReportPDF = (
       format: "a4",
     });
 
-    // Company Logo and Header
-    pdf.setFillColor(41, 98, 255);
-    pdf.roundedRect(20, 15, 40, 15, 2, 2, "F");
-    pdf.setFontSize(12);
-    pdf.setTextColor(255, 255, 255);
-    pdf.setFont(undefined, "bold");
-    pdf.text("GAF MEDIA", 40, 24, { align: "center" });
+    // Add company logo
+    pdf.addImage(logoImg, "PNG", 20, 15, 50, 20);
 
     // Company Details - Right aligned
     pdf.setFontSize(9);
