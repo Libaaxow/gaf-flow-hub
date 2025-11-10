@@ -69,12 +69,14 @@ interface FinancialStats {
 interface Invoice {
   id: string;
   invoice_number: string;
-  customer: { name: string };
+  customer_id: string;
+  customer: { name: string; email?: string; phone?: string };
   invoice_date: string;
   due_date: string;
   total_amount: number;
   amount_paid: number;
   status: string;
+  order_id?: string;
 }
 
 interface Customer {
@@ -123,6 +125,9 @@ const AccountantDashboard = () => {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentCustomer, setPaymentCustomer] = useState('');
+  const [paymentInvoice, setPaymentInvoice] = useState('');
+  const [paymentDiscount, setPaymentDiscount] = useState('');
   
   // Expense form states
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -601,10 +606,10 @@ const AccountantDashboard = () => {
   };
 
   const handleRecordPayment = async () => {
-    if (!selectedOrder || !paymentAmount || !paymentMethod || !paymentReference) {
+    if (!paymentCustomer || !paymentInvoice || !paymentAmount || !paymentMethod || !paymentReference) {
       toast({
         title: 'Missing Information',
-        description: 'Please fill in all required fields including receipt number',
+        description: 'Please fill in all required fields including customer, invoice, and receipt number',
         variant: 'destructive',
       });
       return;
@@ -613,102 +618,87 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      console.log('Recording payment:', { selectedOrder, paymentAmount, paymentMethod, paymentReference });
+      const paymentAmountNum = parseFloat(paymentAmount);
+      const discountAmountNum = parseFloat(paymentDiscount) || 0;
+      const finalPaymentAmount = paymentAmountNum - discountAmountNum;
 
-      const { error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          order_id: selectedOrder,
-          amount: parseFloat(paymentAmount),
-          payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
-          reference_number: paymentReference || null,
-          notes: paymentNotes || null,
-          recorded_by: user?.id,
-        }]);
-
-      if (paymentError) {
-        console.error('Payment insert error:', paymentError);
-        throw paymentError;
+      if (finalPaymentAmount <= 0) {
+        toast({
+          title: 'Invalid Amount',
+          description: 'Payment amount after discount must be greater than zero',
+          variant: 'destructive',
+        });
+        return;
       }
 
-      const order = orders.find(o => o.id === selectedOrder);
-      if (order) {
-        const newAmountPaid = Number(order.amount_paid || 0) + parseFloat(paymentAmount);
-        const newPaymentStatus = newAmountPaid >= order.order_value ? 'paid' : newAmountPaid > 0 ? 'partial' : 'unpaid';
+      // Get invoice details
+      const { data: invoice, error: invoiceFetchError } = await supabase
+        .from('invoices')
+        .select('*, order_id, total_amount, amount_paid')
+        .eq('id', paymentInvoice)
+        .single();
 
-        console.log('Updating order payment status:', { newAmountPaid, newPaymentStatus });
+      if (invoiceFetchError || !invoice) {
+        throw new Error('Invoice not found');
+      }
 
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({
-            amount_paid: newAmountPaid,
-            payment_status: newPaymentStatus as 'unpaid' | 'partial' | 'paid',
+      // Record payment in payments table (linked to order if invoice has one)
+      if (invoice.order_id) {
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert([{
+            order_id: invoice.order_id,
+            amount: finalPaymentAmount,
             payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
-          })
-          .eq('id', selectedOrder);
+            reference_number: paymentReference || null,
+            notes: paymentNotes ? `${paymentNotes}${discountAmountNum > 0 ? ` (Discount: $${discountAmountNum.toFixed(2)})` : ''}` : (discountAmountNum > 0 ? `Discount applied: $${discountAmountNum.toFixed(2)}` : null),
+            recorded_by: user?.id,
+          }]);
 
-        if (updateError) {
-          console.error('Order update error:', updateError);
-          throw updateError;
-        }
+        if (paymentError) throw paymentError;
+      }
 
-        // Update associated invoice if exists
-        const { data: orderInvoices, error: invoiceFetchError } = await supabase
-          .from('invoices')
-          .select('*')
-          .eq('order_id', selectedOrder);
+      // Update invoice amount_paid and status
+      const newAmountPaid = Number(invoice.amount_paid || 0) + finalPaymentAmount;
+      const invoiceTotal = Number(invoice.total_amount);
+      
+      let invoiceStatus = invoice.status;
+      if (newAmountPaid >= invoiceTotal) {
+        invoiceStatus = 'paid';
+      } else if (newAmountPaid > 0) {
+        invoiceStatus = 'partially_paid';
+      }
 
-        console.log('Checking for invoices:', { orderId: selectedOrder, invoicesFound: orderInvoices?.length });
+      const { error: invoiceUpdateError } = await supabase
+        .from('invoices')
+        .update({
+          amount_paid: newAmountPaid,
+          status: invoiceStatus,
+        })
+        .eq('id', paymentInvoice);
 
-        if (invoiceFetchError) {
-          console.error('Error fetching invoices:', invoiceFetchError);
-        }
+      if (invoiceUpdateError) throw invoiceUpdateError;
 
-        if (orderInvoices && orderInvoices.length > 0) {
-          const invoice = orderInvoices[0];
-          const invoiceNewAmountPaid = Number(invoice.amount_paid || 0) + parseFloat(paymentAmount);
-          const invoiceTotal = Number(invoice.total_amount);
-          
-          // Determine invoice status based on payment
-          let invoiceStatus = 'draft';
-          if (invoiceNewAmountPaid >= invoiceTotal) {
-            invoiceStatus = 'paid';
-          } else if (invoiceNewAmountPaid > 0) {
-            invoiceStatus = 'partially_paid';
-          } else if (invoice.status === 'sent') {
-            invoiceStatus = 'sent';
-          }
+      // If invoice is linked to an order, update order payment status too
+      if (invoice.order_id) {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('amount_paid, order_value')
+          .eq('id', invoice.order_id)
+          .single();
 
-          console.log('Updating invoice:', { 
-            invoiceId: invoice.id, 
-            currentAmountPaid: invoice.amount_paid,
-            paymentAmount: parseFloat(paymentAmount),
-            invoiceNewAmountPaid, 
-            invoiceTotal,
-            newStatus: invoiceStatus,
-            oldStatus: invoice.status
-          });
+        if (orderData) {
+          const orderNewAmountPaid = Number(orderData.amount_paid || 0) + finalPaymentAmount;
+          const orderPaymentStatus = orderNewAmountPaid >= orderData.order_value ? 'paid' : 
+                                     orderNewAmountPaid > 0 ? 'partial' : 'unpaid';
 
-          const { error: invoiceUpdateError } = await supabase
-            .from('invoices')
+          await supabase
+            .from('orders')
             .update({
-              amount_paid: invoiceNewAmountPaid,
-              status: invoiceStatus,
+              amount_paid: orderNewAmountPaid,
+              payment_status: orderPaymentStatus,
             })
-            .eq('id', invoice.id);
-
-          if (invoiceUpdateError) {
-            console.error('Invoice update error:', invoiceUpdateError);
-            toast({
-              title: 'Warning',
-              description: 'Payment recorded but invoice status may not be updated. Check permissions.',
-              variant: 'destructive',
-            });
-          } else {
-            console.log('Invoice updated successfully');
-          }
-        } else {
-          console.log('No invoice found for this order');
+            .eq('id', invoice.order_id);
         }
       }
 
@@ -719,7 +709,10 @@ const AccountantDashboard = () => {
 
       // Reset form and close dialog
       setSelectedOrder('');
+      setPaymentCustomer('');
+      setPaymentInvoice('');
       setPaymentAmount('');
+      setPaymentDiscount('');
       setPaymentMethod('');
       setPaymentReference('');
       setPaymentNotes('');
@@ -727,7 +720,7 @@ const AccountantDashboard = () => {
       
       fetchFinancialData();
       fetchWorkflowOrders();
-      fetchInvoices(); // Refresh invoices to show updated status
+      fetchInvoices();
     } catch (error: any) {
       console.error('Payment recording error:', error);
       toast({
@@ -2305,37 +2298,97 @@ const AccountantDashboard = () => {
             <DialogContent className="sm:max-w-[500px]">
               <DialogHeader>
                 <DialogTitle>Record Payment</DialogTitle>
-                <DialogDescription>Record a new payment for an order</DialogDescription>
+                <DialogDescription>Record a new payment for an invoice</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="order">Order *</Label>
-                  <Select value={selectedOrder} onValueChange={setSelectedOrder}>
+                  <Label htmlFor="payment-customer">Customer *</Label>
+                  <Select value={paymentCustomer} onValueChange={(value) => {
+                    setPaymentCustomer(value);
+                    setPaymentInvoice(''); // Reset invoice when customer changes
+                  }}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Select order" />
+                      <SelectValue placeholder="Select customer" />
                     </SelectTrigger>
                     <SelectContent>
-                      {orders.filter(o => o.payment_status !== 'paid').map((order) => (
-                        <SelectItem key={order.id} value={order.id}>
-                          {order.job_title} - {order.customer.name} (Outstanding: ${(order.order_value - order.amount_paid).toFixed(2)})
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {paymentCustomer && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="payment-invoice">Invoice *</Label>
+                    <Select value={paymentInvoice} onValueChange={setPaymentInvoice}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select invoice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {invoices
+                          .filter(inv => inv.customer_id === paymentCustomer && inv.status !== 'paid')
+                          .map((invoice) => (
+                            <SelectItem key={invoice.id} value={invoice.id}>
+                              {invoice.invoice_number} - ${invoice.total_amount.toFixed(2)} (Paid: ${invoice.amount_paid.toFixed(2)}, Outstanding: ${(invoice.total_amount - invoice.amount_paid).toFixed(2)})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {paymentInvoice && (
+                  <>
+                    <div className="grid gap-2">
+                      <Label htmlFor="payment-amount">Payment Amount *</Label>
+                      <Input
+                        id="payment-amount"
+                        type="number"
+                        step="0.01"
+                        value={paymentAmount}
+                        onChange={(e) => setPaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Enter the amount received (supports partial payments)
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="payment-discount">Discount Amount</Label>
+                      <Input
+                        id="payment-discount"
+                        type="number"
+                        step="0.01"
+                        value={paymentDiscount}
+                        onChange={(e) => setPaymentDiscount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Optional discount to apply to this payment
+                      </p>
+                    </div>
+
+                    {paymentAmount && parseFloat(paymentAmount) > 0 && (
+                      <div className="bg-muted p-3 rounded-md">
+                        <p className="text-sm font-medium">Payment Summary:</p>
+                        <p className="text-sm">Amount: ${parseFloat(paymentAmount).toFixed(2)}</p>
+                        {paymentDiscount && parseFloat(paymentDiscount) > 0 && (
+                          <>
+                            <p className="text-sm">Discount: -${parseFloat(paymentDiscount).toFixed(2)}</p>
+                            <p className="text-sm font-bold">Final Amount: ${(parseFloat(paymentAmount) - parseFloat(paymentDiscount)).toFixed(2)}</p>
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="grid gap-2">
-                  <Label htmlFor="amount">Amount *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    value={paymentAmount}
-                    onChange={(e) => setPaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="method">Payment Method *</Label>
+                  <Label htmlFor="payment-method">Payment Method *</Label>
                   <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                     <SelectTrigger>
                       <SelectValue placeholder="Select method" />
@@ -2350,9 +2403,9 @@ const AccountantDashboard = () => {
                   </Select>
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="reference">Receipt Number *</Label>
+                  <Label htmlFor="payment-reference">Receipt Number *</Label>
                   <Input
-                    id="reference"
+                    id="payment-reference"
                     value={paymentReference}
                     onChange={(e) => setPaymentReference(e.target.value)}
                     placeholder="RCP-00001"
