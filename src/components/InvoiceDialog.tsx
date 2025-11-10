@@ -22,6 +22,35 @@ interface InvoiceDialogProps {
 export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
+  if (!order) return null;
+
+  // Parse order items - handle both orders and invoices
+  const items = order.invoice_items && order.invoice_items.length > 0
+    ? order.invoice_items.map((item: any) => ({
+        description: item.description || "Item",
+        quantity: item.quantity || 1,
+        unitPrice: item.unit_price || 0,
+        amount: item.amount || 0,
+      }))
+    : order.order_items && order.order_items.length > 0
+    ? order.order_items.map((item: any) => ({
+        description: item.description || item.item_name || "Item",
+        quantity: item.quantity || 1,
+        unitPrice: item.unit_price || 0,
+        amount: (item.quantity || 1) * (item.unit_price || 0),
+      }))
+    : [{
+        description: order.job_title || order.description || "Service",
+        quantity: order.quantity || 1,
+        unitPrice: order.order_value || order.total_amount || order.subtotal || 0,
+        amount: order.order_value || order.total_amount || order.subtotal || 0,
+      }];
+
+  console.log("Invoice Dialog - Order:", order);
+  console.log("Invoice Dialog - Items:", items);
+  console.log("Invoice items raw:", order.invoice_items);
+  console.log("Order items raw:", order.order_items);
+
   const handleDownloadPDF = () => {
     setIsGenerating(true);
     
@@ -58,33 +87,6 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
       setIsGenerating(false);
     }
   };
-
-  if (!order) return null;
-
-  // Parse order items - handle both orders and invoices
-  const items = order.invoice_items 
-    ? order.invoice_items.map((item: any) => ({
-        description: item.description || "Item",
-        quantity: item.quantity || 1,
-        unitPrice: item.unit_price || 0,
-        amount: item.amount || 0,
-      }))
-    : order.order_items && order.order_items.length > 0
-    ? order.order_items.map((item: any) => ({
-        description: item.description || item.item_name || "Item",
-        quantity: item.quantity || 1,
-        unitPrice: item.unit_price || 0,
-        amount: (item.quantity || 1) * (item.unit_price || 0),
-      }))
-    : [{
-        description: order.job_title || "Service",
-        quantity: 1,
-        unitPrice: order.order_value || order.total_amount || 0,
-        amount: order.order_value || order.total_amount || 0,
-      }];
-
-  console.log("Invoice Dialog - Order:", order);
-  console.log("Invoice Dialog - Items:", items);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
