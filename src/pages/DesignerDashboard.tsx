@@ -51,7 +51,7 @@ const DesignerDashboard = () => {
   const [filter, setFilter] = useState<string>('all');
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
-  const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [dateFilter, setDateFilter] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchUserRole();
@@ -60,7 +60,7 @@ const DesignerDashboard = () => {
     const cleanup = setupRealtimeSubscription();
     
     return cleanup;
-  }, [user]);
+  }, [user, dateFilter]);
 
   const fetchUserRole = async () => {
     if (!user?.id) return;
@@ -130,17 +130,22 @@ const DesignerDashboard = () => {
 
       setProfile(profileData);
 
-      // Fetch assigned orders filtered by date
-      const startDate = startOfDay(dateFilter).toISOString();
-      const endDate = endOfDay(dateFilter).toISOString();
-      
-      const { data: ordersData } = await supabase
+      // Fetch assigned orders (optionally filtered by delivery date)
+      let query = supabase
         .from('orders')
         .select('*, customers(name, company_name)')
-        .eq('designer_id', user?.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false });
+        .eq('designer_id', user?.id);
+      
+      // Only apply date filter if a specific date is selected
+      if (dateFilter) {
+        const startDate = startOfDay(dateFilter).toISOString();
+        const endDate = endOfDay(dateFilter).toISOString();
+        query = query
+          .gte('delivery_date', startDate)
+          .lte('delivery_date', endDate);
+      }
+      
+      const { data: ordersData } = await query.order('created_at', { ascending: false });
 
       if (ordersData) {
         // Fetch salesperson data separately for each order
@@ -287,17 +292,28 @@ const DesignerDashboard = () => {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                      {dateFilter ? format(dateFilter, "PPP") : "All Dates"}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
+                    <div className="p-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setDateFilter(null as any);
+                        }}
+                        className="w-full mb-2"
+                      >
+                        Clear Filter
+                      </Button>
+                    </div>
                     <Calendar
                       mode="single"
                       selected={dateFilter}
                       onSelect={(date) => {
                         if (date) {
                           setDateFilter(date);
-                          fetchDesignerData();
                         }
                       }}
                       initialFocus
