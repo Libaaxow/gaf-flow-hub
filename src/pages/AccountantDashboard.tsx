@@ -946,111 +946,119 @@ const AccountantDashboard = () => {
                           <TableCell>{format(new Date(order.created_at), 'PP')}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              <Dialog>
-                                <DialogTrigger asChild>
-                                  <Button 
-                                    size="sm" 
-                                    variant={order.invoice_count > 0 ? "secondary" : "outline"}
-                                    disabled={order.invoice_count > 0}
-                                    onClick={() => {
-                                      if (order.invoice_count === 0) {
+                              {order.invoice_count > 0 ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="secondary"
+                                  disabled
+                                >
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Invoice Created
+                                </Button>
+                              ) : (
+                                <Dialog>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => {
                                         setInvoiceOrder(order.id);
                                         setInvoiceCustomer(order.customer_id);
                                         setInvoiceSubtotal(order.order_value?.toString() || '');
-                                      }
-                                    }}
-                                  >
-                                    <FileText className="mr-2 h-4 w-4" />
-                                    {order.invoice_count > 0 ? 'Invoice Created' : 'Create Invoice'}
-                                  </Button>
-                                </DialogTrigger>
-                                <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
-                                  <DialogHeader>
-                                    <DialogTitle>Create Invoice</DialogTitle>
-                                    <DialogDescription>Create a new invoice for this order</DialogDescription>
-                                  </DialogHeader>
-                                  <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="workflow-invoice-number">Invoice Number *</Label>
-                                      <Input
-                                        id="workflow-invoice-number"
-                                        value={invoiceNumber}
-                                        onChange={(e) => setInvoiceNumber(e.target.value)}
-                                        placeholder="INV-00001"
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="workflow-invoice-customer">Customer *</Label>
-                                      <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select customer" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {customers.map((customer) => (
-                                            <SelectItem key={customer.id} value={customer.id}>
-                                              {customer.name} - {customer.company_name || 'No Company'}
-                                            </SelectItem>
-                                          ))}
-                                        </SelectContent>
-                                      </Select>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-4">
+                                      }}
+                                    >
+                                      <FileText className="mr-2 h-4 w-4" />
+                                      Create Invoice
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+                                    <DialogHeader>
+                                      <DialogTitle>Create Invoice</DialogTitle>
+                                      <DialogDescription>Create a new invoice for this order</DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
                                       <div className="grid gap-2">
-                                        <Label htmlFor="workflow-subtotal">Subtotal *</Label>
+                                        <Label htmlFor="workflow-invoice-number">Invoice Number *</Label>
                                         <Input
-                                          id="workflow-subtotal"
-                                          type="number"
-                                          step="0.01"
-                                          value={invoiceSubtotal}
-                                          onChange={(e) => setInvoiceSubtotal(e.target.value)}
-                                          placeholder="0.00"
+                                          id="workflow-invoice-number"
+                                          value={invoiceNumber}
+                                          onChange={(e) => setInvoiceNumber(e.target.value)}
+                                          placeholder="INV-00001"
                                         />
                                       </div>
                                       <div className="grid gap-2">
-                                        <Label htmlFor="workflow-tax">Tax Amount</Label>
+                                        <Label htmlFor="workflow-invoice-customer">Customer *</Label>
+                                        <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select customer" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {customers.map((customer) => (
+                                              <SelectItem key={customer.id} value={customer.id}>
+                                                {customer.name} - {customer.company_name || 'No Company'}
+                                              </SelectItem>
+                                            ))}
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid gap-2">
+                                          <Label htmlFor="workflow-subtotal">Subtotal *</Label>
+                                          <Input
+                                            id="workflow-subtotal"
+                                            type="number"
+                                            step="0.01"
+                                            value={invoiceSubtotal}
+                                            onChange={(e) => setInvoiceSubtotal(e.target.value)}
+                                            placeholder="0.00"
+                                          />
+                                        </div>
+                                        <div className="grid gap-2">
+                                          <Label htmlFor="workflow-tax">Tax Amount</Label>
+                                          <Input
+                                            id="workflow-tax"
+                                            type="number"
+                                            step="0.01"
+                                            value={invoiceTax}
+                                            onChange={(e) => setInvoiceTax(e.target.value)}
+                                            placeholder="0.00"
+                                          />
+                                        </div>
+                                      </div>
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="workflow-due-date">Due Date</Label>
                                         <Input
-                                          id="workflow-tax"
-                                          type="number"
-                                          step="0.01"
-                                          value={invoiceTax}
-                                          onChange={(e) => setInvoiceTax(e.target.value)}
-                                          placeholder="0.00"
+                                          id="workflow-due-date"
+                                          type="date"
+                                          value={invoiceDueDate}
+                                          onChange={(e) => setInvoiceDueDate(e.target.value)}
+                                        />
+                                      </div>
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="workflow-invoice-terms">Payment Terms</Label>
+                                        <Textarea
+                                          id="workflow-invoice-terms"
+                                          value={invoiceTerms}
+                                          onChange={(e) => setInvoiceTerms(e.target.value)}
+                                          placeholder="Net 30 days"
+                                        />
+                                      </div>
+                                      <div className="grid gap-2">
+                                        <Label htmlFor="workflow-invoice-notes">Notes</Label>
+                                        <Textarea
+                                          id="workflow-invoice-notes"
+                                          value={invoiceNotes}
+                                          onChange={(e) => setInvoiceNotes(e.target.value)}
+                                          placeholder="Additional notes"
                                         />
                                       </div>
                                     </div>
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="workflow-due-date">Due Date</Label>
-                                      <Input
-                                        id="workflow-due-date"
-                                        type="date"
-                                        value={invoiceDueDate}
-                                        onChange={(e) => setInvoiceDueDate(e.target.value)}
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="workflow-invoice-terms">Payment Terms</Label>
-                                      <Textarea
-                                        id="workflow-invoice-terms"
-                                        value={invoiceTerms}
-                                        onChange={(e) => setInvoiceTerms(e.target.value)}
-                                        placeholder="Net 30 days"
-                                      />
-                                    </div>
-                                    <div className="grid gap-2">
-                                      <Label htmlFor="workflow-invoice-notes">Notes</Label>
-                                      <Textarea
-                                        id="workflow-invoice-notes"
-                                        value={invoiceNotes}
-                                        onChange={(e) => setInvoiceNotes(e.target.value)}
-                                        placeholder="Additional notes"
-                                      />
-                                    </div>
-                                  </div>
-                                  <DialogFooter>
-                                    <Button onClick={handleCreateInvoice}>Create Invoice</Button>
-                                  </DialogFooter>
-                                </DialogContent>
-                              </Dialog>
+                                    <DialogFooter>
+                                      <Button onClick={handleCreateInvoice}>Create Invoice</Button>
+                                    </DialogFooter>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button size="sm" onClick={() => setSelectedOrderForAssignment(order.id)}>
