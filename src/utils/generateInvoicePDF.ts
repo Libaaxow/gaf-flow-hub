@@ -16,11 +16,15 @@ interface InvoiceData {
 }
 
 export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => {
-  const pdf = new jsPDF({
-    orientation: "portrait",
-    unit: "mm",
-    format: "a4",
-  });
+  try {
+    console.log("Starting PDF generation for invoice:", invoiceNumber);
+    console.log("Invoice data:", data);
+    
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
 
   // Logo placeholder (will be added later with actual logo)
   pdf.setFillColor(41, 98, 255);
@@ -194,5 +198,13 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
   pdf.text("Thank you for your business!", 105, footerY, { align: "center" });
   pdf.text("For any questions, please contact us at gafmedia02@gmail.com or call 0619130707", 105, footerY + 5, { align: "center" });
 
-  pdf.save(`Invoice-${invoiceNumber}.pdf`);
+    console.log("PDF generation complete, initiating download...");
+    const filename = `Invoice-${invoiceNumber}.pdf`;
+    pdf.save(filename);
+    console.log("PDF download triggered successfully:", filename);
+    return true;
+  } catch (error) {
+    console.error("Error generating PDF:", error);
+    throw error;
+  }
 };

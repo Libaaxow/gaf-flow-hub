@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { InvoiceTemplate } from "./InvoiceTemplate";
 import { generateInvoicePDF } from "@/utils/generateInvoicePDF";
 import { Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -23,7 +24,12 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
 
   const handleDownloadPDF = () => {
     setIsGenerating(true);
+    
     try {
+      console.log("Preparing invoice data...");
+      console.log("Order:", order);
+      console.log("Items:", items);
+      
       const invoiceData = {
         invoiceNumber: order.invoice_number || order.id || "N/A",
         invoiceDate: format(new Date(order.invoice_date || order.created_at || Date.now()), "MMMM d, yyyy"),
@@ -39,9 +45,15 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         ) as "PAID" | "UNPAID" | "PARTIAL",
       };
       
-      generateInvoicePDF(order.invoice_number || order.id, invoiceData);
+      console.log("Invoice data prepared:", invoiceData);
+      const success = generateInvoicePDF(order.invoice_number || order.id, invoiceData);
+      
+      if (success) {
+        toast.success("Invoice downloaded successfully!");
+      }
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.error("Error in handleDownloadPDF:", error);
+      toast.error("Failed to generate PDF. Please check the console for details.");
     } finally {
       setIsGenerating(false);
     }
