@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +34,8 @@ interface Stats {
   completed: number;
   inProgress: number;
   awaitingApproval: number;
+  totalCommissions: number;
+  paidCommissions: number;
 }
 
 const DesignerDashboard = () => {
@@ -41,11 +43,14 @@ const DesignerDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [commissions, setCommissions] = useState<any[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalJobs: 0,
     completed: 0,
     inProgress: 0,
     awaitingApproval: 0,
+    totalCommissions: 0,
+    paidCommissions: 0,
   });
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -130,6 +135,22 @@ const DesignerDashboard = () => {
 
       setProfile(profileData);
 
+      // Fetch commissions for designer
+      const { data: commissionsData } = await supabase
+        .from('commissions')
+        .select(`
+          *,
+          orders (job_title, order_value, customers(name))
+        `)
+        .eq('user_id', user?.id)
+        .eq('commission_type', 'design')
+        .order('created_at', { ascending: false });
+
+      setCommissions(commissionsData || []);
+
+      const totalCommissions = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
+      const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
+
       // Fetch assigned orders (optionally filtered by delivery date)
       let query = supabase
         .from('orders')
@@ -172,7 +193,14 @@ const DesignerDashboard = () => {
         const inProgress = ordersWithSalesperson.filter(o => o.status === 'designing').length;
         const awaitingApproval = ordersWithSalesperson.filter(o => o.status === 'awaiting_accounting_approval').length;
 
-        setStats({ totalJobs, completed, inProgress, awaitingApproval });
+        setStats({ 
+          totalJobs, 
+          completed, 
+          inProgress, 
+          awaitingApproval,
+          totalCommissions,
+          paidCommissions
+        });
       }
     } catch (error) {
       console.error('Error fetching designer data:', error);
@@ -258,11 +286,14 @@ const DesignerDashboard = () => {
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Jobs In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-warning" />
+              <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
+              <DollarSign className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.inProgress}</div>
+              <div className="text-2xl font-bold">${stats.totalCommissions.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                ${stats.paidCommissions.toFixed(2)} paid
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -276,62 +307,70 @@ const DesignerDashboard = () => {
           </Card>
         </div>
 
-        {/* Jobs Table with Filters */}
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle>My Assigned Jobs</CardTitle>
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !dateFilter && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateFilter ? format(dateFilter, "PPP") : "All Dates"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <div className="p-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setDateFilter(null as any);
-                        }}
-                        className="w-full mb-2"
-                      >
-                        Clear Filter
-                      </Button>
-                    </div>
-                    <Calendar
-                      mode="single"
-                      selected={dateFilter}
-                      onSelect={(date) => {
-                        if (date) {
-                          setDateFilter(date);
-                        }
-                      }}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-                <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
-                  <TabsList className="grid grid-cols-2 sm:inline-flex w-full sm:w-auto">
-                    <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
-                    <TabsTrigger value="in-progress" className="text-xs sm:text-sm">In Progress</TabsTrigger>
-                    <TabsTrigger value="ready" className="text-xs sm:text-sm">Ready</TabsTrigger>
-                    <TabsTrigger value="completed" className="text-xs sm:text-sm">Completed</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </div>
-          </CardHeader>
+        {/* Tabs for Jobs and Commissions */}
+        <Tabs defaultValue="jobs" className="w-full">
+          <TabsList>
+            <TabsTrigger value="jobs">My Jobs</TabsTrigger>
+            <TabsTrigger value="commissions">My Commissions</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="jobs" className="mt-4">
+            {/* Jobs Table with Filters */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <CardTitle>My Assigned Jobs</CardTitle>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "justify-start text-left font-normal",
+                            !dateFilter && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {dateFilter ? format(dateFilter, "PPP") : "All Dates"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="p-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setDateFilter(null as any);
+                            }}
+                            className="w-full mb-2"
+                          >
+                            Clear Filter
+                          </Button>
+                        </div>
+                        <Calendar
+                          mode="single"
+                          selected={dateFilter}
+                          onSelect={(date) => {
+                            if (date) {
+                              setDateFilter(date);
+                            }
+                          }}
+                          initialFocus
+                          className="pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
+                      <TabsList className="grid grid-cols-2 sm:inline-flex w-full sm:w-auto">
+                        <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
+                        <TabsTrigger value="in-progress" className="text-xs sm:text-sm">In Progress</TabsTrigger>
+                        <TabsTrigger value="ready" className="text-xs sm:text-sm">Ready</TabsTrigger>
+                        <TabsTrigger value="completed" className="text-xs sm:text-sm">Completed</TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                  </div>
+                </div>
+              </CardHeader>
               <CardContent className="overflow-x-auto custom-scrollbar">
                 <Table>
               <TableHeader>
@@ -414,6 +453,66 @@ const DesignerDashboard = () => {
             </Table>
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="commissions" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>My Design Commissions</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Order Value</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Commission</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {commissions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          No commissions found. Make sure your commission percentage is set in your profile.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      commissions.map((commission) => (
+                        <TableRow key={commission.id}>
+                          <TableCell className="font-medium">
+                            {commission.orders?.job_title || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            {commission.orders?.customers?.name || 'N/A'}
+                          </TableCell>
+                          <TableCell>
+                            ${commission.orders?.order_value?.toFixed(2) || '0.00'}
+                          </TableCell>
+                          <TableCell>{commission.commission_percentage}%</TableCell>
+                          <TableCell className="font-bold">
+                            ${commission.commission_amount.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
+                              {commission.paid_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(commission.created_at), 'PP')}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
