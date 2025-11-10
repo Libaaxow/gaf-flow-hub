@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -152,6 +153,8 @@ const AccountantDashboard = () => {
 
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
 
   useEffect(() => {
     fetchAllData();
@@ -1118,6 +1121,17 @@ const AccountantDashboard = () => {
                                 <Eye className="mr-2 h-4 w-4" />
                                 View
                               </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedOrderForInvoice(order);
+                                  setInvoiceDialogOpen(true);
+                                }}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Invoice
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1199,6 +1213,17 @@ const AccountantDashboard = () => {
                               >
                                 <Eye className="mr-2 h-4 w-4" />
                                 View
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedOrderForInvoice(order);
+                                  setInvoiceDialogOpen(true);
+                                }}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Invoice
                               </Button>
                             </div>
                           </TableCell>
@@ -2083,6 +2108,13 @@ const AccountantDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Invoice Dialog */}
+      <InvoiceDialog
+        open={invoiceDialogOpen}
+        onOpenChange={setInvoiceDialogOpen}
+        order={selectedOrderForInvoice}
+      />
     </Layout>
   );
 };
