@@ -1586,95 +1586,21 @@ const AccountantDashboard = () => {
           <TabsContent value="payments" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
                   <div>
                     <CardTitle>Payment Management</CardTitle>
                     <CardDescription>Record and track customer payments</CardDescription>
                   </div>
-                  <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button 
-                        className="z-[100] relative pointer-events-auto cursor-pointer"
-                        onClick={(e) => {
-                          console.log('Record Payment button clicked!');
-                          e.stopPropagation();
-                        }}
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Record Payment
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Record Payment</DialogTitle>
-                        <DialogDescription>Record a new payment for an order</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="order">Order *</Label>
-                          <Select value={selectedOrder} onValueChange={setSelectedOrder}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select order" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {orders.filter(o => o.payment_status !== 'paid').map((order) => (
-                                <SelectItem key={order.id} value={order.id}>
-                                  {order.job_title} - {order.customer.name} (Outstanding: ${(order.order_value - order.amount_paid).toFixed(2)})
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="amount">Amount *</Label>
-                          <Input
-                            id="amount"
-                            type="number"
-                            step="0.01"
-                            value={paymentAmount}
-                            onChange={(e) => setPaymentAmount(e.target.value)}
-                            placeholder="0.00"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="method">Payment Method *</Label>
-                          <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select method" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="cash">Cash</SelectItem>
-                              <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                              <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                              <SelectItem value="cheque">Cheque</SelectItem>
-                              <SelectItem value="card">Card</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="reference">Receipt Number *</Label>
-                          <Input
-                            id="reference"
-                            value={paymentReference}
-                            onChange={(e) => setPaymentReference(e.target.value)}
-                            placeholder="RCP-00001"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="payment-notes">Notes</Label>
-                          <Textarea
-                            id="payment-notes"
-                            value={paymentNotes}
-                            onChange={(e) => setPaymentNotes(e.target.value)}
-                            placeholder="Additional payment notes"
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button onClick={handleRecordPayment}>Record Payment</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                  <Button 
+                    onClick={() => {
+                      console.log('Opening payment dialog');
+                      setPaymentDialogOpen(true);
+                    }}
+                    className="shrink-0"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Record Payment
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="overflow-x-auto custom-scrollbar">
@@ -1713,6 +1639,80 @@ const AccountantDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Payment Dialog - Separate from tab content */}
+          <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Record Payment</DialogTitle>
+                <DialogDescription>Record a new payment for an order</DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="order">Order *</Label>
+                  <Select value={selectedOrder} onValueChange={setSelectedOrder}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select order" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orders.filter(o => o.payment_status !== 'paid').map((order) => (
+                        <SelectItem key={order.id} value={order.id}>
+                          {order.job_title} - {order.customer.name} (Outstanding: ${(order.order_value - order.amount_paid).toFixed(2)})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="amount">Amount *</Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="method">Payment Method *</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="reference">Receipt Number *</Label>
+                  <Input
+                    id="reference"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="RCP-00001"
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="payment-notes">Notes</Label>
+                  <Textarea
+                    id="payment-notes"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder="Additional payment notes"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={handleRecordPayment}>Record Payment</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Expenses Tab */}
           <TabsContent value="expenses" className="space-y-4">
