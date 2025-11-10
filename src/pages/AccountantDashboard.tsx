@@ -1593,12 +1593,12 @@ const AccountantDashboard = () => {
                   </div>
                   <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button>
+                      <Button className="z-10 relative pointer-events-auto">
                         <Plus className="mr-2 h-4 w-4" />
                         Record Payment
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
+                    <DialogContent className="sm:max-w-[500px] z-50">
                       <DialogHeader>
                         <DialogTitle>Record Payment</DialogTitle>
                         <DialogDescription>Record a new payment for an order</DialogDescription>
