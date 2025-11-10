@@ -21,7 +21,7 @@ interface InvoiceDialogProps {
 export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = () => {
     setIsGenerating(true);
     try {
       const invoiceData = {
@@ -39,7 +39,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         ) as "PAID" | "UNPAID" | "PARTIAL",
       };
       
-      await generateInvoicePDF(order.invoice_number || order.id, invoiceData);
+      generateInvoicePDF(order.invoice_number || order.id, invoiceData);
     } catch (error) {
       console.error("Error generating PDF:", error);
     } finally {

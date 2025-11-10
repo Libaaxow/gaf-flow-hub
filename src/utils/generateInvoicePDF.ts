@@ -1,6 +1,5 @@
 import jsPDF from "jspdf";
 import "jspdf-autotable";
-import logoImage from "@/assets/gaf-media-logo.png";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -16,50 +15,20 @@ interface InvoiceData {
   status: "PAID" | "UNPAID" | "PARTIAL";
 }
 
-// Convert image to base64
-const loadImageAsBase64 = (url: string): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "Anonymous";
-    img.onload = () => {
-      try {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          ctx.drawImage(img, 0, 0);
-          resolve(canvas.toDataURL("image/png"));
-        } else {
-          resolve("");
-        }
-      } catch (error) {
-        console.error("Canvas error:", error);
-        resolve("");
-      }
-    };
-    img.onerror = () => resolve("");
-    img.src = url;
-  });
-};
-
-export const generateInvoicePDF = async (invoiceNumber: string, data: InvoiceData) => {
+export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => {
   const pdf = new jsPDF({
     orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
 
-// Load and add logo
-  try {
-    const logoBase64 = await loadImageAsBase64(logoImage);
-    if (logoBase64) {
-      pdf.addImage(logoBase64, "PNG", 20, 15, 40, 15);
-    }
-  } catch (error) {
-    console.error("Error loading logo:", error);
-    // Continue without logo if it fails to load
-  }
+  // Logo placeholder (will be added later with actual logo)
+  pdf.setFillColor(41, 98, 255);
+  pdf.roundedRect(20, 15, 40, 15, 2, 2, "F");
+  pdf.setFontSize(12);
+  pdf.setTextColor(255, 255, 255);
+  pdf.setFont(undefined, "bold");
+  pdf.text("GAF MEDIA", 40, 24, { align: "center" });
 
   // Company Header - Right aligned
   pdf.setFontSize(11);
