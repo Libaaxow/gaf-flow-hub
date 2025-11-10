@@ -409,13 +409,7 @@ const AccountantDashboard = () => {
         .select(`
           *,
           customers (name, email, phone),
-          invoices:invoices!order_id (id),
-          order_items (
-            id,
-            description,
-            quantity,
-            unit_price
-          )
+          invoices:invoices!order_id (id)
         `)
         .in('status', ['pending_accounting_review', 'awaiting_accounting_approval', 'ready_for_collection'])
         .order('created_at', { ascending: false });
