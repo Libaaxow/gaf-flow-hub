@@ -376,8 +376,23 @@ const AccountantDashboard = () => {
       setExpenses(expensesData || []);
       setPayments(paymentsData || []);
 
-      const totalRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
-      const collectedAmount = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
+      // Calculate revenue from orders
+      const orderRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
+      const orderCollected = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
+
+      // Get all invoices for revenue calculation
+      const { data: allInvoices } = await supabase
+        .from('invoices')
+        .select('total_amount, amount_paid, order_id');
+
+      // Calculate revenue from standalone invoices (not linked to orders)
+      const standaloneInvoices = allInvoices?.filter(inv => !inv.order_id) || [];
+      const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+      const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
+
+      // Combine order and invoice totals
+      const totalRevenue = orderRevenue + invoiceRevenue;
+      const collectedAmount = orderCollected + invoiceCollected;
       const outstandingAmount = totalRevenue - collectedAmount;
       const totalExpenses = expensesData?.filter(e => e.approval_status === 'approved').reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
       const profit = collectedAmount - totalExpenses;

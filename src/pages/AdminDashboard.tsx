@@ -217,10 +217,22 @@ export default function AdminDashboard() {
 
       setOrders(ordersWithProfiles);
 
-      // Calculate stats
-      const totalRevenue = ordersWithProfiles.reduce((sum, o) => sum + (o.order_value || 0), 0);
+      // Calculate stats from orders
+      const orderRevenue = ordersWithProfiles.reduce((sum, o) => sum + (o.order_value || 0), 0);
       const pendingOrders = ordersWithProfiles.filter(o => o.status === 'pending').length;
       const deliveredOrders = ordersWithProfiles.filter(o => o.status === 'delivered').length;
+
+      // Get all invoices to include standalone invoice revenue
+      const { data: allInvoices } = await supabase
+        .from('invoices')
+        .select('total_amount, order_id');
+
+      // Add revenue from standalone invoices (not linked to orders)
+      const standaloneInvoiceRevenue = allInvoices
+        ?.filter(inv => !inv.order_id)
+        .reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
+
+      const totalRevenue = orderRevenue + standaloneInvoiceRevenue;
 
       setStats({
         totalOrders: ordersWithProfiles.length,
