@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
@@ -31,6 +32,7 @@ const customerSchema = z.object({
 });
 
 const Customers = () => {
+  const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -406,15 +408,26 @@ const Customers = () => {
                         <td className="px-6 py-4 text-muted-foreground">{customer.phone || '-'}</td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.company_name || '-'}</td>
                         <td className="px-6 py-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleCustomerDetails(customer.id)}
-                            className="gap-2"
-                          >
-                            <Package className="h-4 w-4" />
-                            View
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => toggleCustomerDetails(customer.id)}
+                              className="gap-2"
+                            >
+                              <Package className="h-4 w-4" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate(`/customer-reports?customer=${customer.id}`)}
+                              className="gap-2"
+                            >
+                              <FileText className="h-4 w-4" />
+                              Report
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                       {expandedCustomer === customer.id && (

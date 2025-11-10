@@ -11,6 +11,7 @@ import Customers from "./pages/Customers";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
+import CustomerReports from "./pages/CustomerReports";
 import Users from "./pages/Users";
 import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -84,6 +85,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Reports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customer-reports"
+              element={
+                <ProtectedRoute>
+                  <CustomerReports />
                 </ProtectedRoute>
               }
             />

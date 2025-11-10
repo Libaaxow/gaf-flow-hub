@@ -13,6 +13,7 @@ import {
   UserCog,
   Settings,
   History,
+  FileText,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -24,6 +25,7 @@ const navItems = [
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/customer-history', label: 'Order History', icon: History },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
+  { href: '/customer-reports', label: 'Customer Reports', icon: FileText },
   { href: '/users', label: 'Users', icon: UserCog },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
