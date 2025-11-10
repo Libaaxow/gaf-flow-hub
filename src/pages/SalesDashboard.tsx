@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye, Calendar as CalendarIcon } from 'lucide-react';
+import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye, Calendar as CalendarIcon, Download, Activity } from 'lucide-react';
+import { generateDailyActivityPDF } from '@/utils/generateDailyActivityPDF';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -102,6 +103,7 @@ const SalesDashboard = () => {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   
   // Separate state for my customers (for display in My Customers tab)
   const myCustomers = customers.filter(c => c.created_by === user?.id);
@@ -172,6 +174,20 @@ const SalesDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
+      const startDate = startOfDay(dateFilter).toISOString();
+      const endDate = endOfDay(dateFilter).toISOString();
+
+      // Fetch order history for today's activity
+      const { data: historyData } = await supabase
+        .from('order_history')
+        .select('*, orders(job_title, customers(name))')
+        .eq('user_id', user?.id)
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false });
+      
+      setOrderHistory(historyData || []);
+
       // Fetch all customers (for order creation dropdown)
       const { data: allCustomersData, error: allCustomersError } = await supabase
         .from('customers')
@@ -185,8 +201,6 @@ const SalesDashboard = () => {
       const customersData = myCustomersData;
 
       // Fetch orders for this salesperson
-      const startDate = startOfDay(dateFilter).toISOString();
-      const endDate = endOfDay(dateFilter).toISOString();
       
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -552,6 +566,47 @@ const SalesDashboard = () => {
     return colors[status] || 'bg-secondary';
   };
 
+  const handleDownloadActivityReport = async () => {
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user?.id)
+        .single();
+
+      const activities = orderHistory.map(h => ({
+        time: format(new Date(h.created_at), 'HH:mm'),
+        action: h.action,
+        details: `${h.orders?.job_title || 'N/A'} - ${h.orders?.customers?.name || 'N/A'}`,
+        status: h.details?.new_status || h.details?.old_status || 'N/A'
+      }));
+
+      generateDailyActivityPDF({
+        userRole: 'Sales',
+        userName: profileData?.full_name || 'Sales Person',
+        date: dateFilter,
+        activities,
+        stats: [
+          { label: 'Total Sales', value: `$${stats.totalSales.toLocaleString()}` },
+          { label: 'Total Commission', value: `$${stats.totalCommission.toLocaleString()}` },
+          { label: 'Active Jobs', value: stats.activeJobs },
+          { label: 'Completed Jobs', value: stats.completedJobs },
+        ]
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Activity report downloaded successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const getPaymentColor = (status: string) => {
     const colors: Record<string, string> = {
       unpaid: 'bg-destructive',
@@ -651,35 +706,71 @@ const SalesDashboard = () => {
               <p className="text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "justify-start text-left font-normal",
-                  !dateFilter && "text-muted-foreground"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={dateFilter}
-                onSelect={(date) => {
-                  if (date) {
-                    setDateFilter(date);
-                    fetchDashboardData();
-                  }
-                }}
-                initialFocus
-                className="pointer-events-auto"
-              />
-            </PopoverContent>
-          </Popover>
+          <div className="flex gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "justify-start text-left font-normal",
+                    !dateFilter && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFilter}
+                  onSelect={(date) => {
+                    if (date) {
+                      setDateFilter(date);
+                      fetchDashboardData();
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            <Button onClick={handleDownloadActivityReport} className="gap-2">
+              <Download className="h-4 w-4" />
+              Download Report
+            </Button>
+          </div>
         </div>
+
+        {/* Today's Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              Today's Activity ({orderHistory.length} actions)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {orderHistory.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">No activity recorded today</p>
+              ) : (
+                orderHistory.slice(0, 10).map((history) => (
+                  <div key={history.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                    <div className="text-xs text-muted-foreground min-w-[50px]">
+                      {format(new Date(history.created_at), 'HH:mm')}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{history.action}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">

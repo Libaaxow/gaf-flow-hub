@@ -8,11 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon, Download, Activity } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { generateDailyActivityPDF } from '@/utils/generateDailyActivityPDF';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Order {
   id: string;
@@ -52,8 +54,10 @@ export default function AdminDashboard() {
   const [salespeople, setSalespeople] = useState<Salesperson[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Filter states
   const [filterDesigner, setFilterDesigner] = useState<string>('all');
@@ -106,6 +110,16 @@ export default function AdminDashboard() {
       // Fetch orders filtered by date
       const startDate = startOfDay(dateFilter).toISOString();
       const endDate = endOfDay(dateFilter).toISOString();
+
+      // Fetch order history for today's activity
+      const { data: historyData } = await supabase
+        .from('order_history')
+        .select('*, orders(job_title, customers(name))')
+        .gte('created_at', startDate)
+        .lte('created_at', endDate)
+        .order('created_at', { ascending: false });
+      
+      setOrderHistory(historyData || []);
       
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -251,6 +265,47 @@ export default function AdminDashboard() {
     return colors[status] || 'bg-gray-500';
   };
 
+  const handleDownloadActivityReport = async () => {
+    try {
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user?.id)
+        .single();
+
+      const activities = orderHistory.map(h => ({
+        time: format(new Date(h.created_at), 'HH:mm'),
+        action: h.action,
+        details: `${h.orders?.job_title || 'N/A'} - ${h.orders?.customers?.name || 'N/A'}`,
+        status: h.details?.new_status || h.details?.old_status || 'N/A'
+      }));
+
+      generateDailyActivityPDF({
+        userRole: 'Admin',
+        userName: profileData?.full_name || 'Admin',
+        date: dateFilter,
+        activities,
+        stats: [
+          { label: 'Total Orders', value: stats.totalOrders },
+          { label: 'Total Revenue', value: `$${stats.totalRevenue.toLocaleString()}` },
+          { label: 'Pending Orders', value: stats.pendingOrders },
+          { label: 'Delivered Orders', value: stats.deliveredOrders },
+        ]
+      });
+
+      toast({
+        title: 'Success',
+        description: 'Activity report downloaded successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -267,10 +322,47 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <div className="space-y-4 sm:space-y-6 w-full max-w-full">
-      <div>
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
-        <p className="text-sm sm:text-base text-muted-foreground">Complete oversight and control of all jobs</p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2">Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">Complete oversight and control of all jobs</p>
+        </div>
+        <Button onClick={handleDownloadActivityReport} className="gap-2">
+          <Download className="h-4 w-4" />
+          Download Today's Report
+        </Button>
       </div>
+
+      {/* Today's Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Today's Activity ({orderHistory.length} actions)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {orderHistory.length === 0 ? (
+              <p className="text-center text-muted-foreground py-4">No activity recorded today</p>
+            ) : (
+              orderHistory.slice(0, 10).map((history) => (
+                <div key={history.id} className="flex items-start gap-3 p-3 border rounded-lg">
+                  <div className="text-xs text-muted-foreground min-w-[50px]">
+                    {format(new Date(history.created_at), 'HH:mm')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm">{history.action}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
