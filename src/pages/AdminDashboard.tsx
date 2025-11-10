@@ -352,8 +352,7 @@ export default function AdminDashboard() {
                     {format(new Date(history.created_at), 'HH:mm')}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{history.action}</p>
-                    <p className="text-xs text-muted-foreground truncate">
+                    <p className="font-medium text-sm">
                       {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
                     </p>
                   </div>
