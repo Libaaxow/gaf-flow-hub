@@ -406,7 +406,8 @@ const AccountantDashboard = () => {
             designer = data;
           }
 
-          return { ...order, salesperson, designer };
+          const invoice_count = Array.isArray((order as any).invoices) ? (order as any).invoices.length : 0;
+          return { ...order, salesperson, designer, invoice_count };
         })
       );
 
@@ -427,6 +428,24 @@ const AccountantDashboard = () => {
     }
 
     try {
+      // Check if invoice exists for this order
+      const { data: invoiceData, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('order_id', selectedOrderForAssignment)
+        .maybeSingle();
+
+      if (invoiceError) throw invoiceError;
+
+      if (!invoiceData) {
+        toast({
+          title: 'Invoice Required',
+          description: 'Please create an invoice for this order before assigning a designer',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('orders')
         .update({ 
@@ -456,16 +475,35 @@ const AccountantDashboard = () => {
 
   const handleApproveAndSendToPrint = async (orderId: string) => {
     try {
+      // Check if there's a payment or if it's marked as debt
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('payment_status, order_value')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      // If not paid, ask accountant to record payment or mark as debt
+      if (orderData.payment_status === 'unpaid') {
+        toast({
+          title: 'Payment Required',
+          description: 'Please record payment or mark this order as customer debt before sending to print',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'ready_for_print' })
+        .update({ status: 'printing' })
         .eq('id', orderId);
 
       if (error) throw error;
 
       toast({
         title: 'Success',
-        description: 'Order approved and sent to print operator',
+        description: 'Order sent to print operator',
       });
 
       fetchWorkflowOrders();
@@ -878,14 +916,15 @@ const AccountantDashboard = () => {
                       <TableHead className="min-w-[150px]">Customer</TableHead>
                       <TableHead className="min-w-[150px]">Salesperson</TableHead>
                       <TableHead className="min-w-[100px]">Order Value</TableHead>
+                      <TableHead className="min-w-[100px]">Invoice Status</TableHead>
                       <TableHead className="min-w-[100px]">Created</TableHead>
-                      <TableHead className="min-w-[150px]">Action</TableHead>
+                      <TableHead className="min-w-[200px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {workflowOrders.filter(o => o.status === 'pending_accounting_review').length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No pending orders
                         </TableCell>
                       </TableRow>
@@ -896,9 +935,28 @@ const AccountantDashboard = () => {
                           <TableCell>{order.customers?.name}</TableCell>
                           <TableCell>{order.salesperson?.full_name || '-'}</TableCell>
                           <TableCell>${order.order_value?.toFixed(2)}</TableCell>
+                          <TableCell>
+                            {order.invoice_count > 0 ? (
+                              <Badge variant="default">Invoice Created</Badge>
+                            ) : (
+                              <Badge variant="secondary">No Invoice</Badge>
+                            )}
+                          </TableCell>
                           <TableCell>{format(new Date(order.created_at), 'PP')}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setInvoiceOrder(order.id);
+                                  setInvoiceCustomer(order.customer_id);
+                                  setInvoiceSubtotal(order.order_value?.toString() || '');
+                                }}
+                              >
+                                <FileText className="mr-2 h-4 w-4" />
+                                Create Invoice
+                              </Button>
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button size="sm" onClick={() => setSelectedOrderForAssignment(order.id)}>
@@ -965,14 +1023,15 @@ const AccountantDashboard = () => {
                       <TableHead className="min-w-[150px]">Customer</TableHead>
                       <TableHead className="min-w-[150px]">Designer</TableHead>
                       <TableHead className="min-w-[100px]">Order Value</TableHead>
+                      <TableHead className="min-w-[120px]">Payment Status</TableHead>
                       <TableHead className="min-w-[100px]">Completed</TableHead>
-                      <TableHead className="min-w-[200px]">Action</TableHead>
+                      <TableHead className="min-w-[250px]">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {workflowOrders.filter(o => o.status === 'awaiting_accounting_approval').length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                           No orders awaiting approval
                         </TableCell>
                       </TableRow>
@@ -983,15 +1042,36 @@ const AccountantDashboard = () => {
                           <TableCell>{order.customers?.name}</TableCell>
                           <TableCell>{order.designer?.full_name || '-'}</TableCell>
                           <TableCell>${order.order_value?.toFixed(2)}</TableCell>
+                          <TableCell>
+                            <Badge variant={
+                              order.payment_status === 'paid' ? 'default' :
+                              order.payment_status === 'partial' ? 'secondary' :
+                              'destructive'
+                            }>
+                              {order.payment_status || 'unpaid'}
+                            </Badge>
+                          </TableCell>
                           <TableCell>{format(new Date(order.updated_at), 'PP')}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
+                              {order.payment_status === 'unpaid' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedOrder(order.id);
+                                  }}
+                                >
+                                  <DollarSign className="mr-2 h-4 w-4" />
+                                  Record Payment
+                                </Button>
+                              )}
                               <Button 
                                 size="sm" 
                                 onClick={() => handleApproveAndSendToPrint(order.id)}
                               >
                                 <CheckCircle className="mr-2 h-4 w-4" />
-                                Approve & Send to Print
+                                Send to Print
                               </Button>
                               <Button 
                                 size="sm" 
