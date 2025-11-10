@@ -108,6 +108,8 @@ const AccountantDashboard = () => {
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
+  const [startTime, setStartTime] = useState<string>('00:00');
+  const [endTime, setEndTime] = useState<string>('23:59');
   
   // Workflow states
   const [workflowOrders, setWorkflowOrders] = useState<any[]>([]);
@@ -238,8 +240,18 @@ const AccountantDashboard = () => {
     try {
       setLoading(true);
 
-      const startDateFilter = startOfDay(startDate).toISOString();
-      const endDateFilter = endOfDay(endDate).toISOString();
+      // Parse time and apply to dates
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+      
+      const startDateTime = new Date(startDate);
+      startDateTime.setHours(startHour, startMinute, 0, 0);
+      
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(endHour, endMinute, 59, 999);
+
+      const startDateFilter = startDateTime.toISOString();
+      const endDateFilter = endDateTime.toISOString();
       
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
@@ -811,32 +823,46 @@ const AccountantDashboard = () => {
       case 'today':
         setStartDate(startOfDay(now));
         setEndDate(endOfDay(now));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'last_7_days':
         setStartDate(startOfDay(subDays(now, 7)));
         setEndDate(endOfDay(now));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'last_30_days':
         setStartDate(startOfDay(subDays(now, 30)));
         setEndDate(endOfDay(now));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'this_month':
         setStartDate(startOfMonth(now));
         setEndDate(endOfMonth(now));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'last_month':
         const lastMonth = subMonths(now, 1);
         setStartDate(startOfMonth(lastMonth));
         setEndDate(endOfMonth(lastMonth));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'this_year':
         setStartDate(startOfYear(now));
         setEndDate(endOfYear(now));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'last_year':
         const lastYear = subYears(now, 1);
         setStartDate(startOfYear(lastYear));
         setEndDate(endOfYear(lastYear));
+        setStartTime('00:00');
+        setEndTime('23:59');
         break;
       case 'custom':
         // Keep current dates for custom selection
@@ -929,39 +955,73 @@ const AccountantDashboard = () => {
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(startDate, "MMM d")} - {format(endDate, "MMM d, yyyy")}
+                    {format(startDate, "MMM d")} {startTime} - {format(endDate, "MMM d, yyyy")} {endTime}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <div className="p-3 space-y-2 border-b">
-                    <div className="font-semibold text-sm">Select Date Range</div>
-                    <div className="flex gap-2">
-                      <Calendar
-                        mode="single"
-                        selected={startDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setStartDate(date);
-                            setDateRangePreset('custom');
-                          }
-                        }}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
-                      <div className="border-l mx-2" />
-                      <Calendar
-                        mode="single"
-                        selected={endDate}
-                        onSelect={(date) => {
-                          if (date) {
-                            setEndDate(date);
-                            setDateRangePreset('custom');
-                          }
-                        }}
-                        disabled={(date) => date < startDate}
-                        initialFocus
-                        className={cn("p-3 pointer-events-auto")}
-                      />
+                  <div className="p-3 space-y-4">
+                    <div>
+                      <div className="font-semibold text-sm mb-2">Select Date Range</div>
+                      <div className="flex gap-2">
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">Start Date</div>
+                          <Calendar
+                            mode="single"
+                            selected={startDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                setStartDate(date);
+                                setDateRangePreset('custom');
+                              }
+                            }}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                          <div className="px-3">
+                            <Label htmlFor="start-time" className="text-xs">Start Time</Label>
+                            <Input
+                              id="start-time"
+                              type="time"
+                              value={startTime}
+                              onChange={(e) => {
+                                setStartTime(e.target.value);
+                                setDateRangePreset('custom');
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                        <div className="border-l mx-2" />
+                        <div className="space-y-2">
+                          <div className="text-xs text-muted-foreground">End Date</div>
+                          <Calendar
+                            mode="single"
+                            selected={endDate}
+                            onSelect={(date) => {
+                              if (date) {
+                                setEndDate(date);
+                                setDateRangePreset('custom');
+                              }
+                            }}
+                            disabled={(date) => date < startDate}
+                            initialFocus
+                            className={cn("p-3 pointer-events-auto")}
+                          />
+                          <div className="px-3">
+                            <Label htmlFor="end-time" className="text-xs">End Time</Label>
+                            <Input
+                              id="end-time"
+                              type="time"
+                              value={endTime}
+                              onChange={(e) => {
+                                setEndTime(e.target.value);
+                                setDateRangePreset('custom');
+                              }}
+                              className="mt-1"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </PopoverContent>
