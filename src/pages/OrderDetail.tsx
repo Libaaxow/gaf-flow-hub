@@ -486,10 +486,8 @@ const OrderDetail = () => {
   // Check if order is completed and user is not admin - restrict editing for non-admins
   const isReadOnly = order.status === 'delivered' && userRole !== 'admin';
   
-  // Debug logging
-  console.log('Order Status:', order.status);
-  console.log('User Role:', userRole);
-  console.log('Is Read Only:', isReadOnly);
+  // Only accountants and admins can edit payment fields
+  const canEditPayment = userRole === 'accountant' || userRole === 'admin';
 
   return (
     <Layout>
@@ -666,7 +664,7 @@ const OrderDetail = () => {
                 <Select 
                   value={order.payment_status} 
                   onValueChange={(value) => handleUpdateOrder('payment_status', value)}
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || !canEditPayment}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -687,7 +685,7 @@ const OrderDetail = () => {
                   value={order.amount_paid} 
                   onChange={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
                   onBlur={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
-                  disabled={isReadOnly}
+                  disabled={isReadOnly || !canEditPayment}
                 />
               </div>
             </CardContent>
