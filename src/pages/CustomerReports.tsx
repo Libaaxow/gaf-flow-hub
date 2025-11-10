@@ -173,7 +173,8 @@ const CustomerReports = () => {
       if (dateTo) {
         query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
       }
-      if (invoiceStatus !== 'all') {
+      if (invoiceStatus && invoiceStatus !== 'all') {
+        console.log('Filtering by status:', invoiceStatus);
         query = query.eq('status', invoiceStatus);
       }
       if (minAmount) {
