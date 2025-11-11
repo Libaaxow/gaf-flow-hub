@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 const TWILIO_ACCOUNT_SID = Deno.env.get('TWILIO_ACCOUNT_SID');
 const TWILIO_AUTH_TOKEN = Deno.env.get('TWILIO_AUTH_TOKEN');
 const TWILIO_WHATSAPP_NUMBER = Deno.env.get('TWILIO_WHATSAPP_NUMBER') || 'whatsapp:+14155238886';
+const TWILIO_TEMPLATE_SID = Deno.env.get('TWILIO_TEMPLATE_SID') || 'HX5192a88544b0b840d7904ea6b0bbe708';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,8 +29,25 @@ const handler = async (req: Request): Promise<Response> => {
     // Format phone number for WhatsApp
     const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
 
-    // Send WhatsApp message via Twilio
+    // Send WhatsApp message via Twilio using approved template
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
+    
+    // Build request parameters for template-based message
+    const params: Record<string, string> = {
+      From: TWILIO_WHATSAPP_NUMBER,
+      To: formattedTo,
+      ContentSid: TWILIO_TEMPLATE_SID,
+    };
+
+    // If template has variables, pass them in JSON format
+    // For now, we'll pass the message as a single variable
+    if (message) {
+      params.ContentVariables = JSON.stringify({
+        "1": message
+      });
+    }
+
+    console.log('Sending template message with params:', params);
     
     const response = await fetch(
       `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`,
@@ -39,11 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
           'Authorization': `Basic ${auth}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({
-          From: TWILIO_WHATSAPP_NUMBER,
-          To: formattedTo,
-          Body: message,
-        }),
+        body: new URLSearchParams(params),
       }
     );
 
