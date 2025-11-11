@@ -199,52 +199,129 @@ export const generateCustomerReportPDF = (
 
     yPos += 5;
 
-    // Generate invoice table
-    const tableData = invoices.map((invoice) => [
-      invoice.invoice_number,
-      format(new Date(invoice.invoice_date), "MMM dd, yyyy"),
-      invoice.order?.job_title || "N/A",
-      `$${invoice.subtotal.toFixed(2)}`,
-      `$${invoice.tax_amount.toFixed(2)}`,
-      `$${invoice.total_amount.toFixed(2)}`,
-      invoice.status.toUpperCase(),
-    ]);
+    // Generate detailed invoice tables with items
+    let currentY = yPos;
+    
+    invoices.forEach((invoice, index) => {
+      // Check if we need a new page
+      if (currentY > 240) {
+        pdf.addPage();
+        currentY = 20;
+      }
 
-    autoTable(pdf, {
-      startY: yPos,
-      head: [["Invoice #", "Date", "Order", "Subtotal", "Tax", "Total", "Status"]],
-      body: tableData,
-      theme: "plain",
-      styles: {
-        fontSize: 8,
-        cellPadding: 3,
-        textColor: [51, 51, 51],
-        lineColor: [230, 230, 230],
-        lineWidth: 0.1,
-      },
-      headStyles: {
-        fillColor: [248, 250, 252],
-        textColor: [51, 51, 51],
-        fontStyle: "bold",
-        fontSize: 9,
-        cellPadding: 4,
-      },
-      alternateRowStyles: {
-        fillColor: [252, 252, 253],
-      },
-      columnStyles: {
-        0: { cellWidth: 28 },
-        1: { cellWidth: 28 },
-        2: { cellWidth: 45 },
-        3: { cellWidth: 22, halign: "right" },
-        4: { cellWidth: 18, halign: "right" },
-        5: { cellWidth: 24, halign: "right" },
-        6: { cellWidth: 20, halign: "center" },
-      },
+      // Invoice header table
+      autoTable(pdf, {
+        startY: currentY,
+        head: [["Invoice #", "Date", "Order", "Status", "Total"]],
+        body: [[
+          invoice.invoice_number,
+          format(new Date(invoice.invoice_date), "MMM dd, yyyy"),
+          invoice.order?.job_title || "N/A",
+          invoice.status.toUpperCase(),
+          `$${invoice.total_amount.toFixed(2)}`,
+        ]],
+        theme: "plain",
+        styles: {
+          fontSize: 8,
+          cellPadding: 3,
+          textColor: [51, 51, 51],
+          lineColor: [230, 230, 230],
+          lineWidth: 0.1,
+        },
+        headStyles: {
+          fillColor: [41, 98, 255],
+          textColor: [255, 255, 255],
+          fontStyle: "bold",
+          fontSize: 9,
+          cellPadding: 4,
+        },
+        columnStyles: {
+          0: { cellWidth: 35 },
+          1: { cellWidth: 35 },
+          2: { cellWidth: 50 },
+          3: { cellWidth: 25, halign: "center" },
+          4: { cellWidth: 25, halign: "right" },
+        },
+      });
+
+      currentY = (pdf as any).lastAutoTable.finalY;
+
+      // Invoice items table
+      if (invoice.invoice_items && invoice.invoice_items.length > 0) {
+        const itemsData = invoice.invoice_items.map((item) => [
+          item.description,
+          item.quantity.toString(),
+          `$${item.unit_price.toFixed(2)}`,
+          `$${item.amount.toFixed(2)}`,
+        ]);
+
+        autoTable(pdf, {
+          startY: currentY,
+          head: [["Description", "Qty", "Unit Price", "Amount"]],
+          body: itemsData,
+          theme: "plain",
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+            textColor: [51, 51, 51],
+            lineColor: [230, 230, 230],
+            lineWidth: 0.1,
+          },
+          headStyles: {
+            fillColor: [248, 250, 252],
+            textColor: [102, 102, 102],
+            fontStyle: "bold",
+            fontSize: 8,
+            cellPadding: 3,
+          },
+          alternateRowStyles: {
+            fillColor: [252, 252, 253],
+          },
+          columnStyles: {
+            0: { cellWidth: 90 },
+            1: { cellWidth: 20, halign: "center" },
+            2: { cellWidth: 30, halign: "right" },
+            3: { cellWidth: 30, halign: "right" },
+          },
+          margin: { left: 25 },
+        });
+
+        currentY = (pdf as any).lastAutoTable.finalY;
+      }
+
+      // Add invoice totals
+      autoTable(pdf, {
+        startY: currentY,
+        body: [
+          ["Subtotal:", `$${invoice.subtotal.toFixed(2)}`],
+          ["Tax:", `$${invoice.tax_amount.toFixed(2)}`],
+          ["Total:", `$${invoice.total_amount.toFixed(2)}`],
+          ["Paid:", `$${invoice.amount_paid.toFixed(2)}`],
+        ],
+        theme: "plain",
+        styles: {
+          fontSize: 8,
+          cellPadding: 2,
+          textColor: [51, 51, 51],
+        },
+        columnStyles: {
+          0: { cellWidth: 140, halign: "right", fontStyle: "bold" },
+          1: { cellWidth: 30, halign: "right" },
+        },
+        margin: { left: 25 },
+      });
+
+      currentY = (pdf as any).lastAutoTable.finalY + 5;
     });
 
     // Summary section at the bottom
-    const finalY = (pdf as any).lastAutoTable.finalY + 10;
+    let finalY = (pdf as any).lastAutoTable.finalY + 10;
+    
+    // Check if we need a new page for summary
+    if (finalY > 230) {
+      pdf.addPage();
+      finalY = 20;
+    }
     
     pdf.setFillColor(248, 250, 252);
     pdf.roundedRect(120, finalY, 70, 30, 2, 2, "F");
