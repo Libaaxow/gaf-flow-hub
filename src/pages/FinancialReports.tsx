@@ -28,6 +28,12 @@ interface Payment {
       name: string;
     };
   } | null;
+  invoice: {
+    invoice_number: string;
+    customer: {
+      name: string;
+    };
+  } | null;
 }
 
 interface Expense {
@@ -73,6 +79,10 @@ const FinancialReports = () => {
           notes,
           order:orders(
             job_title,
+            customer:customers(name)
+          ),
+          invoice:invoices(
+            invoice_number,
             customer:customers(name)
           )
         `)
@@ -386,8 +396,12 @@ const FinancialReports = () => {
                         {payments.map((payment) => (
                           <tr key={payment.id} className="border-b">
                             <td className="py-3 px-2">{format(new Date(payment.payment_date), 'MMM dd, yyyy')}</td>
-                            <td className="py-3 px-2">{payment.order?.customer?.name || 'N/A'}</td>
-                            <td className="py-3 px-2">{payment.order?.job_title || 'N/A'}</td>
+                            <td className="py-3 px-2">
+                              {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
+                            </td>
+                            <td className="py-3 px-2">
+                              {payment.order?.job_title || payment.invoice?.invoice_number || 'N/A'}
+                            </td>
                             <td className="py-3 px-2 capitalize">{payment.payment_method.replace('_', ' ')}</td>
                             <td className="py-3 px-2 text-right font-semibold text-success">${payment.amount.toFixed(2)}</td>
                             <td className="py-3 px-2">{payment.reference_number || '-'}</td>
