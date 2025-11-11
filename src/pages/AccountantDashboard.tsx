@@ -377,6 +377,10 @@ const AccountantDashboard = () => {
           order:orders(
             job_title,
             customer:customers(name)
+          ),
+          invoice:invoices(
+            invoice_number,
+            customer:customers(name)
           )
         `)
         .gte('payment_date', startDateFilter)
@@ -2278,8 +2282,12 @@ const AccountantDashboard = () => {
                         payments.map((payment) => (
                           <TableRow key={payment.id}>
                             <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
-                            <TableCell>{payment.order.job_title}</TableCell>
-                            <TableCell>{payment.order.customer.name}</TableCell>
+                            <TableCell>
+                              {payment.order?.job_title || payment.invoice?.invoice_number || 'N/A'}
+                            </TableCell>
+                            <TableCell>
+                              {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
+                            </TableCell>
                             <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
                             <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
                             <TableCell>{payment.reference_number || '-'}</TableCell>
@@ -2947,9 +2955,11 @@ const AccountantDashboard = () => {
                               <TableRow key={payment.id}>
                                 <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
                                 <TableCell className="font-medium">
-                                  {payment.order?.customer?.name || '-'}
+                                  {payment.order?.customer?.name || payment.invoice?.customer?.name || '-'}
                                 </TableCell>
-                                <TableCell>{payment.order?.job_title || '-'}</TableCell>
+                                <TableCell>
+                                  {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
+                                </TableCell>
                                 <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
                                 <TableCell className="capitalize">{payment.payment_method}</TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>
