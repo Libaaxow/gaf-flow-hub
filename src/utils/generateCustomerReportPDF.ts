@@ -245,12 +245,13 @@ export const generateCustomerReportPDF = (
           cellPadding: 4,
         },
         columnStyles: {
-          0: { cellWidth: 35 },
-          1: { cellWidth: 35 },
-          2: { cellWidth: 50 },
-          3: { cellWidth: 25, halign: "center" },
-          4: { cellWidth: 25, halign: "right" },
+          0: { cellWidth: 32 },
+          1: { cellWidth: 32 },
+          2: { cellWidth: 48 },
+          3: { cellWidth: 23, halign: "center" },
+          4: { cellWidth: 23, halign: "right" },
         },
+        margin: { left: 20, right: 20 },
       });
 
       currentY = (pdf as any).lastAutoTable.finalY;
@@ -287,12 +288,12 @@ export const generateCustomerReportPDF = (
             fillColor: [252, 252, 253],
           },
           columnStyles: {
-            0: { cellWidth: 90 },
-            1: { cellWidth: 20, halign: "center" },
-            2: { cellWidth: 30, halign: "right" },
-            3: { cellWidth: 30, halign: "right" },
+            0: { cellWidth: 85 },
+            1: { cellWidth: 18, halign: "center" },
+            2: { cellWidth: 28, halign: "right" },
+            3: { cellWidth: 28, halign: "right" },
           },
-          margin: { left: 25 },
+          margin: { left: 20, right: 20 },
         });
 
         currentY = (pdf as any).lastAutoTable.finalY;
@@ -359,12 +360,12 @@ export const generateCustomerReportPDF = (
             cellPadding: 2,
           },
           columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 40 },
-            2: { cellWidth: 30, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
-            3: { cellWidth: 35 },
+            0: { cellWidth: 32 },
+            1: { cellWidth: 38 },
+            2: { cellWidth: 28, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
+            3: { cellWidth: 32 },
           },
-          margin: { left: 25 },
+          margin: { left: 20, right: 20 },
         });
 
         currentY = (pdf as any).lastAutoTable.finalY;
