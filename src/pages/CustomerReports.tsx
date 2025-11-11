@@ -101,16 +101,19 @@ const CustomerReports = () => {
     }
   }, [autoGenerate, selectedCustomerId, customers]);
 
-  const fetchCustomers = async (search: string) => {
-    if (!search || search.length < 2) return;
-    
+  const fetchCustomers = async (search: string = '') => {
     setLoadingCustomers(true);
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('customers')
         .select('id, name, email, phone, company_name')
-        .ilike('name', `%${search}%`)
-        .limit(10);
+        .order('name', { ascending: true });
+      
+      if (search && search.length >= 2) {
+        query = query.ilike('name', `%${search}%`);
+      }
+      
+      const { data, error } = await query.limit(50);
 
       if (error) throw error;
       setCustomers(data || []);
@@ -125,6 +128,11 @@ const CustomerReports = () => {
       setLoadingCustomers(false);
     }
   };
+
+  // Fetch all customers on mount
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   const generateReport = async () => {
     if (!selectedCustomerId) {
@@ -311,21 +319,32 @@ const CustomerReports = () => {
                 <Input
                   placeholder="Search customer by name..."
                   onChange={(e) => fetchCustomers(e.target.value)}
+                  onFocus={() => {
+                    if (customers.length === 0) fetchCustomers();
+                  }}
                 />
-                {customers.length > 0 && (
-                  <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select customer" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
+                <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {loadingCustomers ? (
+                      <SelectItem value="loading" disabled>
+                        Loading customers...
+                      </SelectItem>
+                    ) : customers.length > 0 ? (
+                      customers.map((customer) => (
                         <SelectItem key={customer.id} value={customer.id}>
                           {customer.name}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+                      ))
+                    ) : (
+                      <SelectItem value="none" disabled>
+                        No customers found
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Date From */}
