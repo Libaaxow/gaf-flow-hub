@@ -484,8 +484,9 @@ export type Database = {
           amount: number
           created_at: string | null
           id: string
+          invoice_id: string | null
           notes: string | null
-          order_id: string
+          order_id: string | null
           payment_date: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           receipt_url: string | null
@@ -497,8 +498,9 @@ export type Database = {
           amount: number
           created_at?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
-          order_id: string
+          order_id?: string | null
           payment_date?: string
           payment_method: Database["public"]["Enums"]["payment_method"]
           receipt_url?: string | null
@@ -510,8 +512,9 @@ export type Database = {
           amount?: number
           created_at?: string | null
           id?: string
+          invoice_id?: string | null
           notes?: string | null
-          order_id?: string
+          order_id?: string | null
           payment_date?: string
           payment_method?: Database["public"]["Enums"]["payment_method"]
           receipt_url?: string | null
@@ -520,6 +523,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "payments_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "payments_order_id_fkey"
             columns: ["order_id"]
