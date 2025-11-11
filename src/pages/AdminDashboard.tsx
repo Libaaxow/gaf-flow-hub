@@ -738,6 +738,34 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteCustomer = async (customerId: string) => {
+    if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', customerId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Customer deleted successfully',
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDownloadActivityReport = async () => {
     try {
       const { data: profileData } = await supabase
@@ -1132,6 +1160,7 @@ export default function AdminDashboard() {
                 <TableHead>Email</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1142,6 +1171,15 @@ export default function AdminDashboard() {
                   <TableCell>{customer.email || '-'}</TableCell>
                   <TableCell>{customer.company_name || '-'}</TableCell>
                   <TableCell>{format(new Date(customer.created_at), 'MMM d, yyyy')}</TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCustomer(customer.id)}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
