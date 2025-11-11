@@ -24,6 +24,15 @@ interface InvoiceItem {
   amount: number;
 }
 
+interface Payment {
+  id: string;
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference_number?: string;
+  notes?: string;
+}
+
 interface ReportInvoice {
   id: string;
   invoice_number: string;
@@ -37,6 +46,7 @@ interface ReportInvoice {
   order?: {
     job_title: string;
     description: string;
+    payments?: Payment[];
   };
   invoice_items: InvoiceItem[];
 }
@@ -161,7 +171,15 @@ const CustomerReports = () => {
           amount_paid,
           orders (
             job_title,
-            description
+            description,
+            payments (
+              id,
+              amount,
+              payment_method,
+              payment_date,
+              reference_number,
+              notes
+            )
           ),
           invoice_items (
             id,
@@ -565,44 +583,74 @@ const CustomerReports = () => {
                         </div>
 
                         {expandedInvoices.has(invoice.id) && (
-                          <div className="p-4 bg-muted/20 border-t">
-                            <h4 className="font-semibold mb-3">Invoice Items</h4>
-                            <div className="overflow-x-auto">
-                              <table className="w-full">
-                                <thead>
-                                  <tr className="border-b">
-                                    <th className="text-left py-2 px-2 text-sm font-semibold">Description</th>
-                                    <th className="text-center py-2 px-2 text-sm font-semibold">Qty</th>
-                                    <th className="text-right py-2 px-2 text-sm font-semibold">Unit Price</th>
-                                    <th className="text-right py-2 px-2 text-sm font-semibold">Amount</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {invoice.invoice_items.map((item) => (
-                                    <tr key={item.id} className="border-b last:border-0">
-                                      <td className="py-2 px-2">{item.description}</td>
-                                      <td className="py-2 px-2 text-center">{item.quantity}</td>
-                                      <td className="py-2 px-2 text-right">${item.unit_price.toFixed(2)}</td>
-                                      <td className="py-2 px-2 text-right font-semibold">${item.amount.toFixed(2)}</td>
+                          <div className="p-4 bg-muted/20 border-t space-y-4">
+                            <div>
+                              <h4 className="font-semibold mb-3">Invoice Items</h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full">
+                                  <thead>
+                                    <tr className="border-b">
+                                      <th className="text-left py-2 px-2 text-sm font-semibold">Description</th>
+                                      <th className="text-center py-2 px-2 text-sm font-semibold">Qty</th>
+                                      <th className="text-right py-2 px-2 text-sm font-semibold">Unit Price</th>
+                                      <th className="text-right py-2 px-2 text-sm font-semibold">Amount</th>
                                     </tr>
-                                  ))}
-                                </tbody>
-                                <tfoot>
-                                  <tr className="border-t font-semibold">
-                                    <td colSpan={3} className="py-2 px-2 text-right">Subtotal:</td>
-                                    <td className="py-2 px-2 text-right">${invoice.subtotal.toFixed(2)}</td>
-                                  </tr>
-                                  <tr>
-                                    <td colSpan={3} className="py-2 px-2 text-right text-muted-foreground">Tax:</td>
-                                    <td className="py-2 px-2 text-right">${invoice.tax_amount.toFixed(2)}</td>
-                                  </tr>
-                                  <tr className="font-bold text-primary">
-                                    <td colSpan={3} className="py-2 px-2 text-right">Total:</td>
-                                    <td className="py-2 px-2 text-right">${invoice.total_amount.toFixed(2)}</td>
-                                  </tr>
-                                </tfoot>
-                              </table>
+                                  </thead>
+                                  <tbody>
+                                    {invoice.invoice_items.map((item) => (
+                                      <tr key={item.id} className="border-b last:border-0">
+                                        <td className="py-2 px-2">{item.description}</td>
+                                        <td className="py-2 px-2 text-center">{item.quantity}</td>
+                                        <td className="py-2 px-2 text-right">${item.unit_price.toFixed(2)}</td>
+                                        <td className="py-2 px-2 text-right font-semibold">${item.amount.toFixed(2)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t font-semibold">
+                                      <td colSpan={3} className="py-2 px-2 text-right">Subtotal:</td>
+                                      <td className="py-2 px-2 text-right">${invoice.subtotal.toFixed(2)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td colSpan={3} className="py-2 px-2 text-right text-muted-foreground">Tax:</td>
+                                      <td className="py-2 px-2 text-right">${invoice.tax_amount.toFixed(2)}</td>
+                                    </tr>
+                                    <tr className="font-bold text-primary">
+                                      <td colSpan={3} className="py-2 px-2 text-right">Total:</td>
+                                      <td className="py-2 px-2 text-right">${invoice.total_amount.toFixed(2)}</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
                             </div>
+
+                            {invoice.order?.payments && invoice.order.payments.length > 0 && (
+                              <div>
+                                <h4 className="font-semibold mb-3">Payment History</h4>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full">
+                                    <thead>
+                                      <tr className="border-b">
+                                        <th className="text-left py-2 px-2 text-sm font-semibold">Date</th>
+                                        <th className="text-left py-2 px-2 text-sm font-semibold">Method</th>
+                                        <th className="text-right py-2 px-2 text-sm font-semibold">Amount</th>
+                                        <th className="text-left py-2 px-2 text-sm font-semibold">Reference</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {invoice.order.payments.map((payment) => (
+                                        <tr key={payment.id} className="border-b last:border-0">
+                                          <td className="py-2 px-2">{format(new Date(payment.payment_date), 'MMM dd, yyyy')}</td>
+                                          <td className="py-2 px-2 capitalize">{payment.payment_method.replace('_', ' ')}</td>
+                                          <td className="py-2 px-2 text-right font-semibold text-success">${payment.amount.toFixed(2)}</td>
+                                          <td className="py-2 px-2">{payment.reference_number || '-'}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>

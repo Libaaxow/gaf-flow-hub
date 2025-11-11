@@ -10,6 +10,14 @@ interface InvoiceItem {
   amount: number;
 }
 
+interface Payment {
+  amount: number;
+  payment_method: string;
+  payment_date: string;
+  reference_number?: string;
+  notes?: string;
+}
+
 interface ReportInvoice {
   invoice_number: string;
   invoice_date: string;
@@ -21,6 +29,7 @@ interface ReportInvoice {
   order?: {
     job_title: string;
     description: string;
+    payments?: Payment[];
   };
   invoice_items: InvoiceItem[];
 }
@@ -311,7 +320,57 @@ export const generateCustomerReportPDF = (
         margin: { left: 25 },
       });
 
-      currentY = (pdf as any).lastAutoTable.finalY + 5;
+      currentY = (pdf as any).lastAutoTable.finalY;
+
+      // Add payment history if exists
+      if (invoice.order?.payments && invoice.order.payments.length > 0) {
+        currentY += 3;
+
+        // Check if we need a new page
+        if (currentY > 240) {
+          pdf.addPage();
+          currentY = 20;
+        }
+
+        const paymentsData = invoice.order.payments.map((payment) => [
+          format(new Date(payment.payment_date), "MMM dd, yyyy"),
+          payment.payment_method.replace('_', ' ').toUpperCase(),
+          `$${payment.amount.toFixed(2)}`,
+          payment.reference_number || '-',
+        ]);
+
+        autoTable(pdf, {
+          startY: currentY,
+          head: [["Payment Date", "Method", "Amount", "Reference"]],
+          body: paymentsData,
+          theme: "plain",
+          styles: {
+            fontSize: 7,
+            cellPadding: 2,
+            textColor: [51, 51, 51],
+            lineColor: [230, 230, 230],
+            lineWidth: 0.1,
+          },
+          headStyles: {
+            fillColor: [248, 250, 252],
+            textColor: [34, 197, 94],
+            fontStyle: "bold",
+            fontSize: 7,
+            cellPadding: 2,
+          },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 30, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
+            3: { cellWidth: 35 },
+          },
+          margin: { left: 25 },
+        });
+
+        currentY = (pdf as any).lastAutoTable.finalY;
+      }
+
+      currentY += 5;
     });
 
     // Summary section at the bottom
