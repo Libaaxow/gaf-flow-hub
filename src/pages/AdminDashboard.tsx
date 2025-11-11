@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon, Download, Activity, Plus, FileText } from 'lucide-react';
+import { Package, Users, DollarSign, AlertCircle, Calendar as CalendarIcon, Download, Activity, Plus, FileText, Pencil, Trash2 } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -112,6 +112,8 @@ export default function AdminDashboard() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState<any>(null);
   
   // Invoice items state
   interface InvoiceItem {
@@ -123,6 +125,9 @@ export default function AdminDashboard() {
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unit_price: 0, amount: 0 }
   ]);
+  
+  // Payment states
+  const [payments, setPayments] = useState<any[]>([]);
 
   // Stats
   const [stats, setStats] = useState({
@@ -288,6 +293,17 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false });
       
       setInvoices(invoicesData || []);
+
+      // Fetch payments
+      const { data: paymentsData } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          order:orders(job_title, customer:customers(name))
+        `)
+        .order('payment_date', { ascending: false });
+      
+      setPayments(paymentsData || []);
 
     } catch (error: any) {
       toast({
@@ -543,6 +559,185 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    if (!confirm('Are you sure you want to delete this invoice? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      // First delete invoice items
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', invoiceId);
+
+      if (itemsError) throw itemsError;
+
+      // Then delete the invoice
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', invoiceId);
+
+      if (invoiceError) throw invoiceError;
+
+      toast({
+        title: 'Success',
+        description: 'Invoice deleted successfully',
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditInvoice = (invoice: any) => {
+    setEditingInvoice(invoice);
+    setInvoiceNumber(invoice.invoice_number);
+    setInvoiceCustomer(invoice.customer_id);
+    setInvoiceOrder(invoice.order_id || '');
+    setInvoiceDueDate(invoice.due_date || '');
+    setInvoiceTax(invoice.tax_amount.toString());
+    setInvoiceNotes(invoice.notes || '');
+    
+    // Load invoice items
+    if (invoice.invoice_items && invoice.invoice_items.length > 0) {
+      setInvoiceItems(invoice.invoice_items.map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount,
+      })));
+    } else {
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+    }
+    
+    setEditInvoiceDialogOpen(true);
+  };
+
+  const handleUpdateInvoice = async () => {
+    if (!invoiceNumber || !invoiceCustomer || invoiceItems.length === 0) {
+      toast({
+        title: 'Validation Error',
+        description: 'Please fill in all required fields and add at least one item',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const hasEmptyDescriptions = invoiceItems.some(item => !item.description.trim());
+    if (hasEmptyDescriptions) {
+      toast({
+        title: 'Validation Error',
+        description: 'All items must have a description',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const subtotal = calculateInvoiceSubtotal();
+      const tax = parseFloat(invoiceTax) || 0;
+      const total = subtotal + tax;
+
+      // Update invoice
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .update({
+          invoice_number: invoiceNumber,
+          customer_id: invoiceCustomer,
+          order_id: invoiceOrder || null,
+          due_date: invoiceDueDate || null,
+          subtotal,
+          tax_amount: tax,
+          total_amount: total,
+          notes: invoiceNotes || null,
+        })
+        .eq('id', editingInvoice.id);
+
+      if (invoiceError) throw invoiceError;
+
+      // Delete existing invoice items
+      const { error: deleteError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', editingInvoice.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert new invoice items
+      const itemsToInsert = invoiceItems.map(item => ({
+        invoice_id: editingInvoice.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.amount,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: 'Success',
+        description: `Invoice ${invoiceNumber} updated successfully`,
+      });
+
+      setEditInvoiceDialogOpen(false);
+      setEditingInvoice(null);
+      setInvoiceNumber('');
+      setInvoiceCustomer('');
+      setInvoiceOrder('');
+      setInvoiceDueDate('');
+      setInvoiceTax('');
+      setInvoiceNotes('');
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeletePayment = async (paymentId: string) => {
+    if (!confirm('Are you sure you want to delete this payment record? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .delete()
+        .eq('id', paymentId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Payment record deleted successfully',
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDownloadActivityReport = async () => {
     try {
       const { data: profileData } = await supabase
@@ -600,10 +795,11 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-4 sm:space-y-6 w-full max-w-full">
@@ -1159,7 +1355,7 @@ export default function AdminDashboard() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -1167,8 +1363,25 @@ export default function AdminDashboard() {
                           setSelectedInvoice(invoice);
                           setInvoiceDialogOpen(true);
                         }}
+                        title="View Invoice"
                       >
                         <FileText className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleEditInvoice(invoice)}
+                        title="Edit Invoice"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => handleDeleteInvoice(invoice.id)}
+                        title="Delete Invoice"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </Button>
                       {invoice.status !== 'paid' && (
                         <Button
@@ -1198,6 +1411,78 @@ export default function AdminDashboard() {
       </Card>
     </TabsContent>
 
+    <TabsContent value="payments" className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold">Payment Management</h2>
+          <p className="text-muted-foreground">View and manage payment records</p>
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>All Payments</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Order</TableHead>
+                <TableHead>Customer</TableHead>
+                <TableHead>Amount</TableHead>
+                <TableHead>Method</TableHead>
+                <TableHead>Reference</TableHead>
+                <TableHead>Date</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {payments.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    No payment records found
+                  </TableCell>
+                </TableRow>
+              ) : (
+                payments.map((payment) => (
+                  <TableRow key={payment.id}>
+                    <TableCell className="font-medium">
+                      {payment.order?.job_title || 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      {payment.order?.customer?.name || 'N/A'}
+                    </TableCell>
+                    <TableCell>${payment.amount.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {payment.payment_method.replace('_', ' ')}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{payment.reference_number || '-'}</TableCell>
+                    <TableCell>
+                      {format(new Date(payment.payment_date), 'MMM d, yyyy')}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeletePayment(payment.id)}
+                          title="Delete Payment"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </TabsContent>
+
     </Tabs>
 
     {selectedInvoice && (
@@ -1207,6 +1492,167 @@ export default function AdminDashboard() {
         order={selectedInvoice}
       />
     )}
+
+    {/* Edit Invoice Dialog */}
+    <Dialog open={editInvoiceDialogOpen} onOpenChange={setEditInvoiceDialogOpen}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Edit Invoice</DialogTitle>
+          <DialogDescription>Update invoice details</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="edit-invoice-number">Invoice Number *</Label>
+            <Input
+              id="edit-invoice-number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              placeholder="INV-00001"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-invoice-customer">Customer *</Label>
+            <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-invoice-order">Related Order (Optional)</Label>
+            <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select order (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {orders.map((order) => (
+                  <SelectItem key={order.id} value={order.id}>
+                    {order.job_title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-due-date">Due Date</Label>
+            <Input
+              id="edit-due-date"
+              type="date"
+              value={invoiceDueDate}
+              onChange={(e) => setInvoiceDueDate(e.target.value)}
+            />
+          </div>
+          {/* Invoice Items */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label>Invoice Items</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Item
+              </Button>
+            </div>
+            
+            {invoiceItems.map((item, index) => (
+              <Card key={index} className="p-4">
+                <div className="grid gap-3">
+                  <div className="grid gap-2">
+                    <Label>Description *</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                      placeholder="Item description"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="grid gap-2">
+                      <Label>Quantity *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Unit Price *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Amount</Label>
+                      <Input
+                        type="number"
+                        value={item.amount.toFixed(2)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+                  {invoiceItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeInvoiceItem(index)}
+                    >
+                      Remove Item
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+
+            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+              <span className="font-semibold">Subtotal:</span>
+              <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="edit-tax">Tax Amount</Label>
+            <Input
+              id="edit-tax"
+              type="number"
+              value={invoiceTax}
+              onChange={(e) => setInvoiceTax(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          
+          <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
+            <span className="font-semibold text-lg">Total:</span>
+            <span className="text-2xl font-bold">
+              ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
+            </span>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="edit-invoice-notes">Notes</Label>
+            <Input
+              id="edit-invoice-notes"
+              value={invoiceNotes}
+              onChange={(e) => setInvoiceNotes(e.target.value)}
+              placeholder="Additional notes"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </Layout>
   );
 }
