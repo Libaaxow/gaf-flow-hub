@@ -299,7 +299,8 @@ export default function AdminDashboard() {
         .from('payments')
         .select(`
           *,
-          order:orders(job_title, customer:customers(name))
+          order:orders(job_title, customer:customers(name)),
+          invoice:invoices(invoice_number, customer:customers(name))
         `)
         .order('payment_date', { ascending: false });
       
@@ -1485,10 +1486,10 @@ export default function AdminDashboard() {
                 payments.map((payment) => (
                   <TableRow key={payment.id}>
                     <TableCell className="font-medium">
-                      {payment.order?.job_title || 'N/A'}
+                      {payment.order?.job_title || payment.invoice?.invoice_number || 'N/A'}
                     </TableCell>
                     <TableCell>
-                      {payment.order?.customer?.name || 'N/A'}
+                      {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
                     </TableCell>
                     <TableCell>${payment.amount.toLocaleString()}</TableCell>
                     <TableCell>
