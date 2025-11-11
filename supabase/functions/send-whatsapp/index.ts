@@ -26,15 +26,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending WhatsApp message to:', to);
 
-    // Format phone number for WhatsApp
+    // Format phone numbers for WhatsApp - both need whatsapp: prefix
     const formattedTo = to.startsWith('whatsapp:') ? to : `whatsapp:${to}`;
+    const formattedFrom = TWILIO_WHATSAPP_NUMBER.startsWith('whatsapp:') 
+      ? TWILIO_WHATSAPP_NUMBER 
+      : `whatsapp:${TWILIO_WHATSAPP_NUMBER}`;
 
     // Send WhatsApp message via Twilio using approved template
     const auth = btoa(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`);
     
     // Build request parameters for template-based message
     const params: Record<string, string> = {
-      From: TWILIO_WHATSAPP_NUMBER,
+      From: formattedFrom,
       To: formattedTo,
       ContentSid: TWILIO_TEMPLATE_SID,
     };
