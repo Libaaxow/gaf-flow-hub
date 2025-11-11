@@ -53,6 +53,12 @@ const FinancialReports = () => {
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
 
+  // Fetch initial data on mount
+  useEffect(() => {
+    fetchPayments();
+    fetchExpenses();
+  }, []);
+
   const fetchPayments = async () => {
     setLoading(true);
     try {
@@ -83,8 +89,12 @@ const FinancialReports = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Payments query error:', error);
+        throw error;
+      }
 
+      console.log('Fetched payments:', data);
       setPayments(data || []);
       toast({
         title: 'Success',
@@ -121,8 +131,12 @@ const FinancialReports = () => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Expenses query error:', error);
+        throw error;
+      }
 
+      console.log('Fetched expenses:', data);
       setExpenses(data || []);
       toast({
         title: 'Success',
@@ -331,7 +345,7 @@ const FinancialReports = () => {
 
                 <div className="flex gap-2">
                   <Button onClick={fetchPayments} disabled={loading}>
-                    {loading ? 'Generating...' : 'Generate Report'}
+                    {loading ? 'Generating...' : 'Refresh Report'}
                   </Button>
                   {payments.length > 0 && (
                     <Button onClick={handleExportPaymentsPDF} disabled={generatingPDF} variant="outline">
@@ -344,7 +358,13 @@ const FinancialReports = () => {
             </Card>
 
             {/* Payments Table */}
-            {payments.length > 0 && (
+            {loading ? (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">Loading payments...</p>
+                </CardContent>
+              </Card>
+            ) : payments.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Payment Records</CardTitle>
@@ -383,6 +403,12 @@ const FinancialReports = () => {
                       </tfoot>
                     </table>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">No payment records found</p>
                 </CardContent>
               </Card>
             )}
@@ -470,7 +496,7 @@ const FinancialReports = () => {
 
                 <div className="flex gap-2">
                   <Button onClick={fetchExpenses} disabled={loading}>
-                    {loading ? 'Generating...' : 'Generate Report'}
+                    {loading ? 'Generating...' : 'Refresh Report'}
                   </Button>
                   {expenses.length > 0 && (
                     <Button onClick={handleExportExpensesPDF} disabled={generatingPDF} variant="outline">
@@ -483,7 +509,13 @@ const FinancialReports = () => {
             </Card>
 
             {/* Expenses Table */}
-            {expenses.length > 0 && (
+            {loading ? (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">Loading expenses...</p>
+                </CardContent>
+              </Card>
+            ) : expenses.length > 0 ? (
               <Card>
                 <CardHeader>
                   <CardTitle>Expense Records</CardTitle>
@@ -521,6 +553,12 @@ const FinancialReports = () => {
                       </tfoot>
                     </table>
                   </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">No expense records found</p>
                 </CardContent>
               </Card>
             )}
