@@ -568,25 +568,78 @@ const AccountantDashboard = () => {
 
   const handleApproveAndSendToPrint = async (orderId: string) => {
     try {
-      // Check if there's a payment or if it's marked as debt
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .select('payment_status, order_value')
-        .eq('id', orderId)
-        .single();
+      const { data: { user } } = await supabase.auth.getUser();
 
-      if (orderError) throw orderError;
+      // Check if invoice exists for this order
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('order_id', orderId)
+        .maybeSingle();
 
-      // If not paid, ask accountant to record payment or mark as debt
-      if (orderData.payment_status === 'unpaid') {
+      if (invoiceError) throw invoiceError;
+
+      if (!invoice) {
         toast({
-          title: 'Payment Required',
-          description: 'Please record payment or mark this order as customer debt before sending to print',
+          title: 'Invoice Required',
+          description: 'Please create an invoice for this order before sending to print',
           variant: 'destructive',
         });
         return;
       }
 
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Check payment status based on invoice
+      const totalPaid = invoice.amount_paid || 0;
+      const totalAmount = invoice.total_amount || 0;
+      const isPaid = totalPaid >= totalAmount;
+
+      if (isPaid) {
+        // If fully paid and not already recorded in order, update order payment
+        const orderPaid = orderData.amount_paid || 0;
+        if (orderPaid < orderData.order_value) {
+          const remainingAmount = orderData.order_value - orderPaid;
+          
+          await supabase
+            .from('orders')
+            .update({
+              amount_paid: orderData.order_value,
+              payment_status: 'paid',
+            })
+            .eq('id', orderId);
+
+          // Record the payment in payments table
+          await supabase
+            .from('payments')
+            .insert({
+              order_id: orderId,
+              invoice_id: invoice.id,
+              amount: remainingAmount,
+              payment_method: 'bank_transfer',
+              payment_date: new Date().toISOString(),
+              recorded_by: user?.id,
+              notes: 'Auto-recorded when sending to print (invoice fully paid)',
+            });
+        }
+      } else {
+        // Mark as debt (unpaid/partial) but allow to proceed
+        const currentPaid = orderData.amount_paid || 0;
+        await supabase
+          .from('orders')
+          .update({
+            payment_status: currentPaid > 0 ? 'partial' : 'unpaid',
+          })
+          .eq('id', orderId);
+      }
+
+      // Send to print
       const { error } = await supabase
         .from('orders')
         .update({ status: 'printing' })
@@ -596,7 +649,9 @@ const AccountantDashboard = () => {
 
       toast({
         title: 'Success',
-        description: 'Order sent to print operator',
+        description: isPaid 
+          ? 'Payment recorded and order sent to print operator'
+          : 'Order marked as debt and sent to print operator',
       });
 
       fetchWorkflowOrders();
