@@ -606,21 +606,21 @@ const AccountantDashboard = () => {
       const totalAmount = invoice.total_amount || 0;
       const isPaid = totalPaid >= totalAmount;
 
+      // Prepare update object - combine all updates into one
+      const orderUpdate: any = {
+        status: 'printing'
+      };
+
       if (isPaid) {
         // If fully paid and not already recorded in order, update order payment
         const orderPaid = orderData.amount_paid || 0;
         if (orderPaid < orderData.order_value) {
           const remainingAmount = orderData.order_value - orderPaid;
           
-          await supabase
-            .from('orders')
-            .update({
-              amount_paid: orderData.order_value,
-              payment_status: 'paid',
-            })
-            .eq('id', orderId);
+          orderUpdate.amount_paid = orderData.order_value;
+          orderUpdate.payment_status = 'paid';
 
-          // Record the payment in payments table
+          // Record the payment in payments table (parallel to order update)
           await supabase
             .from('payments')
             .insert({
@@ -636,18 +636,13 @@ const AccountantDashboard = () => {
       } else {
         // Mark as debt (unpaid/partial) but allow to proceed
         const currentPaid = orderData.amount_paid || 0;
-        await supabase
-          .from('orders')
-          .update({
-            payment_status: currentPaid > 0 ? 'partial' : 'unpaid',
-          })
-          .eq('id', orderId);
+        orderUpdate.payment_status = currentPaid > 0 ? 'partial' : 'unpaid';
       }
 
-      // Send to print
+      // Single update combining status and payment info
       const { error } = await supabase
         .from('orders')
-        .update({ status: 'printing' })
+        .update(orderUpdate)
         .eq('id', orderId);
 
       if (error) throw error;
