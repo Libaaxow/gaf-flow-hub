@@ -105,6 +105,9 @@ const SalesDashboard = () => {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
   const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  const [orderItems, setOrderItems] = useState<Array<{ description: string; quantity: number; unit_price: number }>>([
+    { description: '', quantity: 1, unit_price: 0 }
+  ]);
   
   // Separate state for my customers (for display in My Customers tab)
   const myCustomers = customers.filter(c => c.created_by === user?.id);
@@ -432,15 +435,27 @@ const SalesDashboard = () => {
         customerId = newCustomer.id;
       }
 
+      // Calculate total order value from items
+      const totalOrderValue = orderItems.reduce((sum, item) => 
+        sum + (item.quantity * item.unit_price), 0
+      );
+
+      // Combine items into description
+      const itemsDescription = orderItems
+        .map((item, idx) => 
+          `${idx + 1}. ${item.description} - Qty: ${item.quantity} x $${item.unit_price.toFixed(2)}`
+        )
+        .join('\n');
+
       // Create order
       const orderData = {
         customer_id: customerId,
         job_title: formData.get('job_title') as string,
-        description: formData.get('description') as string,
+        description: itemsDescription,
         print_type: formData.get('print_type') as string,
-        quantity: parseInt(formData.get('quantity') as string) || 1,
+        quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
         notes: formData.get('notes') as string || null,
-        order_value: parseFloat(formData.get('order_value') as string),
+        order_value: totalOrderValue,
         salesperson_id: user?.id,
         delivery_date: formData.get('delivery_date') as string || null,
         status: 'pending_accounting_review' as const,
@@ -499,6 +514,7 @@ const SalesDashboard = () => {
       e.currentTarget.reset();
       setPhoneNumber('');
       setExistingCustomer(null);
+      setOrderItems([{ description: '', quantity: 1, unit_price: 0 }]);
       setOrderFormOpen(false);
       await fetchDashboardData();
     } catch (error: any) {
@@ -954,6 +970,7 @@ const SalesDashboard = () => {
                 if (!open) {
                   setPhoneNumber('');
                   setExistingCustomer(null);
+                  setOrderItems([{ description: '', quantity: 1, unit_price: 0 }]);
                 }
               }}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
@@ -1058,49 +1075,115 @@ const SalesDashboard = () => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="description" className="font-semibold">Description *</Label>
-                          <Textarea 
-                            id="description" 
-                            name="description" 
-                            rows={3}
-                            placeholder="Detailed description of the job requirements..."
-                            required
+                          <Label htmlFor="delivery_date" className="font-semibold">Delivery Date *</Label>
+                          <Input 
+                            id="delivery_date" 
+                            name="delivery_date" 
+                            type="date"
+                            min={new Date().toISOString().split('T')[0]}
+                            required 
                           />
                         </div>
+                      </div>
+                    </div>
 
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="quantity" className="font-semibold">Quantity *</Label>
-                            <Input 
-                              id="quantity" 
-                              name="quantity" 
-                              type="number"
-                              min="1"
-                              defaultValue="1"
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="order_value" className="font-semibold">Order Value ($) *</Label>
-                            <Input 
-                              id="order_value" 
-                              name="order_value" 
-                              type="number" 
-                              step="0.01"
-                              min="0"
-                              placeholder="0.00"
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="delivery_date" className="font-semibold">Delivery Date *</Label>
-                            <Input 
-                              id="delivery_date" 
-                              name="delivery_date" 
-                              type="date"
-                              min={new Date().toISOString().split('T')[0]}
-                              required 
-                            />
+                    {/* Order Items */}
+                    <div className="border-b border-border pb-6">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-semibold text-lg">Order Items</h3>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setOrderItems([...orderItems, { description: '', quantity: 1, unit_price: 0 }])}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-[40%]">Description</TableHead>
+                              <TableHead className="w-[20%]">Quantity</TableHead>
+                              <TableHead className="w-[20%]">Unit Price ($)</TableHead>
+                              <TableHead className="w-[15%]">Total</TableHead>
+                              <TableHead className="w-[5%]"></TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {orderItems.map((item, index) => (
+                              <TableRow key={index}>
+                                <TableCell>
+                                  <Input
+                                    value={item.description}
+                                    onChange={(e) => {
+                                      const newItems = [...orderItems];
+                                      newItems[index].description = e.target.value;
+                                      setOrderItems(newItems);
+                                    }}
+                                    placeholder="Item description"
+                                    required
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={item.quantity}
+                                    onChange={(e) => {
+                                      const newItems = [...orderItems];
+                                      newItems[index].quantity = parseInt(e.target.value) || 1;
+                                      setOrderItems(newItems);
+                                    }}
+                                    required
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={item.unit_price}
+                                    onChange={(e) => {
+                                      const newItems = [...orderItems];
+                                      newItems[index].unit_price = parseFloat(e.target.value) || 0;
+                                      setOrderItems(newItems);
+                                    }}
+                                    required
+                                  />
+                                </TableCell>
+                                <TableCell className="font-semibold">
+                                  ${(item.quantity * item.unit_price).toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  {orderItems.length > 1 && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => {
+                                        const newItems = orderItems.filter((_, i) => i !== index);
+                                        setOrderItems(newItems);
+                                      }}
+                                    >
+                                      ×
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+
+                        <div className="flex justify-end pt-4 border-t">
+                          <div className="text-right">
+                            <p className="text-sm text-muted-foreground mb-1">Total Quantity: {orderItems.reduce((sum, item) => sum + item.quantity, 0)}</p>
+                            <p className="text-xl font-bold">
+                              Total: ${orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                            </p>
                           </div>
                         </div>
                       </div>
