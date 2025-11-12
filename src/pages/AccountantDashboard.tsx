@@ -172,15 +172,20 @@ const AccountantDashboard = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
+  const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
   const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
+  const [selectedOrderForDebt, setSelectedOrderForDebt] = useState<any>(null);
 
   // Invoice payment form states
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
   const [invoicePaymentMethod, setInvoicePaymentMethod] = useState('');
   const [invoicePaymentReference, setInvoicePaymentReference] = useState('');
   const [invoicePaymentNotes, setInvoicePaymentNotes] = useState('');
+
+  // Debt form states
+  const [debtNotes, setDebtNotes] = useState('');
 
   useEffect(() => {
     fetchAllData();
@@ -654,6 +659,71 @@ const AccountantDashboard = () => {
           : 'Order marked as debt and sent to print operator',
       });
 
+      fetchWorkflowOrders();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRecordDebt = async () => {
+    if (!selectedOrderForDebt) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Get invoice for this order
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('order_id', selectedOrderForDebt.id)
+        .maybeSingle();
+
+      if (invoiceError) throw invoiceError;
+
+      if (!invoice) {
+        toast({
+          title: 'Invoice Required',
+          description: 'Please create an invoice first before recording as debt',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Update order to mark as unpaid/debt
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          payment_status: 'unpaid',
+        })
+        .eq('id', selectedOrderForDebt.id);
+
+      if (error) throw error;
+
+      // Record in payments table with notes indicating debt
+      await supabase
+        .from('payments')
+        .insert({
+          order_id: selectedOrderForDebt.id,
+          invoice_id: invoice.id,
+          amount: 0,
+          payment_method: 'cash',
+          payment_date: new Date().toISOString(),
+          recorded_by: user?.id,
+          notes: `OUTSTANDING DEBT: ${debtNotes || 'Customer has not paid yet. Invoice: ' + invoice.invoice_number}`,
+        });
+
+      toast({
+        title: 'Success',
+        description: 'Order marked as outstanding debt',
+      });
+
+      setDebtDialogOpen(false);
+      setSelectedOrderForDebt(null);
+      setDebtNotes('');
       fetchWorkflowOrders();
     } catch (error: any) {
       toast({
@@ -1775,17 +1845,30 @@ const AccountantDashboard = () => {
                           <TableCell>
                             <div className="flex gap-2">
                               {order.payment_status === 'unpaid' && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedOrder(order.id);
-                                    setPaymentDialogOpen(true);
-                                  }}
-                                >
-                                  <DollarSign className="mr-2 h-4 w-4" />
-                                  Record Payment
-                                </Button>
+                                <>
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedOrder(order.id);
+                                      setPaymentDialogOpen(true);
+                                    }}
+                                  >
+                                    <DollarSign className="mr-2 h-4 w-4" />
+                                    Record Payment
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    variant="secondary"
+                                    onClick={() => {
+                                      setSelectedOrderForDebt(order);
+                                      setDebtDialogOpen(true);
+                                    }}
+                                  >
+                                    <AlertCircle className="mr-2 h-4 w-4" />
+                                    Record as Debt
+                                  </Button>
+                                </>
                               )}
                               <Button 
                                 size="sm" 
@@ -3110,6 +3193,71 @@ const AccountantDashboard = () => {
             </Button>
             <Button onClick={handleRecordInvoicePayment}>
               Record Payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Debt Recording Dialog */}
+      <Dialog open={debtDialogOpen} onOpenChange={setDebtDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record as Outstanding Debt</DialogTitle>
+            <DialogDescription>
+              Mark this order as unpaid debt. Invoice must be created first.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedOrderForDebt && (
+            <div className="space-y-4">
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Order:</span>
+                    <span className="font-medium">{selectedOrderForDebt.job_title}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Customer:</span>
+                    <span className="font-medium">{selectedOrderForDebt.customers?.name}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Order Value:</span>
+                    <span className="font-medium">${selectedOrderForDebt.order_value?.toFixed(2)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="debt-notes">Notes (Optional)</Label>
+                <Textarea
+                  id="debt-notes"
+                  value={debtNotes}
+                  onChange={(e) => setDebtNotes(e.target.value)}
+                  placeholder="Add notes about why this is being recorded as debt..."
+                  rows={4}
+                />
+              </div>
+
+              <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3">
+                <div className="flex gap-2">
+                  <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-yellow-700">
+                    This will mark the order as outstanding debt and allow it to proceed to printing.
+                    Make sure an invoice has been created for this order first.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setDebtDialogOpen(false);
+              setSelectedOrderForDebt(null);
+              setDebtNotes('');
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleRecordDebt} variant="secondary">
+              Record as Debt
             </Button>
           </DialogFooter>
         </DialogContent>
