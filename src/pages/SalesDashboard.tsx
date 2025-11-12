@@ -22,6 +22,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import logo from "@/assets/gaf-media-logo.png";
 
 interface DashboardStats {
   totalSales: number;
@@ -955,142 +956,160 @@ const SalesDashboard = () => {
                   setExistingCustomer(null);
                 }
               }}>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>Create New Job</DialogTitle>
-                  </DialogHeader>
-                  <form onSubmit={handleAddOrder} className="space-y-4">
-                    {/* Customer Information */}
-                    <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
-                      <h3 className="font-semibold">Customer Information</h3>
-                      
-                      <div className="space-y-2">
-                        <Label>Phone Number</Label>
-                        <Input value={phoneNumber} disabled />
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
+                  <form onSubmit={handleAddOrder} className="space-y-6 p-2">
+                    {/* Header with Logo and Company Info */}
+                    <div className="mb-6">
+                      <img src={logo} alt="GAF Media" className="h-16 mb-4" />
+                      <div className="text-muted-foreground text-sm">
+                        <p>Shanemo Shatrale Baidoa Somalia</p>
+                        <p>Phone: 0619130707</p>
+                        <p>Email: gafmedia02@gmail.com</p>
                       </div>
+                    </div>
 
-                      {existingCustomer ? (
-                        <div className="space-y-2 rounded-lg border p-3 bg-background">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Name</p>
-                            <p className="font-medium">{existingCustomer.name}</p>
-                          </div>
-                          {existingCustomer.company_name && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Company</p>
-                              <p className="font-medium">{existingCustomer.company_name}</p>
-                            </div>
-                          )}
-                          {existingCustomer.email && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Email</p>
-                              <p className="font-medium">{existingCustomer.email}</p>
-                            </div>
-                          )}
+                    {/* Form Title */}
+                    <h1 className="text-4xl font-bold text-primary mb-6">JOB REQUEST FORM</h1>
+
+                    {/* Customer Information */}
+                    <div className="border-y border-border py-6">
+                      <h3 className="font-semibold text-lg mb-4">Customer Information</h3>
+                      
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <Label className="font-semibold">Phone Number</Label>
+                          <Input value={phoneNumber} disabled className="bg-muted" />
                         </div>
-                      ) : (
-                        <>
-                          <div className="space-y-2">
-                            <Label htmlFor="customer_name">Customer Name *</Label>
-                            <Input id="customer_name" name="customer_name" required />
+
+                        {existingCustomer ? (
+                          <div className="col-span-2 space-y-4 rounded-lg border border-border p-4 bg-muted/30">
+                            <div className="grid grid-cols-2 gap-4">
+                              <div>
+                                <p className="text-sm font-semibold mb-1">Customer Name</p>
+                                <p className="text-base">{existingCustomer.name}</p>
+                              </div>
+                              {existingCustomer.company_name && (
+                                <div>
+                                  <p className="text-sm font-semibold mb-1">Company</p>
+                                  <p className="text-base">{existingCustomer.company_name}</p>
+                                </div>
+                              )}
+                              {existingCustomer.email && (
+                                <div className="col-span-2">
+                                  <p className="text-sm font-semibold mb-1">Email</p>
+                                  <p className="text-base">{existingCustomer.email}</p>
+                                </div>
+                              )}
+                            </div>
                           </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="customer_email">Email</Label>
-                            <Input id="customer_email" name="customer_email" type="email" />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="company_name">Company Name</Label>
-                            <Input id="company_name" name="company_name" />
-                          </div>
-                        </>
-                      )}
+                        ) : (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="customer_name" className="font-semibold">Customer Name *</Label>
+                              <Input id="customer_name" name="customer_name" required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="customer_email" className="font-semibold">Email</Label>
+                              <Input id="customer_email" name="customer_email" type="email" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="company_name" className="font-semibold">Company Name</Label>
+                              <Input id="company_name" name="company_name" />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     {/* Job Details */}
-                    <div className="space-y-4">
-                      <h3 className="font-semibold">Job Details</h3>
+                    <div className="border-b border-border pb-6">
+                      <h3 className="font-semibold text-lg mb-4">Job Details</h3>
                       
-                      <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="job_title" className="font-semibold">Job Title *</Label>
+                            <Input 
+                              id="job_title" 
+                              name="job_title" 
+                              placeholder="e.g., Business Cards - John Doe"
+                              required 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="print_type" className="font-semibold">Print Type *</Label>
+                            <Select name="print_type" required>
+                              <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Select print type" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background z-50">
+                                <SelectItem value="business_card">Business Card</SelectItem>
+                                <SelectItem value="flyer">Flyer</SelectItem>
+                                <SelectItem value="banner">Banner</SelectItem>
+                                <SelectItem value="brochure">Brochure</SelectItem>
+                                <SelectItem value="poster">Poster</SelectItem>
+                                <SelectItem value="t_shirt">T-Shirt</SelectItem>
+                                <SelectItem value="mug">Mug</SelectItem>
+                                <SelectItem value="sticker">Sticker</SelectItem>
+                                <SelectItem value="other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
                         <div className="space-y-2">
-                          <Label htmlFor="job_title">Job Title *</Label>
-                          <Input 
-                            id="job_title" 
-                            name="job_title" 
-                            placeholder="e.g., Business Cards - John Doe"
-                            required 
+                          <Label htmlFor="description" className="font-semibold">Description *</Label>
+                          <Textarea 
+                            id="description" 
+                            name="description" 
+                            rows={3}
+                            placeholder="Detailed description of the job requirements..."
+                            required
                           />
                         </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="print_type">Print Type *</Label>
-                          <Select name="print_type" required>
-                            <SelectTrigger className="bg-background">
-                              <SelectValue placeholder="Select print type" />
-                            </SelectTrigger>
-                            <SelectContent className="bg-background z-50">
-                              <SelectItem value="business_card">Business Card</SelectItem>
-                              <SelectItem value="flyer">Flyer</SelectItem>
-                              <SelectItem value="banner">Banner</SelectItem>
-                              <SelectItem value="brochure">Brochure</SelectItem>
-                              <SelectItem value="poster">Poster</SelectItem>
-                              <SelectItem value="t_shirt">T-Shirt</SelectItem>
-                              <SelectItem value="mug">Mug</SelectItem>
-                              <SelectItem value="sticker">Sticker</SelectItem>
-                              <SelectItem value="other">Other</SelectItem>
-                            </SelectContent>
-                          </Select>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="quantity" className="font-semibold">Quantity *</Label>
+                            <Input 
+                              id="quantity" 
+                              name="quantity" 
+                              type="number"
+                              min="1"
+                              defaultValue="1"
+                              required 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="order_value" className="font-semibold">Order Value ($) *</Label>
+                            <Input 
+                              id="order_value" 
+                              name="order_value" 
+                              type="number" 
+                              step="0.01"
+                              min="0"
+                              placeholder="0.00"
+                              required 
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="delivery_date" className="font-semibold">Delivery Date *</Label>
+                            <Input 
+                              id="delivery_date" 
+                              name="delivery_date" 
+                              type="date"
+                              min={new Date().toISOString().split('T')[0]}
+                              required 
+                            />
+                          </div>
                         </div>
                       </div>
+                    </div>
 
+                    {/* Additional Information */}
+                    <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="description">Description *</Label>
-                        <Textarea 
-                          id="description" 
-                          name="description" 
-                          rows={3}
-                          placeholder="Detailed description of the job requirements..."
-                          required
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="quantity">Quantity *</Label>
-                          <Input 
-                            id="quantity" 
-                            name="quantity" 
-                            type="number"
-                            min="1"
-                            defaultValue="1"
-                            required 
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="order_value">Order Value ($) *</Label>
-                          <Input 
-                            id="order_value" 
-                            name="order_value" 
-                            type="number" 
-                            step="0.01"
-                            min="0"
-                            placeholder="0.00"
-                            required 
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="delivery_date">Expected Delivery Date *</Label>
-                        <Input 
-                          id="delivery_date" 
-                          name="delivery_date" 
-                          type="date"
-                          min={new Date().toISOString().split('T')[0]}
-                          required 
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="reference_files">Upload Reference Files</Label>
+                        <Label htmlFor="reference_files" className="font-semibold">Upload Reference Files</Label>
                         <Input 
                           id="reference_files" 
                           name="reference_files" 
@@ -1104,7 +1123,7 @@ const SalesDashboard = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="notes">Notes (Optional)</Label>
+                        <Label htmlFor="notes" className="font-semibold">Notes (Optional)</Label>
                         <Textarea 
                           id="notes" 
                           name="notes" 
