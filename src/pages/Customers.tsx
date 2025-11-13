@@ -27,7 +27,13 @@ interface Customer {
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(9, 'Phone must be at least 9 digits'),
-  email: z.string().email('Invalid email').or(z.literal('')).transform(val => val || null).optional(),
+  email: z.preprocess(
+    (val) => {
+      if (typeof val === 'string' && val.trim() === '') return null;
+      return val;
+    },
+    z.string().email().nullable().optional()
+  ),
   company_name: z.string().transform(val => val || null).optional(),
 });
 
