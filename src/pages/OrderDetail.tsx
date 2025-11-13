@@ -603,7 +603,6 @@ const OrderDetail = () => {
                 <Label>Description</Label>
                 <Textarea 
                   value={order.description || ''} 
-                  onChange={(e) => handleUpdateOrder('description', e.target.value)}
                   onBlur={(e) => handleUpdateOrder('description', e.target.value)}
                   rows={3}
                   disabled={isReadOnly}
@@ -627,7 +626,7 @@ const OrderDetail = () => {
                 <Input 
                   type="date"
                   value={order.delivery_date || ''} 
-                  onChange={(e) => handleUpdateOrder('delivery_date', e.target.value)}
+                  onBlur={(e) => handleUpdateOrder('delivery_date', e.target.value)}
                   disabled={isReadOnly}
                 />
               </div>
@@ -636,7 +635,6 @@ const OrderDetail = () => {
                 <Label>Order Notes</Label>
                 <Textarea 
                   value={order.notes || ''} 
-                  onChange={(e) => handleUpdateOrder('notes', e.target.value)}
                   onBlur={(e) => handleUpdateOrder('notes', e.target.value)}
                   rows={3}
                   placeholder="Special instructions or notes..."
@@ -659,7 +657,6 @@ const OrderDetail = () => {
                   type="number" 
                   step="0.01"
                   value={order.order_value} 
-                  onChange={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
                   onBlur={(e) => handleUpdateOrder('order_value', parseFloat(e.target.value))}
                   disabled={isReadOnly}
                 />
@@ -689,7 +686,6 @@ const OrderDetail = () => {
                   type="number" 
                   step="0.01"
                   value={order.amount_paid} 
-                  onChange={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
                   onBlur={(e) => handleUpdateOrder('amount_paid', parseFloat(e.target.value))}
                   disabled={isReadOnly || !canEditPayment}
                 />
