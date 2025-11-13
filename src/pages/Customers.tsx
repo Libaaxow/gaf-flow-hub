@@ -27,7 +27,6 @@ interface Customer {
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(9, 'Phone must be at least 9 digits'),
-  email: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
   company_name: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
 });
 
@@ -143,7 +142,6 @@ const Customers = () => {
     const customerData = {
       name: formData.get('name') as string,
       phone: phoneNumber,
-      email: (formData.get('email') as string) || '',
       company_name: (formData.get('company_name') as string) || '',
       created_by: user?.id || null,
     };
@@ -156,7 +154,6 @@ const Customers = () => {
         .insert([{ 
           name: validatedData.name,
           phone: validatedData.phone,
-          email: validatedData.email || null,
           company_name: validatedData.company_name || null,
           created_by: user?.id || null,
         }]);
@@ -361,10 +358,6 @@ const Customers = () => {
                 <div className="space-y-2">
                   <Label htmlFor="name">Name *</Label>
                   <Input id="name" name="name" required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input id="email" name="email" type="text" placeholder="customer@example.com" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company_name">Company Name</Label>

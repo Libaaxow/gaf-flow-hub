@@ -33,7 +33,6 @@ const orderSchema = z.object({
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(9, 'Phone must be at least 9 digits'),
-  email: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
   company_name: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
 });
 
@@ -174,7 +173,6 @@ const Orders = () => {
         const customerData = {
           name: formData.get('customer_name') as string,
           phone: phoneNumber,
-          email: (formData.get('customer_email') as string) || '',
           company_name: (formData.get('company_name') as string) || '',
           created_by: user?.id,
         };
@@ -186,7 +184,6 @@ const Orders = () => {
           .insert([{
             name: validatedCustomer.name,
             phone: validatedCustomer.phone,
-            email: validatedCustomer.email || null,
             company_name: validatedCustomer.company_name || null,
             created_by: user?.id,
           }])
@@ -364,10 +361,6 @@ const Orders = () => {
                       <div className="space-y-2">
                         <Label htmlFor="customer_name">Customer Name *</Label>
                         <Input id="customer_name" name="customer_name" required />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="customer_email">Email</Label>
-                        <Input id="customer_email" name="customer_email" type="text" placeholder="customer@example.com" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="company_name">Company Name</Label>
