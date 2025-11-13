@@ -33,14 +33,8 @@ const orderSchema = z.object({
 const customerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   phone: z.string().min(9, 'Phone must be at least 9 digits'),
-  email: z.preprocess(
-    (val) => {
-      if (typeof val === 'string' && val.trim() === '') return null;
-      return val;
-    },
-    z.string().email().nullable().optional()
-  ),
-  company_name: z.string().transform(val => val || null).optional(),
+  email: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
+  company_name: z.string().optional().transform(val => !val || val.trim() === '' ? null : val),
 });
 
 const Orders = () => {
