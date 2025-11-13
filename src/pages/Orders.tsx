@@ -349,12 +349,6 @@ const Orders = () => {
                           <p className="font-medium">{existingCustomer.company_name}</p>
                         </div>
                       )}
-                      {existingCustomer.email && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
-                          <p className="font-medium">{existingCustomer.email}</p>
-                        </div>
-                      )}
                     </div>
                   ) : (
                     <>
