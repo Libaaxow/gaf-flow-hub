@@ -18,7 +18,6 @@ import { format } from 'date-fns';
 interface Customer {
   id: string;
   name: string;
-  email: string | null;
   phone: string | null;
   company_name: string | null;
   created_at: string;
@@ -180,7 +179,6 @@ const Customers = () => {
 
   const filteredCustomers = customers.filter(customer =>
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.company_name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -308,12 +306,6 @@ const Customers = () => {
                         <p className="font-medium">{existingCustomer.company_name}</p>
                       </div>
                     )}
-                    {existingCustomer.email && (
-                      <div>
-                        <p className="text-sm text-muted-foreground">Email</p>
-                        <p className="font-medium">{existingCustomer.email}</p>
-                      </div>
-                    )}
                     <div>
                       <p className="text-sm text-muted-foreground">Phone</p>
                       <p className="font-medium">{existingCustomer.phone}</p>
@@ -386,7 +378,6 @@ const Customers = () => {
                 <thead>
                   <tr className="border-b bg-muted/50">
                     <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Email</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Phone</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Company</th>
                     <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Action</th>
@@ -397,7 +388,6 @@ const Customers = () => {
                     <>
                       <tr key={customer.id} className="border-b hover:bg-muted/30 transition-colors">
                         <td className="px-6 py-4 font-medium">{customer.name}</td>
-                        <td className="px-6 py-4 text-muted-foreground">{customer.email || '-'}</td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.phone || '-'}</td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.company_name || '-'}</td>
                         <td className="px-6 py-4">
