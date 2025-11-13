@@ -49,6 +49,7 @@ interface Order {
   created_at: string;
   designer: { full_name: string } | null;
   salesperson: { full_name: string } | null;
+  invoice_number: string | null;
   files: Array<{
     id: string;
     file_name: string;
@@ -119,11 +120,12 @@ const CustomerOrderHistory = () => {
 
       if (ordersError) throw ordersError;
 
-      // Enrich orders with designer, salesperson, files, and payments
+      // Enrich orders with designer, salesperson, files, payments, and invoice
       const enrichedOrders = await Promise.all(
         (ordersData || []).map(async (order) => {
           let designer = null;
           let salesperson = null;
+          let invoice_number = null;
 
           if (order.designer_id) {
             const { data } = await supabase
@@ -155,10 +157,21 @@ const CustomerOrderHistory = () => {
             .eq('order_id', order.id)
             .order('payment_date', { ascending: false });
 
+          const { data: invoiceData } = await supabase
+            .from('invoices')
+            .select('invoice_number')
+            .eq('order_id', order.id)
+            .maybeSingle();
+
+          if (invoiceData) {
+            invoice_number = invoiceData.invoice_number;
+          }
+
           return {
             ...order,
             designer,
             salesperson,
+            invoice_number,
             files: filesData || [],
             payments: paymentsData || [],
           };
@@ -351,6 +364,15 @@ const CustomerOrderHistory = () => {
                   <div className="space-y-6">
                     {/* Order Details Grid */}
                     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                      {order.invoice_number && (
+                        <div className="flex items-start gap-3">
+                          <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                          <div>
+                            <p className="text-sm text-muted-foreground">Invoice Number</p>
+                            <p className="font-semibold">{order.invoice_number}</p>
+                          </div>
+                        </div>
+                      )}
                       <div className="flex items-start gap-3">
                         <DollarSign className="h-5 w-5 text-muted-foreground mt-0.5" />
                         <div>
@@ -499,7 +521,7 @@ const CustomerOrderHistory = () => {
                                 key={payment.id}
                                 className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
                               >
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 flex-1">
                                   <div>
                                     <p className="font-semibold text-green-600">
                                       ${payment.amount.toLocaleString()}
@@ -513,9 +535,12 @@ const CustomerOrderHistory = () => {
                                   </Badge>
                                 </div>
                                 {payment.reference_number && (
-                                  <p className="text-sm text-muted-foreground">
-                                    Ref: {payment.reference_number}
-                                  </p>
+                                  <div className="text-right">
+                                    <p className="text-xs text-muted-foreground mb-0.5">Receipt #</p>
+                                    <p className="text-sm font-medium">
+                                      {payment.reference_number}
+                                    </p>
+                                  </div>
                                 )}
                               </div>
                             ))}
