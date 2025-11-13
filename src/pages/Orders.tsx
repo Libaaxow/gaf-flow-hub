@@ -367,7 +367,7 @@ const Orders = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="customer_email">Email</Label>
-                        <Input id="customer_email" name="customer_email" type="email" />
+                        <Input id="customer_email" name="customer_email" type="text" placeholder="customer@example.com" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="company_name">Company Name</Label>
