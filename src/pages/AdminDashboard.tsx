@@ -1654,14 +1654,10 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold">Payment Management</h2>
           <p className="text-muted-foreground">View and manage payment records</p>
         </div>
-        <Dialog open={addPaymentDialogOpen} onOpenChange={setAddPaymentDialogOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setAddPaymentDialogOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Payment
-            </Button>
-          </DialogTrigger>
-        </Dialog>
+        <Button onClick={() => setAddPaymentDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Payment
+        </Button>
       </div>
 
       <Card>
