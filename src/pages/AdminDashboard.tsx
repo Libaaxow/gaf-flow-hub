@@ -128,6 +128,8 @@ export default function AdminDashboard() {
   
   // Payment states
   const [payments, setPayments] = useState<any[]>([]);
+  const [editPaymentDialogOpen, setEditPaymentDialogOpen] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<any>(null);
 
   // Stats
   const [stats, setStats] = useState({
@@ -701,6 +703,45 @@ export default function AdminDashboard() {
       setInvoiceNotes('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleEditPayment = (payment: any) => {
+    setEditingPayment(payment);
+    setEditPaymentDialogOpen(true);
+  };
+
+  const handleUpdatePayment = async () => {
+    if (!editingPayment) return;
+
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          amount: parseFloat(editingPayment.amount),
+          payment_method: editingPayment.payment_method,
+          reference_number: editingPayment.reference_number,
+          notes: editingPayment.notes,
+          payment_date: editingPayment.payment_date,
+        })
+        .eq('id', editingPayment.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Payment updated successfully',
+      });
+
+      setEditPaymentDialogOpen(false);
+      setEditingPayment(null);
       fetchAllData();
     } catch (error: any) {
       toast({
@@ -1503,8 +1544,16 @@ export default function AdminDashboard() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditPayment(payment)}
+                          title="Edit Payment"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
                           variant="destructive"
                           onClick={() => handleDeletePayment(payment.id)}
                           title="Delete Payment"
@@ -1689,6 +1738,89 @@ export default function AdminDashboard() {
         <DialogFooter>
           <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Edit Payment Dialog */}
+    <Dialog open={editPaymentDialogOpen} onOpenChange={setEditPaymentDialogOpen}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Payment</DialogTitle>
+          <DialogDescription>
+            Update payment details
+          </DialogDescription>
+        </DialogHeader>
+        
+        {editingPayment && (
+          <div className="space-y-4">
+            <div className="grid gap-4">
+              <div>
+                <Label>Amount</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={editingPayment.amount}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, amount: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label>Payment Method</Label>
+                <Select
+                  value={editingPayment.payment_method}
+                  onValueChange={(value) => setEditingPayment({ ...editingPayment, payment_method: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                    <SelectItem value="cheque">Cheque</SelectItem>
+                    <SelectItem value="card">Card</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Payment Date</Label>
+                <Input
+                  type="date"
+                  value={editingPayment.payment_date ? format(new Date(editingPayment.payment_date), 'yyyy-MM-dd') : ''}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, payment_date: e.target.value })}
+                />
+              </div>
+
+              <div>
+                <Label>Reference Number</Label>
+                <Input
+                  value={editingPayment.reference_number || ''}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, reference_number: e.target.value })}
+                  placeholder="Optional"
+                />
+              </div>
+
+              <div>
+                <Label>Notes</Label>
+                <Input
+                  value={editingPayment.notes || ''}
+                  onChange={(e) => setEditingPayment({ ...editingPayment, notes: e.target.value })}
+                  placeholder="Optional"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setEditPaymentDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleUpdatePayment}>
+            Update Payment
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
