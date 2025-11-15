@@ -130,6 +130,14 @@ export default function AdminDashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [editPaymentDialogOpen, setEditPaymentDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState<any>(null);
+  const [addPaymentDialogOpen, setAddPaymentDialogOpen] = useState(false);
+  const [paymentCustomerId, setPaymentCustomerId] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('cash');
+  const [paymentReference, setPaymentReference] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
+  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number}[]>([]);
 
   // Stats
   const [stats, setStats] = useState({
@@ -725,7 +733,7 @@ export default function AdminDashboard() {
       const { error } = await supabase
         .from('payments')
         .update({
-          amount: parseFloat(editingPayment.amount),
+          amount: editingPayment.amount,
           payment_method: editingPayment.payment_method,
           reference_number: editingPayment.reference_number,
           notes: editingPayment.notes,
@@ -742,6 +750,155 @@ export default function AdminDashboard() {
 
       setEditPaymentDialogOpen(false);
       setEditingPayment(null);
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleOpenAddPayment = async (customerId?: string) => {
+    const selectedCustomerId = customerId || paymentCustomerId;
+    if (!selectedCustomerId) {
+      toast({
+        title: 'Error',
+        description: 'Please select a customer',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Fetch unpaid/partial invoices for this customer
+    const { data: invoicesData, error } = await supabase
+      .from('invoices')
+      .select('*')
+      .eq('customer_id', selectedCustomerId)
+      .in('status', ['unpaid', 'partial'])
+      .order('invoice_date', { ascending: true });
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setCustomerInvoices(invoicesData || []);
+    if (customerId) setPaymentCustomerId(customerId);
+    setAddPaymentDialogOpen(true);
+  };
+
+  const calculatePaymentAllocation = (amount: number) => {
+    const allocation: {invoiceId: string, amount: number}[] = [];
+    let remainingAmount = amount;
+
+    for (const invoice of customerInvoices) {
+      if (remainingAmount <= 0) break;
+      
+      const outstanding = invoice.total_amount - invoice.amount_paid;
+      const allocated = Math.min(remainingAmount, outstanding);
+      
+      if (allocated > 0) {
+        allocation.push({
+          invoiceId: invoice.id,
+          amount: allocated
+        });
+        remainingAmount -= allocated;
+      }
+    }
+
+    setPaymentAllocation(allocation);
+    return allocation;
+  };
+
+  const handlePaymentAmountChange = (value: string) => {
+    setPaymentAmount(value);
+    const amount = parseFloat(value) || 0;
+    calculatePaymentAllocation(amount);
+  };
+
+  const handleAddPayment = async () => {
+    if (!paymentCustomerId || !paymentAmount || parseFloat(paymentAmount) <= 0) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a valid payment amount',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const amount = parseFloat(paymentAmount);
+      const allocation = calculatePaymentAllocation(amount);
+
+      // Insert payment record (not linked to specific invoice)
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          amount,
+          payment_method: paymentMethod as any,
+          reference_number: paymentReference || null,
+          notes: paymentNotes || null,
+          recorded_by: user?.id,
+          payment_date: new Date().toISOString(),
+        }])
+        .select()
+        .single();
+
+      if (paymentError) throw paymentError;
+
+      // Update invoices with allocated amounts
+      for (const alloc of allocation) {
+        const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
+        if (!invoice) continue;
+
+        const newAmountPaid = invoice.amount_paid + alloc.amount;
+        const newStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 
+                         newAmountPaid > 0 ? 'partial' : 'unpaid';
+
+        const { error: invoiceError } = await supabase
+          .from('invoices')
+          .update({
+            amount_paid: newAmountPaid,
+            status: newStatus
+          })
+          .eq('id', alloc.invoiceId);
+
+        if (invoiceError) throw invoiceError;
+
+        // Create payment record linked to this invoice
+        await supabase
+          .from('payments')
+          .insert([{
+            invoice_id: alloc.invoiceId,
+            amount: alloc.amount,
+            payment_method: paymentMethod as any,
+            reference_number: paymentReference || null,
+            notes: `Allocated from payment ${paymentData.id}`,
+            recorded_by: user?.id,
+            payment_date: new Date().toISOString(),
+          }]);
+      }
+
+      toast({
+        title: 'Success',
+        description: `Payment of $${amount.toLocaleString()} added and allocated across ${allocation.length} invoice(s)`,
+      });
+
+      // Reset form
+      setAddPaymentDialogOpen(false);
+      setPaymentCustomerId('');
+      setPaymentAmount('');
+      setPaymentMethod('cash');
+      setPaymentReference('');
+      setPaymentNotes('');
+      setCustomerInvoices([]);
+      setPaymentAllocation([]);
       fetchAllData();
     } catch (error: any) {
       toast({
@@ -1497,6 +1654,14 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold">Payment Management</h2>
           <p className="text-muted-foreground">View and manage payment records</p>
         </div>
+        <Dialog open={addPaymentDialogOpen} onOpenChange={setAddPaymentDialogOpen}>
+          <DialogTrigger asChild>
+            <Button onClick={() => setAddPaymentDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Payment
+            </Button>
+          </DialogTrigger>
+        </Dialog>
       </div>
 
       <Card>
@@ -1820,6 +1985,167 @@ export default function AdminDashboard() {
           </Button>
           <Button onClick={handleUpdatePayment}>
             Update Payment
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    {/* Add Payment Dialog */}
+    <Dialog open={addPaymentDialogOpen} onOpenChange={setAddPaymentDialogOpen}>
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Add Customer Payment</DialogTitle>
+          <DialogDescription>
+            Record a payment and allocate it across outstanding invoices
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="grid gap-4">
+            <div>
+              <Label htmlFor="payment-customer">Customer *</Label>
+              <Select value={paymentCustomerId} onValueChange={(value) => {
+                setPaymentCustomerId(value);
+                handleOpenAddPayment(value);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {customerInvoices.length > 0 && (
+              <>
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                  <h4 className="font-semibold">Outstanding Invoices</h4>
+                  {customerInvoices.map((invoice) => {
+                    const outstanding = invoice.total_amount - invoice.amount_paid;
+                    return (
+                      <div key={invoice.id} className="flex justify-between text-sm">
+                        <span>{invoice.invoice_number}</span>
+                        <span className="font-medium">${outstanding.toLocaleString()} outstanding</span>
+                      </div>
+                    );
+                  })}
+                  <div className="pt-2 border-t border-border">
+                    <div className="flex justify-between font-bold">
+                      <span>Total Outstanding:</span>
+                      <span>${customerInvoices.reduce((sum, inv) => sum + (inv.total_amount - inv.amount_paid), 0).toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="payment-amount">Payment Amount *</Label>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    step="0.01"
+                    value={paymentAmount}
+                    onChange={(e) => handlePaymentAmountChange(e.target.value)}
+                    placeholder="0.00"
+                  />
+                </div>
+
+                {paymentAllocation.length > 0 && parseFloat(paymentAmount) > 0 && (
+                  <div className="bg-primary/10 p-4 rounded-lg space-y-2">
+                    <h4 className="font-semibold">Payment Allocation Preview</h4>
+                    {paymentAllocation.map((alloc) => {
+                      const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
+                      if (!invoice) return null;
+                      const newAmountPaid = invoice.amount_paid + alloc.amount;
+                      const newStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partial';
+                      return (
+                        <div key={alloc.invoiceId} className="flex justify-between items-center text-sm">
+                          <span>{invoice.invoice_number}</span>
+                          <div className="flex gap-2 items-center">
+                            <span className="font-medium">${alloc.amount.toLocaleString()}</span>
+                            <Badge variant={newStatus === 'paid' ? 'default' : 'secondary'}>
+                              Will be {newStatus}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {parseFloat(paymentAmount) > paymentAllocation.reduce((sum, a) => sum + a.amount, 0) && (
+                      <div className="text-sm text-muted-foreground pt-2 border-t">
+                        Excess amount: ${(parseFloat(paymentAmount) - paymentAllocation.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()} (will remain as credit)
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="payment-method">Payment Method *</Label>
+                  <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">Cash</SelectItem>
+                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                      <SelectItem value="cheque">Cheque</SelectItem>
+                      <SelectItem value="card">Card</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="payment-reference">Reference Number</Label>
+                  <Input
+                    id="payment-reference"
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="payment-notes">Notes</Label>
+                  <Input
+                    id="payment-notes"
+                    value={paymentNotes}
+                    onChange={(e) => setPaymentNotes(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </div>
+              </>
+            )}
+
+            {customerInvoices.length === 0 && paymentCustomerId && (
+              <div className="text-center p-4 text-muted-foreground">
+                No outstanding invoices for this customer
+              </div>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => {
+            setAddPaymentDialogOpen(false);
+            setPaymentCustomerId('');
+            setPaymentAmount('');
+            setPaymentMethod('cash');
+            setPaymentReference('');
+            setPaymentNotes('');
+            setCustomerInvoices([]);
+            setPaymentAllocation([]);
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleAddPayment}
+            disabled={!paymentCustomerId || !paymentAmount || parseFloat(paymentAmount) <= 0 || customerInvoices.length === 0}
+          >
+            Record Payment
           </Button>
         </DialogFooter>
       </DialogContent>
