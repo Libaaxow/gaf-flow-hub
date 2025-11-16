@@ -66,6 +66,7 @@ interface Invoice {
   total_amount: number;
   amount_paid: number;
   status: string;
+  order_id?: string | null;
 }
 
 const customerSchema = z.object({
@@ -544,8 +545,30 @@ export default function AdminDashboard() {
 
       if (newStatus === 'paid') {
         updateData.amount_paid = invoice.total_amount;
+        
+        // Create a payment record when marking invoice as paid
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        await supabase
+          .from('payments')
+          .insert([{
+            invoice_id: invoiceId,
+            order_id: invoice.order_id,
+            amount: invoice.total_amount,
+            payment_method: 'cash',
+            reference_number: `Auto-${invoice.invoice_number}`,
+            notes: 'Payment auto-recorded when invoice marked as paid',
+            recorded_by: user?.id,
+          }]);
       } else if (newStatus === 'unpaid') {
         updateData.amount_paid = 0;
+        
+        // Delete auto-generated payment records for this invoice
+        await supabase
+          .from('payments')
+          .delete()
+          .eq('invoice_id', invoiceId)
+          .like('notes', '%auto-recorded%');
       }
 
       const { error } = await supabase
@@ -765,30 +788,40 @@ export default function AdminDashboard() {
     if (!selectedCustomerId) {
       toast({
         title: 'Error',
-        description: 'Please select a customer',
+        description: 'Please select a customer first',
         variant: 'destructive',
       });
       return;
     }
 
-    // Fetch unpaid/partial invoices for this customer
-    const { data: invoicesData, error } = await supabase
-      .from('invoices')
-      .select('*')
-      .eq('customer_id', selectedCustomerId)
-      .in('status', ['unpaid', 'partial'])
-      .order('invoice_date', { ascending: true });
+    try {
+      // Fetch all outstanding invoices for this customer (not fully paid)
+      const { data: outstandingInvoices, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('customer_id', selectedCustomerId)
+        .neq('status', 'paid')
+        .order('invoice_date', { ascending: true });
 
-    if (error) {
+      if (error) throw error;
+      
+      setCustomerInvoices(outstandingInvoices || []);
+      
+      if (!outstandingInvoices || outstandingInvoices.length === 0) {
+        toast({
+          title: 'No Outstanding Invoices',
+          description: 'This customer has no unpaid invoices.',
+          variant: 'default',
+        });
+      }
+    } catch (error: any) {
       toast({
         title: 'Error',
         description: error.message,
         variant: 'destructive',
       });
-      return;
     }
 
-    setCustomerInvoices(invoicesData || []);
     if (customerId) setPaymentCustomerId(customerId);
     setAddPaymentDialogOpen(true);
   };
