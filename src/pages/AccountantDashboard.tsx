@@ -261,6 +261,7 @@ const AccountantDashboard = () => {
 
   const fetchInvoices = async () => {
     try {
+      // Fetch ALL invoices (accessible to both admin and accountant via RLS)
       const { data, error } = await supabase
         .from('invoices')
         .select(`
@@ -373,6 +374,7 @@ const AccountantDashboard = () => {
 
       if (expensesError) throw expensesError;
 
+      // Fetch ALL payments (accessible to both admin and accountant via RLS)
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
         .select(`

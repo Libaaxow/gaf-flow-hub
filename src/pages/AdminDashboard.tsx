@@ -287,7 +287,7 @@ export default function AdminDashboard() {
 
       setCustomers(customersData || []);
 
-      // Fetch invoices
+      // Fetch ALL invoices (accessible to both admin and accountant via RLS)
       const { data: invoicesData } = await supabase
         .from('invoices')
         .select(`
@@ -305,7 +305,7 @@ export default function AdminDashboard() {
       
       setInvoices(invoicesData || []);
 
-      // Fetch payments
+      // Fetch ALL payments (accessible to both admin and accountant via RLS)
       const { data: paymentsData } = await supabase
         .from('payments')
         .select(`
