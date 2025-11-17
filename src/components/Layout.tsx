@@ -77,7 +77,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <aside className="hidden w-64 border-r bg-card lg:block">
         <div className="flex h-full flex-col">
           <div className="border-b p-6">
-            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
+            <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
+              <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2 cursor-pointer hover:opacity-80 transition-opacity" />
+            </a>
             <p className="text-sm text-muted-foreground">Management System</p>
           </div>
           <nav className="flex-1 space-y-2 p-4">
@@ -112,7 +114,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <div className="flex flex-1 flex-col">
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
-            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />
+            <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
+              <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity" />
+            </a>
             <div className="flex items-center gap-2">
               {profile && (
                 <Avatar className="h-8 w-8">
@@ -129,7 +133,9 @@ export const Layout = ({ children }: { children: ReactNode }) => {
               <SheetContent side="left" className="w-64 p-0">
                 <div className="flex h-full flex-col">
                   <div className="border-b p-6">
-                    <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
+                    <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
+                      <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2 cursor-pointer hover:opacity-80 transition-opacity" />
+                    </a>
                     <p className="text-sm text-muted-foreground">Management System</p>
                   </div>
                   <nav className="flex-1 space-y-2 p-4">
