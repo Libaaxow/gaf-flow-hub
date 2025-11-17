@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Order {
   id: string;
@@ -138,7 +139,7 @@ export default function AdminDashboard() {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
-  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number}[]>([]);
+  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number, selected: boolean}[]>([]);
 
   // Stats
   const [stats, setStats] = useState({
@@ -807,6 +808,13 @@ export default function AdminDashboard() {
       
       setCustomerInvoices(outstandingInvoices || []);
       
+      // Initialize payment allocation with all invoices unselected
+      setPaymentAllocation((outstandingInvoices || []).map(inv => ({
+        invoiceId: inv.id,
+        amount: 0,
+        selected: false
+      })));
+      
       if (!outstandingInvoices || outstandingInvoices.length === 0) {
         toast({
           title: 'No Outstanding Invoices',
@@ -826,54 +834,49 @@ export default function AdminDashboard() {
     setAddPaymentDialogOpen(true);
   };
 
-  const calculatePaymentAllocation = (amount: number) => {
-    const allocation: {invoiceId: string, amount: number}[] = [];
-    let remainingAmount = amount;
-
-    for (const invoice of customerInvoices) {
-      if (remainingAmount <= 0) break;
-      
-      const outstanding = invoice.total_amount - invoice.amount_paid;
-      const allocated = Math.min(remainingAmount, outstanding);
-      
-      if (allocated > 0) {
-        allocation.push({
-          invoiceId: invoice.id,
-          amount: allocated
-        });
-        remainingAmount -= allocated;
-      }
-    }
-
-    setPaymentAllocation(allocation);
-    return allocation;
+  const handleToggleInvoiceSelection = (invoiceId: string) => {
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, selected: !alloc.selected, amount: !alloc.selected ? (customerInvoices.find(inv => inv.id === invoiceId)?.total_amount - customerInvoices.find(inv => inv.id === invoiceId)?.amount_paid || 0) : 0 }
+        : alloc
+    ));
   };
 
-  const handlePaymentAmountChange = (value: string) => {
-    setPaymentAmount(value);
+  const handleInvoicePaymentAmountChange = (invoiceId: string, value: string) => {
     const amount = parseFloat(value) || 0;
-    calculatePaymentAllocation(amount);
+    const invoice = customerInvoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+    
+    const maxAmount = invoice.total_amount - invoice.amount_paid;
+    const finalAmount = Math.min(amount, maxAmount);
+    
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, amount: finalAmount }
+        : alloc
+    ));
   };
 
   const handleAddPayment = async () => {
-    if (!paymentCustomerId || !paymentAmount || parseFloat(paymentAmount) <= 0) {
+    const selectedAllocations = paymentAllocation.filter(alloc => alloc.selected && alloc.amount > 0);
+    
+    if (!paymentCustomerId || selectedAllocations.length === 0) {
       toast({
         title: 'Error',
-        description: 'Please enter a valid payment amount',
+        description: 'Please select at least one invoice and enter payment amount(s)',
         variant: 'destructive',
       });
       return;
     }
 
     try {
-      const amount = parseFloat(paymentAmount);
-      const allocation = calculatePaymentAllocation(amount);
+      const totalAmount = selectedAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
 
-      // Insert payment record (not linked to specific invoice)
+      // Insert main payment record
       const { data: paymentData, error: paymentError } = await supabase
         .from('payments')
         .insert([{
-          amount,
+          amount: totalAmount,
           payment_method: paymentMethod as any,
           reference_number: paymentReference || null,
           notes: paymentNotes || null,
@@ -886,7 +889,7 @@ export default function AdminDashboard() {
       if (paymentError) throw paymentError;
 
       // Update invoices with allocated amounts
-      for (const alloc of allocation) {
+      for (const alloc of selectedAllocations) {
         const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
         if (!invoice) continue;
 
@@ -920,7 +923,7 @@ export default function AdminDashboard() {
 
       toast({
         title: 'Success',
-        description: `Payment of $${amount.toLocaleString()} added and allocated across ${allocation.length} invoice(s)`,
+        description: `Payment of $${totalAmount.toLocaleString()} added and allocated across ${selectedAllocations.length} invoice(s)`,
       });
 
       // Reset form
@@ -2071,45 +2074,6 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                <div>
-                  <Label htmlFor="payment-amount">Payment Amount *</Label>
-                  <Input
-                    id="payment-amount"
-                    type="number"
-                    step="0.01"
-                    value={paymentAmount}
-                    onChange={(e) => handlePaymentAmountChange(e.target.value)}
-                    placeholder="0.00"
-                  />
-                </div>
-
-                {paymentAllocation.length > 0 && parseFloat(paymentAmount) > 0 && (
-                  <div className="bg-primary/10 p-4 rounded-lg space-y-2">
-                    <h4 className="font-semibold">Payment Allocation Preview</h4>
-                    {paymentAllocation.map((alloc) => {
-                      const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
-                      if (!invoice) return null;
-                      const newAmountPaid = invoice.amount_paid + alloc.amount;
-                      const newStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partial';
-                      return (
-                        <div key={alloc.invoiceId} className="flex justify-between items-center text-sm">
-                          <span>{invoice.invoice_number}</span>
-                          <div className="flex gap-2 items-center">
-                            <span className="font-medium">${alloc.amount.toLocaleString()}</span>
-                            <Badge variant={newStatus === 'paid' ? 'default' : 'secondary'}>
-                              Will be {newStatus}
-                            </Badge>
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {parseFloat(paymentAmount) > paymentAllocation.reduce((sum, a) => sum + a.amount, 0) && (
-                      <div className="text-sm text-muted-foreground pt-2 border-t">
-                        Excess amount: ${(parseFloat(paymentAmount) - paymentAllocation.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()} (will remain as credit)
-                      </div>
-                    )}
-                  </div>
-                )}
 
                 <div>
                   <Label htmlFor="payment-method">Payment Method *</Label>
@@ -2172,7 +2136,7 @@ export default function AdminDashboard() {
           </Button>
           <Button 
             onClick={handleAddPayment}
-            disabled={!paymentCustomerId || !paymentAmount || parseFloat(paymentAmount) <= 0 || customerInvoices.length === 0}
+            disabled={!paymentCustomerId || paymentAllocation.filter(a => a.selected && a.amount > 0).length === 0}
           >
             Record Payment
           </Button>
