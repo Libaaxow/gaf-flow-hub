@@ -22,6 +22,7 @@ import {
   Download,
   Filter
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -129,7 +130,7 @@ const AccountantDashboard = () => {
   const [paymentInvoice, setPaymentInvoice] = useState('');
   const [paymentDiscount, setPaymentDiscount] = useState('');
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
-  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number}[]>([]);
+  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number, selected: boolean}[]>([]);
   
   // Expense form states
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -755,6 +756,13 @@ const AccountantDashboard = () => {
 
       if (error) throw error;
       setCustomerInvoices(outstandingInvoices || []);
+      
+      // Initialize payment allocation with all invoices unselected
+      setPaymentAllocation((outstandingInvoices || []).map(inv => ({
+        invoiceId: inv.id,
+        amount: 0,
+        selected: false
+      })));
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -766,36 +774,36 @@ const AccountantDashboard = () => {
     if (customerId) setPaymentCustomer(customerId);
   };
 
-  const calculatePaymentAllocation = (amount: number) => {
-    const allocation: {invoiceId: string, amount: number}[] = [];
-    let remainingAmount = amount;
-
-    for (const invoice of customerInvoices) {
-      if (remainingAmount <= 0) break;
-      
-      const outstanding = invoice.total_amount - invoice.amount_paid;
-      if (outstanding > 0) {
-        const allocated = Math.min(outstanding, remainingAmount);
-        allocation.push({ invoiceId: invoice.id, amount: allocated });
-        remainingAmount -= allocated;
-      }
-    }
-
-    setPaymentAllocation(allocation);
-    return allocation;
+  const handleToggleInvoiceSelection = (invoiceId: string) => {
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, selected: !alloc.selected, amount: !alloc.selected ? (customerInvoices.find(inv => inv.id === invoiceId)?.total_amount - customerInvoices.find(inv => inv.id === invoiceId)?.amount_paid || 0) : 0 }
+        : alloc
+    ));
   };
 
-  const handlePaymentAmountChange = (value: string) => {
-    setPaymentAmount(value);
+  const handleInvoicePaymentAmountChange = (invoiceId: string, value: string) => {
     const amount = parseFloat(value) || 0;
-    calculatePaymentAllocation(amount);
+    const invoice = customerInvoices.find(inv => inv.id === invoiceId);
+    if (!invoice) return;
+    
+    const maxAmount = invoice.total_amount - invoice.amount_paid;
+    const finalAmount = Math.min(amount, maxAmount);
+    
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, amount: finalAmount }
+        : alloc
+    ));
   };
 
   const handleRecordPayment = async () => {
-    if (!paymentCustomer || !paymentAmount || parseFloat(paymentAmount) <= 0) {
+    const selectedAllocations = paymentAllocation.filter(alloc => alloc.selected && alloc.amount > 0);
+    
+    if (!paymentCustomer || selectedAllocations.length === 0) {
       toast({
         title: 'Missing Information',
-        description: 'Please select customer and enter payment amount',
+        description: 'Please select at least one invoice and enter payment amount(s)',
         variant: 'destructive',
       });
       return;
@@ -812,14 +820,13 @@ const AccountantDashboard = () => {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      const amount = parseFloat(paymentAmount);
-      const allocation = calculatePaymentAllocation(amount);
+      const totalAmount = selectedAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
 
       // Insert overall payment record
       const { data: paymentData, error: paymentError } = await supabase
         .from('payments')
         .insert([{
-          amount,
+          amount: totalAmount,
           payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
           reference_number: paymentReference || null,
           notes: paymentNotes || null,
@@ -830,8 +837,8 @@ const AccountantDashboard = () => {
 
       if (paymentError) throw paymentError;
 
-      // Allocate payment across invoices
-      for (const alloc of allocation) {
+      // Allocate payment across selected invoices
+      for (const alloc of selectedAllocations) {
         const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
         if (!invoice) continue;
 
@@ -864,11 +871,10 @@ const AccountantDashboard = () => {
       }
 
       toast({
-        title: 'Success',
-        description: `Payment of $${amount.toLocaleString()} added and allocated across ${allocation.length} invoice(s)`,
+        title: 'Payment Recorded',
+        description: `Payment of $${totalAmount.toFixed(2)} allocated across ${selectedAllocations.length} invoice(s)`,
       });
 
-      // Reset form
       setPaymentDialogOpen(false);
       setPaymentCustomer('');
       setPaymentAmount('');
@@ -877,8 +883,7 @@ const AccountantDashboard = () => {
       setPaymentNotes('');
       setCustomerInvoices([]);
       setPaymentAllocation([]);
-      fetchFinancialData();
-      fetchInvoices();
+      fetchAllData();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -2495,67 +2500,77 @@ const AccountantDashboard = () => {
                 </div>
 
                 {customerInvoices.length > 0 && (
-                  <div className="bg-muted p-3 rounded-lg">
-                    <h4 className="font-semibold mb-2">Outstanding Invoices</h4>
-                    <div className="space-y-1 text-sm">
-                      {customerInvoices.map((inv) => (
-                        <div key={inv.id} className="flex justify-between">
-                          <span>{inv.invoice_number}</span>
-                          <span className="font-medium">${(inv.total_amount - inv.amount_paid).toFixed(2)}</span>
+                  <div className="bg-muted p-4 rounded-lg space-y-3">
+                    <h4 className="font-semibold">Select Invoices to Pay</h4>
+                    <p className="text-sm text-muted-foreground">Check invoices and enter payment amounts (supports partial payments)</p>
+                    {customerInvoices.map((invoice) => {
+                      const outstanding = invoice.total_amount - invoice.amount_paid;
+                      const allocation = paymentAllocation.find(alloc => alloc.invoiceId === invoice.id);
+                      const isSelected = allocation?.selected || false;
+                      
+                      return (
+                        <div key={invoice.id} className="border border-border rounded-lg p-3 space-y-2">
+                          <div className="flex items-start gap-3">
+                            <Checkbox
+                              id={`invoice-${invoice.id}`}
+                              checked={isSelected}
+                              onCheckedChange={() => handleToggleInvoiceSelection(invoice.id)}
+                              className="mt-1"
+                            />
+                            <div className="flex-1 space-y-2">
+                              <label 
+                                htmlFor={`invoice-${invoice.id}`}
+                                className="flex justify-between items-start cursor-pointer"
+                              >
+                                <div>
+                                  <p className="font-medium">{invoice.invoice_number}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    Due: {new Date(invoice.due_date || invoice.invoice_date).toLocaleDateString()}
+                                  </p>
+                                </div>
+                                <p className="text-sm font-medium">${outstanding.toFixed(2)} outstanding</p>
+                              </label>
+                              
+                              {isSelected && (
+                                <div className="space-y-1">
+                                  <Label htmlFor={`amount-${invoice.id}`} className="text-sm">Payment Amount</Label>
+                                  <Input
+                                    id={`amount-${invoice.id}`}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    max={outstanding}
+                                    value={allocation?.amount || ''}
+                                    onChange={(e) => handleInvoicePaymentAmountChange(invoice.id, e.target.value)}
+                                    placeholder={`Max: ${outstanding.toFixed(2)}`}
+                                    className="h-9"
+                                  />
+                                  {allocation && allocation.amount > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      Will be marked as: {allocation.amount >= outstanding ? 'Paid' : 'Partial'}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                      ))}
-                      <div className="pt-2 border-t font-semibold flex justify-between">
-                        <span>Total Outstanding:</span>
-                        <span>${customerInvoices.reduce((sum, inv) => sum + (inv.total_amount - inv.amount_paid), 0).toFixed(2)}</span>
+                      );
+                    })}
+                    
+                    {paymentAllocation.filter(a => a.selected && a.amount > 0).length > 0 && (
+                      <div className="pt-2 border-t border-border">
+                        <div className="flex justify-between font-bold">
+                          <span>Total Payment:</span>
+                          <span>${paymentAllocation.filter(a => a.selected).reduce((sum, alloc) => sum + alloc.amount, 0).toFixed(2)}</span>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 )}
 
                 {paymentCustomer && (
                   <>
-                    <div className="grid gap-2">
-                      <Label htmlFor="payment-amount">Payment Amount *</Label>
-                      <Input
-                        id="payment-amount"
-                        type="number"
-                        step="0.01"
-                        value={paymentAmount}
-                        onChange={(e) => handlePaymentAmountChange(e.target.value)}
-                        placeholder="0.00"
-                      />
-                    </div>
-
-                    {paymentAllocation.length > 0 && parseFloat(paymentAmount) > 0 && (
-                      <div className="bg-primary/10 p-4 rounded-lg space-y-2">
-                        <h4 className="font-semibold">Payment Allocation Preview</h4>
-                        {paymentAllocation.map((alloc) => {
-                          const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
-                          if (!invoice) return null;
-                          const newAmountPaid = invoice.amount_paid + alloc.amount;
-                          const newStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partial';
-                          return (
-                            <div key={alloc.invoiceId} className="text-sm">
-                              <div className="flex justify-between items-center">
-                                <span>{invoice.invoice_number}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">${alloc.amount.toFixed(2)}</span>
-                                  <Badge variant={newStatus === 'paid' ? 'default' : 'secondary'}>
-                                    {newStatus}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {parseFloat(paymentAmount) > paymentAllocation.reduce((sum, a) => sum + a.amount, 0) && (
-                          <div className="text-sm text-muted-foreground pt-2 border-t">
-                            Excess amount: ${(parseFloat(paymentAmount) - paymentAllocation.reduce((sum, a) => sum + a.amount, 0)).toLocaleString()} (will remain as credit)
-                          </div>
-                        )}
-                      </div>
-                    )}
-
                     <div className="grid gap-2">
                       <Label htmlFor="payment-method">Payment Method *</Label>
                       <Select value={paymentMethod} onValueChange={setPaymentMethod}>
