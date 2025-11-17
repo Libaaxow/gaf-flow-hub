@@ -15,6 +15,7 @@ import {
   History,
   FileText,
   Receipt,
+  ExternalLink,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -77,9 +78,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <aside className="hidden w-64 border-r bg-card lg:block">
         <div className="flex h-full flex-col">
           <div className="border-b p-6">
-            <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
-              <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2 cursor-pointer hover:opacity-80 transition-opacity" />
-            </a>
+            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
             <p className="text-sm text-muted-foreground">Management System</p>
           </div>
           <nav className="flex-1 space-y-2 p-4">
@@ -98,6 +97,15 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                 </div>
               </div>
             )}
+            <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer" className="block">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                System
+              </Button>
+            </a>
             <Button
               variant="ghost"
               className="w-full justify-start text-destructive hover:bg-destructive/10"
@@ -114,9 +122,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       <div className="flex flex-1 flex-col">
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
-            <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
-              <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto cursor-pointer hover:opacity-80 transition-opacity" />
-            </a>
+            <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />
             <div className="flex items-center gap-2">
               {profile && (
                 <Avatar className="h-8 w-8">
@@ -133,9 +139,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
               <SheetContent side="left" className="w-64 p-0">
                 <div className="flex h-full flex-col">
                   <div className="border-b p-6">
-                    <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer">
-                      <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2 cursor-pointer hover:opacity-80 transition-opacity" />
-                    </a>
+                    <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Management System</p>
                   </div>
                   <nav className="flex-1 space-y-2 p-4">
@@ -154,6 +158,15 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                         </div>
                       </div>
                     )}
+                    <a href="https://app.gafsom.com/auth" target="_blank" rel="noopener noreferrer" className="block">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start"
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        System
+                      </Button>
+                    </a>
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-destructive"
