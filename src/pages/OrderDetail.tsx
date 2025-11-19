@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle, History } from 'lucide-react';
+import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle, History, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -351,6 +351,38 @@ const OrderDetail = () => {
       a.href = url;
       a.download = fileName;
       a.click();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteFile = async (fileId: string, filePath: string) => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('order-files')
+        .remove([filePath]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database
+      const { error: dbError } = await supabase
+        .from('order_files')
+        .delete()
+        .eq('id', fileId);
+
+      if (dbError) throw dbError;
+
+      toast({
+        title: 'Success',
+        description: 'File deleted successfully',
+      });
+
+      fetchOrderDetails();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -814,13 +846,24 @@ const OrderDetail = () => {
                       <Badge className="mt-1 bg-success">Final Design</Badge>
                     )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDownloadFile(file.file_path, file.file_name)}
-                  >
-                    <Download className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadFile(file.file_path, file.file_name)}
+                    >
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    {userRole === 'designer' && file.uploaded_by === user?.id && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDeleteFile(file.id, file.file_path)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
               {files.length === 0 && (
