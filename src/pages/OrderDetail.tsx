@@ -392,6 +392,34 @@ const OrderDetail = () => {
     }
   };
 
+  const handleDeleteOrder = async () => {
+    if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', order.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Order deleted successfully',
+      });
+
+      navigate('/orders');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleUpdateOrder = async (field: string, value: any) => {
     try {
       const { error } = await supabase
@@ -546,12 +574,21 @@ const OrderDetail = () => {
             </div>
           </div>
           
-          {!isReadOnly && userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
-            <Button onClick={handleMarkReadyForPrint} className="gap-2">
-              <CheckCircle className="h-4 w-4" />
-              Submit to Accountant
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {!isReadOnly && userRole === 'designer' && order.designer?.id === user?.id && order.status === 'designing' && (
+              <Button onClick={handleMarkReadyForPrint} className="gap-2">
+                <CheckCircle className="h-4 w-4" />
+                Submit to Accountant
+              </Button>
+            )}
+            
+            {userRole === 'admin' && (
+              <Button variant="destructive" onClick={handleDeleteOrder} className="gap-2">
+                <Trash2 className="h-4 w-4" />
+                Delete Order
+              </Button>
+            )}
+          </div>
           
           {!isReadOnly && userRole === 'print_operator' && ['ready_for_print', 'printing', 'printed'].includes(order.status) && (
             <div className="flex gap-2">
@@ -854,7 +891,7 @@ const OrderDetail = () => {
                     >
                       <Download className="h-4 w-4" />
                     </Button>
-                    {userRole === 'designer' && file.uploaded_by === user?.id && (
+                    {((userRole === 'designer' && file.uploaded_by === user?.id) || userRole === 'admin') && (
                       <Button
                         variant="destructive"
                         size="sm"
