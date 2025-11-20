@@ -973,6 +973,36 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation(); // Prevent navigation when clicking delete
+    
+    if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Order deleted successfully',
+      });
+
+      fetchAllData();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleDeleteCustomer = async (customerId: string) => {
     if (!confirm('Are you sure you want to delete this customer? This action cannot be undone.')) {
       return;
@@ -1306,9 +1336,18 @@ export default function AdminDashboard() {
                   </div>
                   <div className="sm:text-right flex sm:flex-col items-center sm:items-end gap-2">
                     <p className="text-xl sm:text-2xl font-bold">${order.order_value?.toLocaleString() || '0'}</p>
-                    <Button variant="outline" size="sm" className="whitespace-nowrap">
-                      View Details
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" className="whitespace-nowrap">
+                        View Details
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={(e) => handleDeleteOrder(order.id, e)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))
