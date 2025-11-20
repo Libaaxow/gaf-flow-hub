@@ -15,6 +15,8 @@ interface DashboardStats {
   pendingJobs: number;
   completedJobs: number;
   totalCommissions: number;
+  totalExpenses: number;
+  netIncome: number;
 }
 
 const Dashboard = () => {
@@ -24,6 +26,8 @@ const Dashboard = () => {
     pendingJobs: 0,
     completedJobs: 0,
     totalCommissions: 0,
+    totalExpenses: 0,
+    netIncome: 0,
   });
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -43,14 +47,30 @@ const Dashboard = () => {
         }
         
 
-        // Get total sales
+        // Get orders data
         const { data: orders } = await supabase
           .from('orders')
           .select('order_value, status');
 
-        const totalSales = orders?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
         const pendingJobs = orders?.filter(o => o.status === 'pending' || o.status === 'designing').length || 0;
         const completedJobs = orders?.filter(o => o.status === 'delivered').length || 0;
+
+        // Get total payments (actual money collected)
+        const { data: payments } = await supabase
+          .from('payments')
+          .select('amount');
+
+        const totalSales = payments?.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
+
+        // Get total expenses
+        const { data: expenses } = await supabase
+          .from('expenses')
+          .select('amount');
+
+        const totalExpenses = expenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
+
+        // Calculate net income
+        const netIncome = totalSales - totalExpenses;
 
         // Get user's commissions
         const { data: commissions } = await supabase
@@ -65,6 +85,8 @@ const Dashboard = () => {
           pendingJobs,
           completedJobs,
           totalCommissions,
+          totalExpenses,
+          netIncome,
         });
       } catch (error) {
         console.error('Error fetching dashboard stats:', error);
@@ -78,11 +100,25 @@ const Dashboard = () => {
 
   const statCards = [
     {
-      title: 'Total Sales',
+      title: 'Total Revenue',
       value: `$${stats.totalSales.toFixed(2)}`,
       icon: DollarSign,
-      description: 'All time revenue',
+      description: 'Payments collected',
       color: 'text-success',
+    },
+    {
+      title: 'Total Expenses',
+      value: `$${stats.totalExpenses.toFixed(2)}`,
+      icon: Package,
+      description: 'Business expenses',
+      color: 'text-destructive',
+    },
+    {
+      title: 'Net Income',
+      value: `$${stats.netIncome.toFixed(2)}`,
+      icon: DollarSign,
+      description: 'Revenue - Expenses',
+      color: stats.netIncome >= 0 ? 'text-success' : 'text-destructive',
     },
     {
       title: 'Pending Jobs',
