@@ -2625,7 +2625,12 @@ const AccountantDashboard = () => {
                 </Button>
                 <Button 
                   onClick={handleRecordPayment}
-                  disabled={!paymentCustomer || !paymentAmount || !paymentMethod || !paymentReference}
+                  disabled={
+                    !paymentCustomer || 
+                    paymentAllocation.filter(a => a.selected && a.amount > 0).length === 0 || 
+                    !paymentMethod || 
+                    !paymentReference
+                  }
                 >
                   Record Payment
                 </Button>
