@@ -822,21 +822,6 @@ const AccountantDashboard = () => {
       const { data: { user } } = await supabase.auth.getUser();
       const totalAmount = selectedAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
 
-      // Insert overall payment record
-      const { data: paymentData, error: paymentError } = await supabase
-        .from('payments')
-        .insert([{
-          amount: totalAmount,
-          payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
-          reference_number: paymentReference || null,
-          notes: paymentNotes || null,
-          recorded_by: user?.id,
-        }])
-        .select()
-        .single();
-
-      if (paymentError) throw paymentError;
-
       // Allocate payment across selected invoices
       for (const alloc of selectedAllocations) {
         const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
@@ -856,8 +841,8 @@ const AccountantDashboard = () => {
 
         if (invoiceError) throw invoiceError;
 
-        // Create payment-invoice link record
-        await supabase
+        // Create payment record for this invoice allocation
+        const { error: paymentError } = await supabase
           .from('payments')
           .insert([{
             invoice_id: alloc.invoiceId,
@@ -865,9 +850,11 @@ const AccountantDashboard = () => {
             amount: alloc.amount,
             payment_method: paymentMethod as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
             reference_number: paymentReference || null,
-            notes: `Allocated from payment ${paymentData.id}`,
+            notes: paymentNotes || null,
             recorded_by: user?.id,
           }]);
+
+        if (paymentError) throw paymentError;
       }
 
       toast({
