@@ -2489,8 +2489,8 @@ const AccountantDashboard = () => {
                 <DialogTitle>Record Customer Payment</DialogTitle>
                 <DialogDescription>Allocate payment across customer's outstanding invoices</DialogDescription>
               </DialogHeader>
-              <ScrollArea className="max-h-[60vh] pr-4">
-                <div className="grid gap-4 py-4">
+              <ScrollArea className="h-[60vh]">
+                <div className="grid gap-4 py-4 pr-4">
                 <div className="grid gap-2">
                   <Label htmlFor="payment-customer">Customer *</Label>
                   <Select value={paymentCustomer} onValueChange={(value) => {
