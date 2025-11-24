@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { 
   DollarSign, 
@@ -2488,7 +2489,8 @@ const AccountantDashboard = () => {
                 <DialogTitle>Record Customer Payment</DialogTitle>
                 <DialogDescription>Allocate payment across customer's outstanding invoices</DialogDescription>
               </DialogHeader>
-              <div className="grid gap-4 py-4 overflow-y-auto pr-2">
+              <ScrollArea className="max-h-[60vh] pr-4">
+                <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="payment-customer">Customer *</Label>
                   <Select value={paymentCustomer} onValueChange={(value) => {
@@ -2618,7 +2620,8 @@ const AccountantDashboard = () => {
                     </div>
                   </>
                 )}
-              </div>
+                </div>
+              </ScrollArea>
               <DialogFooter className="mt-2">
                 <Button variant="outline" onClick={() => {
                   setPaymentDialogOpen(false);
