@@ -148,6 +148,7 @@ const AccountantDashboard = () => {
   const [customerCompany, setCustomerCompany] = useState('');
 
   // Invoice form states
+  const [invoiceFilterCustomer, setInvoiceFilterCustomer] = useState<string>('all');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
@@ -2023,10 +2024,24 @@ const AccountantDashboard = () => {
             <Card className="mobile-card">
               <CardHeader className="p-4 sm:p-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-                  <div>
+                  <div className="flex-1">
                     <CardTitle className="text-base sm:text-lg">Invoices</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Manage customer invoices</CardDescription>
                   </div>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                    <Select value={invoiceFilterCustomer} onValueChange={setInvoiceFilterCustomer}>
+                      <SelectTrigger className="w-full sm:w-[200px]">
+                        <SelectValue placeholder="Filter by customer" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="all">All Customers</SelectItem>
+                        {customers.map((customer) => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   <Dialog>
                     <DialogTrigger asChild>
                       <Button size="sm" className="w-full sm:w-auto">
@@ -2203,6 +2218,7 @@ const AccountantDashboard = () => {
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
@@ -2221,14 +2237,20 @@ const AccountantDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices.length === 0 ? (
+                    {invoices.filter(invoice => 
+                      invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
+                    ).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                           No invoices found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoices.map((invoice) => (
+                      invoices
+                        .filter(invoice => 
+                          invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
+                        )
+                        .map((invoice) => (
                         <TableRow key={invoice.id}>
                           <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
                           <TableCell>{invoice.customer.name}</TableCell>
