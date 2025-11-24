@@ -2489,8 +2489,9 @@ const AccountantDashboard = () => {
                 <DialogTitle>Record Customer Payment</DialogTitle>
                 <DialogDescription>Allocate payment across customer's outstanding invoices</DialogDescription>
               </DialogHeader>
-              <ScrollArea className="h-[60vh]">
-                <div className="grid gap-4 py-4 pr-4">
+              <div className="flex-1 overflow-auto">
+                <ScrollArea className="h-full">
+                  <div className="grid gap-4 py-4 pr-4">
                 <div className="grid gap-2">
                   <Label htmlFor="payment-customer">Customer *</Label>
                   <Select value={paymentCustomer} onValueChange={(value) => {
@@ -2620,9 +2621,10 @@ const AccountantDashboard = () => {
                     </div>
                   </>
                 )}
-                </div>
-              </ScrollArea>
-              <DialogFooter className="mt-2">
+                  </div>
+                </ScrollArea>
+              </div>
+              <DialogFooter className="mt-2 flex-shrink-0">
                 <Button variant="outline" onClick={() => {
                   setPaymentDialogOpen(false);
                   setPaymentCustomer('');
