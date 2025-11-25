@@ -68,6 +68,15 @@ interface Invoice {
   amount_paid: number;
   status: string;
   order_id?: string | null;
+  invoice_items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }>;
+  subtotal?: number;
+  tax_amount?: number;
 }
 
 const customerSchema = z.object({
@@ -116,6 +125,7 @@ export default function AdminDashboard() {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   
   // Invoice items state
   interface InvoiceItem {
@@ -1654,68 +1664,129 @@ export default function AdminDashboard() {
             </TableHeader>
             <TableBody>
               {invoices.map((invoice) => (
-                <TableRow key={invoice.id}>
-                  <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                  <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
-                  <TableCell>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
-                  <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : '-'}</TableCell>
-                  <TableCell>${invoice.total_amount.toLocaleString()}</TableCell>
-                  <TableCell>${invoice.amount_paid.toLocaleString()}</TableCell>
-                  <TableCell>
-                    <Badge variant={invoice.status === 'paid' ? 'default' : invoice.status === 'unpaid' ? 'destructive' : 'secondary'}>
-                      {invoice.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedInvoice(invoice);
-                          setInvoiceDialogOpen(true);
-                        }}
-                        title="View Invoice"
-                      >
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => handleEditInvoice(invoice)}
-                        title="Edit Invoice"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="destructive"
-                        onClick={() => handleDeleteInvoice(invoice.id)}
-                        title="Delete Invoice"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                      {invoice.status !== 'paid' && (
-                        <Button
-                          size="sm"
-                          variant="default"
-                          onClick={() => handleUpdateInvoiceStatus(invoice.id, 'paid')}
+                <>
+                  <TableRow 
+                    key={invoice.id} 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => setExpandedInvoiceId(expandedInvoiceId === invoice.id ? null : invoice.id)}
+                  >
+                    <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                    <TableCell>{invoice.customer?.name || 'N/A'}</TableCell>
+                    <TableCell>{format(new Date(invoice.invoice_date), 'MMM d, yyyy')}</TableCell>
+                    <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'MMM d, yyyy') : '-'}</TableCell>
+                    <TableCell>${invoice.total_amount.toLocaleString()}</TableCell>
+                    <TableCell>${invoice.amount_paid.toLocaleString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={invoice.status === 'paid' ? 'default' : invoice.status === 'unpaid' ? 'destructive' : 'secondary'}>
+                        {invoice.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell onClick={(e) => e.stopPropagation()}>
+                      <div className="flex gap-2 flex-wrap">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => {
+                            setSelectedInvoice(invoice);
+                            setInvoiceDialogOpen(true);
+                          }}
+                          title="View Invoice"
                         >
-                          Mark Paid
+                          <FileText className="h-4 w-4" />
                         </Button>
-                      )}
-                      {invoice.status === 'paid' && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => handleUpdateInvoiceStatus(invoice.id, 'unpaid')}
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleEditInvoice(invoice)}
+                          title="Edit Invoice"
                         >
-                          Mark Unpaid
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          onClick={() => handleDeleteInvoice(invoice.id)}
+                          title="Delete Invoice"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                        {invoice.status !== 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => handleUpdateInvoiceStatus(invoice.id, 'paid')}
+                          >
+                            Mark Paid
+                          </Button>
+                        )}
+                        {invoice.status === 'paid' && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => handleUpdateInvoiceStatus(invoice.id, 'unpaid')}
+                          >
+                            Mark Unpaid
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  {expandedInvoiceId === invoice.id && (
+                    <TableRow>
+                      <TableCell colSpan={8} className="bg-muted/30">
+                        <div className="p-4 space-y-4">
+                          <h4 className="font-semibold text-sm">Invoice Items</h4>
+                          <div className="border rounded-lg overflow-hidden">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Description</TableHead>
+                                  <TableHead className="text-right">Qty</TableHead>
+                                  <TableHead className="text-right">Unit Price</TableHead>
+                                  <TableHead className="text-right">Amount</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {invoice.invoice_items && invoice.invoice_items.length > 0 ? (
+                                  <>
+                                    {invoice.invoice_items.map((item: any, idx: number) => (
+                                      <TableRow key={idx}>
+                                        <TableCell>{item.description}</TableCell>
+                                        <TableCell className="text-right">{item.quantity}</TableCell>
+                                        <TableCell className="text-right">${item.unit_price.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right font-medium">${item.amount.toFixed(2)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                    <TableRow className="bg-muted/50">
+                                      <TableCell colSpan={3} className="text-right font-semibold">Subtotal:</TableCell>
+                                      <TableCell className="text-right font-semibold">${(invoice.subtotal || 0).toFixed(2)}</TableCell>
+                                    </TableRow>
+                                    {(invoice.tax_amount || 0) > 0 && (
+                                      <TableRow className="bg-muted/50">
+                                        <TableCell colSpan={3} className="text-right font-semibold">Tax:</TableCell>
+                                        <TableCell className="text-right font-semibold">${(invoice.tax_amount || 0).toFixed(2)}</TableCell>
+                                      </TableRow>
+                                    )}
+                                    <TableRow className="bg-primary/10">
+                                      <TableCell colSpan={3} className="text-right font-bold text-lg">Total:</TableCell>
+                                      <TableCell className="text-right font-bold text-lg">${invoice.total_amount.toFixed(2)}</TableCell>
+                                    </TableRow>
+                                  </>
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                      No items found
+                                    </TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
               ))}
             </TableBody>
           </Table>
