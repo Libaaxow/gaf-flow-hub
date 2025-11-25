@@ -79,6 +79,15 @@ interface Invoice {
   amount_paid: number;
   status: string;
   order_id?: string;
+  invoice_items?: Array<{
+    id: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+  }>;
+  subtotal?: number;
+  tax_amount?: number;
 }
 
 interface Customer {
@@ -182,6 +191,7 @@ const AccountantDashboard = () => {
   const [selectedInvoiceForView, setSelectedInvoiceForView] = useState<any>(null);
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<any>(null);
   const [selectedOrderForDebt, setSelectedOrderForDebt] = useState<any>(null);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
 
   // Invoice payment form states
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
@@ -2252,53 +2262,114 @@ const AccountantDashboard = () => {
                           invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
                         )
                         .map((invoice) => (
-                        <TableRow key={invoice.id}>
-                          <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                          <TableCell>{invoice.customer.name}</TableCell>
-                          <TableCell>{format(new Date(invoice.invoice_date), 'PP')}</TableCell>
-                          <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'PP') : '-'}</TableCell>
-                          <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
-                          <TableCell>${invoice.amount_paid.toFixed(2)}</TableCell>
-                          <TableCell>
-                            <Badge variant={
-                              invoice.status === 'paid' ? 'default' :
-                              invoice.status === 'partially_paid' ? 'secondary' :
-                              invoice.status === 'overdue' ? 'destructive' :
-                              'outline'
-                            }>
-                              {invoice.status === 'partially_paid' ? 'Partially Paid' : invoice.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedInvoiceForView(invoice);
-                                  setInvoiceDialogOpen(true);
-                                }}
-                              >
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                              </Button>
-                              {invoice.status !== 'paid' && (
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => {
-                                    setSelectedInvoiceForPayment(invoice);
-                                    setInvoicePaymentDialogOpen(true);
-                                  }}
-                                >
-                                  <DollarSign className="mr-2 h-4 w-4" />
-                                  Record Payment
-                                </Button>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                          <>
+                            <TableRow 
+                              key={invoice.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => setExpandedInvoiceId(expandedInvoiceId === invoice.id ? null : invoice.id)}
+                            >
+                              <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                              <TableCell>{invoice.customer.name}</TableCell>
+                              <TableCell>{format(new Date(invoice.invoice_date), 'PP')}</TableCell>
+                              <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'PP') : '-'}</TableCell>
+                              <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
+                              <TableCell>${invoice.amount_paid.toFixed(2)}</TableCell>
+                              <TableCell>
+                                <Badge variant={
+                                  invoice.status === 'paid' ? 'default' :
+                                  invoice.status === 'partially_paid' ? 'secondary' :
+                                  invoice.status === 'overdue' ? 'destructive' :
+                                  'outline'
+                                }>
+                                  {invoice.status === 'partially_paid' ? 'Partially Paid' : invoice.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell onClick={(e) => e.stopPropagation()}>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    size="sm" 
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedInvoiceForView(invoice);
+                                      setInvoiceDialogOpen(true);
+                                    }}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    View
+                                  </Button>
+                                  {invoice.status !== 'paid' && (
+                                    <Button
+                                      size="sm"
+                                      variant="default"
+                                      onClick={() => {
+                                        setSelectedInvoiceForPayment(invoice);
+                                        setInvoicePaymentDialogOpen(true);
+                                      }}
+                                    >
+                                      <DollarSign className="mr-2 h-4 w-4" />
+                                      Record Payment
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                            {expandedInvoiceId === invoice.id && (
+                              <TableRow>
+                                <TableCell colSpan={8} className="bg-muted/30">
+                                  <div className="p-4 space-y-4">
+                                    <h4 className="font-semibold text-sm">Invoice Items</h4>
+                                    <div className="border rounded-lg overflow-hidden">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            <TableHead>Description</TableHead>
+                                            <TableHead className="text-right">Qty</TableHead>
+                                            <TableHead className="text-right">Unit Price</TableHead>
+                                            <TableHead className="text-right">Amount</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {invoice.invoice_items && invoice.invoice_items.length > 0 ? (
+                                            <>
+                                              {invoice.invoice_items.map((item: any, idx: number) => (
+                                                <TableRow key={idx}>
+                                                  <TableCell>{item.description}</TableCell>
+                                                  <TableCell className="text-right">{item.quantity}</TableCell>
+                                                  <TableCell className="text-right">${item.unit_price.toFixed(2)}</TableCell>
+                                                  <TableCell className="text-right font-medium">${item.amount.toFixed(2)}</TableCell>
+                                                </TableRow>
+                                              ))}
+                                              <TableRow className="bg-muted/50">
+                                                <TableCell colSpan={3} className="text-right font-semibold">Subtotal:</TableCell>
+                                                <TableCell className="text-right font-semibold">${(invoice.subtotal || 0).toFixed(2)}</TableCell>
+                                              </TableRow>
+                                              {(invoice.tax_amount || 0) > 0 && (
+                                                <TableRow className="bg-muted/50">
+                                                  <TableCell colSpan={3} className="text-right font-semibold">Tax:</TableCell>
+                                                  <TableCell className="text-right font-semibold">${(invoice.tax_amount || 0).toFixed(2)}</TableCell>
+                                                </TableRow>
+                                              )}
+                                              <TableRow className="bg-primary/10">
+                                                <TableCell colSpan={3} className="text-right font-bold text-lg">Total:</TableCell>
+                                                <TableCell className="text-right font-bold text-lg">${invoice.total_amount.toFixed(2)}</TableCell>
+                                              </TableRow>
+                                            </>
+                                          ) : (
+                                            <TableRow>
+                                              <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                                No items found
+                                              </TableCell>
+                                            </TableRow>
+                                          )}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            )}
+                          </>
+                        ))
                     )}
                   </TableBody>
                 </Table>
