@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Search, ChevronDown, ChevronUp, FileText, Package } from 'lucide-react';
+import { Plus, Search, ChevronDown, ChevronUp, FileText, Package, Pencil, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
@@ -45,11 +45,17 @@ const Customers = () => {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
   useEffect(() => {
     fetchCustomers();
+    checkAdminRole();
 
     // Set up realtime subscription for customers
     const channel = supabase
@@ -71,6 +77,19 @@ const Customers = () => {
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const checkAdminRole = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'admin')
+      .maybeSingle();
+    
+    setIsAdmin(!!data);
+  };
 
   const fetchCustomers = async () => {
     try {
@@ -257,6 +276,85 @@ const Customers = () => {
     setInvoiceDialogOpen(true);
   };
 
+  const handleEditCustomer = (customer: Customer) => {
+    setEditingCustomer(customer);
+    setPhoneNumber(customer.phone || '');
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdateCustomer = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingCustomer) return;
+
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    
+    const customerData = {
+      name: formData.get('name') as string,
+      phone: phoneNumber,
+      company_name: (formData.get('company_name') as string) || '',
+    };
+
+    try {
+      const validatedData = customerSchema.parse(customerData);
+
+      const { error } = await supabase
+        .from('customers')
+        .update({ 
+          name: validatedData.name,
+          phone: validatedData.phone,
+          company_name: validatedData.company_name || null,
+        })
+        .eq('id', editingCustomer.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Customer updated successfully',
+      });
+
+      setIsEditDialogOpen(false);
+      setEditingCustomer(null);
+      setPhoneNumber('');
+      fetchCustomers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDeleteCustomer = async () => {
+    if (!deleteCustomerId) return;
+
+    try {
+      const { error } = await supabase
+        .from('customers')
+        .delete()
+        .eq('id', deleteCustomerId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Customer deleted successfully',
+      });
+
+      setIsDeleteDialogOpen(false);
+      setDeleteCustomerId(null);
+      fetchCustomers();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <Layout>
@@ -410,6 +508,31 @@ const Customers = () => {
                               <FileText className="h-4 w-4" />
                               Report
                             </Button>
+                            {isAdmin && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditCustomer(customer)}
+                                  className="gap-2"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => {
+                                    setDeleteCustomerId(customer.id);
+                                    setIsDeleteDialogOpen(true);
+                                  }}
+                                  className="gap-2"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                  Delete
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -522,6 +645,71 @@ const Customers = () => {
           order={selectedInvoice}
         />
       )}
+
+      {/* Edit Customer Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Customer</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateCustomer} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit_phone">Phone *</Label>
+              <Input 
+                id="edit_phone" 
+                name="phone" 
+                type="tel" 
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                required 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_name">Name *</Label>
+              <Input 
+                id="edit_name" 
+                name="name" 
+                defaultValue={editingCustomer?.name}
+                required 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit_company_name">Company Name</Label>
+              <Input 
+                id="edit_company_name" 
+                name="company_name"
+                defaultValue={editingCustomer?.company_name || ''}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setIsEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="flex-1">Update Customer</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Customer</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground">
+            Are you sure you want to delete this customer? This action cannot be undone.
+          </p>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteCustomer}>
+              Delete
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
