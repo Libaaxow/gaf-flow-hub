@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
@@ -159,69 +159,50 @@ export default function AdminDashboard() {
     deliveredOrders: 0
   });
 
+  // Debounce ref to prevent excessive refetches
+  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFetchingRef = useRef(false);
+
+  const debouncedFetchAllData = useCallback(() => {
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = setTimeout(() => {
+      if (!isFetchingRef.current) {
+        fetchAllData();
+      }
+    }, 1000); // Debounce for 1 second
+  }, []);
+
   useEffect(() => {
     fetchAllData();
 
-    // Set up realtime subscriptions for all relevant tables
-    const ordersChannel = supabase
-      .channel('admin-orders-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders' },
-        () => fetchAllData()
-      )
-      .subscribe();
-
-    const paymentsChannel = supabase
-      .channel('admin-payments-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'payments' },
-        () => fetchAllData()
-      )
-      .subscribe();
-
-    const invoicesChannel = supabase
-      .channel('admin-invoices-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'invoices' },
-        () => fetchAllData()
-      )
-      .subscribe();
-
-    const commissionsChannel = supabase
-      .channel('admin-commissions-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'commissions' },
-        () => fetchAllData()
-      )
-      .subscribe();
-
-    const expensesChannel = supabase
-      .channel('admin-expenses-changes')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'expenses' },
-        () => fetchAllData()
-      )
+    // Set up single realtime channel for all tables
+    const channel = supabase
+      .channel('admin-all-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetchAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, debouncedFetchAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, debouncedFetchAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, debouncedFetchAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, debouncedFetchAllData)
       .subscribe();
 
     return () => {
-      supabase.removeChannel(ordersChannel);
-      supabase.removeChannel(paymentsChannel);
-      supabase.removeChannel(invoicesChannel);
-      supabase.removeChannel(commissionsChannel);
-      supabase.removeChannel(expensesChannel);
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
+      supabase.removeChannel(channel);
     };
-  }, []);
+  }, [debouncedFetchAllData]);
 
   useEffect(() => {
     applyFilters();
   }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery, dateFilter]);
 
   const fetchAllData = async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    
     try {
       setLoading(true);
 
@@ -366,6 +347,7 @@ export default function AdminDashboard() {
       });
     } finally {
       setLoading(false);
+      isFetchingRef.current = false;
     }
   };
 
