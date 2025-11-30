@@ -207,16 +207,12 @@ const AccountantDashboard = () => {
     fetchWorkflowOrders();
     fetchDesigners();
 
-    // Set up realtime subscription for orders
+    // Set up realtime subscriptions for all relevant tables
     const ordersChannel = supabase
       .channel('accountant-orders-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-        },
+        { event: '*', schema: 'public', table: 'orders' },
         () => {
           fetchAllData();
           fetchWorkflowOrders();
@@ -224,25 +220,51 @@ const AccountantDashboard = () => {
       )
       .subscribe();
 
-    // Set up realtime subscription for invoices
     const invoicesChannel = supabase
       .channel('accountant-invoices-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'invoices',
-        },
+        { event: '*', schema: 'public', table: 'invoices' },
         () => {
+          fetchAllData();
           fetchInvoices();
         }
+      )
+      .subscribe();
+
+    const paymentsChannel = supabase
+      .channel('accountant-payments-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const commissionsChannel = supabase
+      .channel('accountant-commissions-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'commissions' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('accountant-expenses-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses' },
+        () => fetchAllData()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(invoicesChannel);
+      supabase.removeChannel(paymentsChannel);
+      supabase.removeChannel(commissionsChannel);
+      supabase.removeChannel(expensesChannel);
     };
   }, []);
 

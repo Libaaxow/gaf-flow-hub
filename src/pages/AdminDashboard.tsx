@@ -162,24 +162,58 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchAllData();
 
-    // Set up realtime subscription for orders
-    const channel = supabase
+    // Set up realtime subscriptions for all relevant tables
+    const ordersChannel = supabase
       .channel('admin-orders-changes')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'orders',
-        },
-        () => {
-          fetchAllData();
-        }
+        { event: '*', schema: 'public', table: 'orders' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const paymentsChannel = supabase
+      .channel('admin-payments-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const invoicesChannel = supabase
+      .channel('admin-invoices-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'invoices' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const commissionsChannel = supabase
+      .channel('admin-commissions-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'commissions' },
+        () => fetchAllData()
+      )
+      .subscribe();
+
+    const expensesChannel = supabase
+      .channel('admin-expenses-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'expenses' },
+        () => fetchAllData()
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(paymentsChannel);
+      supabase.removeChannel(invoicesChannel);
+      supabase.removeChannel(commissionsChannel);
+      supabase.removeChannel(expensesChannel);
     };
   }, []);
 
