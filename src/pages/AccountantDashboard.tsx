@@ -371,29 +371,28 @@ const AccountantDashboard = () => {
         .order('created_at', { ascending: false });
 
       let enrichedCommissions: any[] = [];
-      if (commissionsData) {
-        const commissionsWithDetails = await Promise.all(
-          commissionsData.map(async (comm) => {
-            const { data: user } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', comm.user_id)
-              .single();
+      if (commissionsData && commissionsData.length > 0) {
+        // Batch fetch all unique user profiles and orders in single queries
+        const uniqueUserIds = [...new Set(commissionsData.map(c => c.user_id).filter(Boolean))];
+        const uniqueOrderIds = [...new Set(commissionsData.map(c => c.order_id).filter(Boolean))];
 
-            const { data: order } = await supabase
-              .from('orders')
-              .select('job_title')
-              .eq('id', comm.order_id)
-              .single();
+        const [profilesResult, ordersResult] = await Promise.all([
+          uniqueUserIds.length > 0 
+            ? supabase.from('profiles').select('id, full_name').in('id', uniqueUserIds)
+            : { data: [] },
+          uniqueOrderIds.length > 0
+            ? supabase.from('orders').select('id, job_title').in('id', uniqueOrderIds)
+            : { data: [] }
+        ]);
 
-            return {
-              ...comm,
-              user: user || { full_name: 'Unknown' },
-              order: order || { job_title: 'Unknown' },
-            };
-          })
-        );
-        enrichedCommissions = commissionsWithDetails;
+        const profilesMap = new Map((profilesResult.data || []).map(p => [p.id, p]));
+        const ordersMap = new Map((ordersResult.data || []).map(o => [o.id, o]));
+
+        enrichedCommissions = commissionsData.map(comm => ({
+          ...comm,
+          user: profilesMap.get(comm.user_id) || { full_name: 'Unknown' },
+          order: ordersMap.get(comm.order_id) || { job_title: 'Unknown' },
+        }));
       }
 
       if (commissionsError) throw commissionsError;

@@ -153,28 +153,37 @@ const PrintOperatorDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (ordersData) {
-        // Fetch designer data and file count for each order
-        const ordersWithDesigner = await Promise.all(
-          ordersData.map(async (order) => {
-            let designer = null;
-            if (order.designer_id) {
-              const { data: designerData } = await supabase
-                .from('profiles')
-                .select('full_name')
-                .eq('id', order.designer_id)
-                .single();
-              designer = designerData;
-            }
-            
-            // Fetch file count
-            const { count: fileCount } = await supabase
-              .from('order_files')
-              .select('*', { count: 'exact', head: true })
-              .eq('order_id', order.id);
-            
-            return { ...order, customer: order.customers, designer, file_count: fileCount || 0 };
-          })
-        );
+        // Batch fetch all unique designer profiles in a single query
+        const designerIds = [...new Set(ordersData.map(o => o.designer_id).filter(Boolean))];
+        
+        let designerMap = new Map();
+        if (designerIds.length > 0) {
+          const { data: designerData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', designerIds);
+          
+          designerMap = new Map((designerData || []).map(p => [p.id, p]));
+        }
+
+        // Batch fetch file counts for all orders
+        const orderIds = ordersData.map(o => o.id);
+        const { data: fileCountsData } = await supabase
+          .from('order_files')
+          .select('order_id')
+          .in('order_id', orderIds);
+        
+        const fileCountMap = new Map();
+        (fileCountsData || []).forEach(file => {
+          fileCountMap.set(file.order_id, (fileCountMap.get(file.order_id) || 0) + 1);
+        });
+
+        const ordersWithDesigner = ordersData.map(order => ({
+          ...order,
+          customer: order.customers,
+          designer: order.designer_id ? designerMap.get(order.designer_id) || null : null,
+          file_count: fileCountMap.get(order.id) || 0,
+        }));
 
         setOrders(ordersWithDesigner as any);
 

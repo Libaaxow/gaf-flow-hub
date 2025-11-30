@@ -169,21 +169,23 @@ const DesignerDashboard = () => {
       const { data: ordersData } = await query.order('created_at', { ascending: false });
 
       if (ordersData) {
-        // Fetch salesperson data separately for each order
-        const ordersWithSalesperson = await Promise.all(
-          ordersData.map(async (order) => {
-            let salesperson = null;
-            if (order.salesperson_id) {
-              const { data: salesData } = await supabase
-                .from('profiles')
-                .select('full_name')
-                .eq('id', order.salesperson_id)
-                .single();
-              salesperson = salesData;
-            }
-            return { ...order, salesperson };
-          })
-        );
+        // Batch fetch all unique salesperson profiles in a single query
+        const salespersonIds = [...new Set(ordersData.map(o => o.salesperson_id).filter(Boolean))];
+        
+        let salespersonMap = new Map();
+        if (salespersonIds.length > 0) {
+          const { data: salespersonData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', salespersonIds);
+          
+          salespersonMap = new Map((salespersonData || []).map(p => [p.id, p]));
+        }
+
+        const ordersWithSalesperson = ordersData.map(order => ({
+          ...order,
+          salesperson: order.salesperson_id ? salespersonMap.get(order.salesperson_id) || null : null,
+        }));
 
         setOrders(ordersWithSalesperson as any);
 

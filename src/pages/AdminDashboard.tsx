@@ -248,33 +248,29 @@ export default function AdminDashboard() {
 
       if (ordersError) throw ordersError;
 
-      // Fetch designers and salespeople separately
-      const ordersWithProfiles = await Promise.all(
-        (ordersData || []).map(async (order) => {
-          let designer = null;
-          let salesperson = null;
+      // Batch fetch all unique designer and salesperson profiles in a single query
+      const allProfileIds = [
+        ...new Set([
+          ...(ordersData || []).map(o => o.designer_id).filter(Boolean),
+          ...(ordersData || []).map(o => o.salesperson_id).filter(Boolean)
+        ])
+      ];
 
-          if (order.designer_id) {
-            const { data } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', order.designer_id)
-              .single();
-            designer = data;
-          }
+      let profilesMap = new Map();
+      if (allProfileIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', allProfileIds);
+        
+        profilesMap = new Map((profilesData || []).map(p => [p.id, p]));
+      }
 
-          if (order.salesperson_id) {
-            const { data } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', order.salesperson_id)
-              .single();
-            salesperson = data;
-          }
-
-          return { ...order, designer, salesperson };
-        })
-      );
+      const ordersWithProfiles = (ordersData || []).map(order => ({
+        ...order,
+        designer: order.designer_id ? profilesMap.get(order.designer_id) || null : null,
+        salesperson: order.salesperson_id ? profilesMap.get(order.salesperson_id) || null : null,
+      }));
 
       setOrders(ordersWithProfiles);
 

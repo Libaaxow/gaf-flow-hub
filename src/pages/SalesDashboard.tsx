@@ -219,20 +219,25 @@ const SalesDashboard = () => {
 
       if (ordersError) throw ordersError;
 
-      // Fetch designer data separately for each order
-      const ordersWithDesigners = await Promise.all(
-        (ordersData || []).map(async (order) => {
-          if (order.designer_id) {
-            const { data: designer } = await supabase
-              .from('profiles')
-              .select('full_name')
-              .eq('id', order.designer_id)
-              .single();
-            return { ...order, designer_name: designer?.full_name || null };
-          }
-          return { ...order, designer_name: 'Pending Accountant Assignment' };
-        })
-      );
+      // Batch fetch all unique designer profiles in a single query
+      const designerIds = [...new Set((ordersData || []).map(o => o.designer_id).filter(Boolean))];
+      
+      let designerMap = new Map();
+      if (designerIds.length > 0) {
+        const { data: designerData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', designerIds);
+        
+        designerMap = new Map((designerData || []).map(p => [p.id, p]));
+      }
+
+      const ordersWithDesigners = (ordersData || []).map(order => ({
+        ...order,
+        designer_name: order.designer_id 
+          ? (designerMap.get(order.designer_id)?.full_name || null)
+          : 'Pending Accountant Assignment',
+      }));
 
       // Fetch commissions
       const { data: commissionsData, error: commissionsError } = await supabase
