@@ -135,24 +135,33 @@ const Users = () => {
 
   const handleDeleteUser = async (userId: string) => {
     try {
-      // Delete user roles first
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', userId);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
 
-      // Delete profile
-      await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', userId);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ userId }),
+        }
+      );
 
-      // Note: Deleting from auth.users requires admin API which we can't do from client
-      // The admin should use the backend dashboard to fully delete the auth user
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to delete user');
+      }
 
       toast({
         title: 'Success',
-        description: 'User removed from system',
+        description: 'User permanently deleted from system',
       });
 
       fetchUsers();
@@ -440,9 +449,9 @@ const Users = () => {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Delete User</AlertDialogTitle>
+                              <AlertDialogTitle>Permanently Delete User</AlertDialogTitle>
                               <AlertDialogDescription>
-                                Are you sure you want to delete {user.full_name}? This will remove their profile and roles from the system.
+                                Are you sure you want to permanently delete {user.full_name}? This action cannot be undone and will remove the user completely from the database.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
