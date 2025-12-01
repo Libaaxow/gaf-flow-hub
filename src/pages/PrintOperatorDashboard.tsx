@@ -140,13 +140,15 @@ const PrintOperatorDashboard = () => {
       const totalCommissions = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
       const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
 
-      // Fetch orders filtered by date
+      // Fetch orders filtered by date AND assigned to this print operator
       const startDate = startOfDay(dateFilter).toISOString();
       const endDate = endOfDay(dateFilter).toISOString();
       
+      // Only fetch orders assigned to this print operator
       const { data: ordersData } = await supabase
         .from('orders')
         .select('*, customers(name)')
+        .eq('print_operator_id', user?.id)
         .in('status', ['ready_for_print', 'designed', 'printing', 'printed', 'ready_for_collection', 'on_hold' as any])
         .gte('created_at', startDate)
         .lte('created_at', endDate)

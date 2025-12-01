@@ -425,6 +425,7 @@ export type Database = {
           order_value: number | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
+          print_operator_id: string | null
           print_type: string | null
           quantity: number | null
           salesperson_id: string | null
@@ -444,6 +445,7 @@ export type Database = {
           order_value?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          print_operator_id?: string | null
           print_type?: string | null
           quantity?: number | null
           salesperson_id?: string | null
@@ -463,6 +465,7 @@ export type Database = {
           order_value?: number | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
+          print_operator_id?: string | null
           print_type?: string | null
           quantity?: number | null
           salesperson_id?: string | null
@@ -475,6 +478,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_print_operator_id_fkey"
+            columns: ["print_operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

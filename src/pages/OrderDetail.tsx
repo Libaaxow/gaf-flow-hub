@@ -29,6 +29,8 @@ interface Order {
   customers: { id: string; name: string; email: string | null; phone: string | null; company_name: string | null } | null;
   salesperson: { id: string; full_name: string } | null;
   designer: { id: string; full_name: string } | null;
+  print_operator: { id: string; full_name: string } | null;
+  print_operator_id: string | null;
 }
 
 interface OrderFile {
@@ -60,6 +62,7 @@ const OrderDetail = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
+  const [printOperators, setPrintOperators] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [newComment, setNewComment] = useState('');
@@ -70,6 +73,7 @@ const OrderDetail = () => {
     if (id) {
       fetchOrderDetails();
       fetchDesigners();
+      fetchPrintOperators();
       fetchUserRole();
       fetchOrderHistory();
 
@@ -194,7 +198,17 @@ const OrderDetail = () => {
         designer = designerData;
       }
 
-      setOrder({ ...orderData, salesperson, designer } as Order);
+      let print_operator = null;
+      if (orderData.print_operator_id) {
+        const { data: printOpData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .eq('id', orderData.print_operator_id)
+          .single();
+        print_operator = printOpData;
+      }
+
+      setOrder({ ...orderData, salesperson, designer, print_operator } as Order);
 
       const { data: filesData } = await supabase
         .from('order_files')
@@ -253,6 +267,15 @@ const OrderDetail = () => {
       .eq('role', 'designer');
     
     setDesigners(data?.map(d => d.profiles).filter(Boolean) || []);
+  };
+
+  const fetchPrintOperators = async () => {
+    const { data } = await supabase
+      .from('user_roles')
+      .select('user_id, profiles:user_id (id, full_name)')
+      .eq('role', 'print_operator');
+    
+    setPrintOperators(data?.map(d => d.profiles).filter(Boolean) || []);
   };
 
   const fetchOrderHistory = async () => {
@@ -811,6 +834,26 @@ const OrderDetail = () => {
                     {designers.map((designer) => (
                       <SelectItem key={designer.id} value={designer.id}>
                         {designer.full_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Assigned Print Operator</Label>
+                <Select 
+                  value={order.print_operator?.id || ''} 
+                  onValueChange={(value) => handleUpdateOrder('print_operator_id', value)}
+                  disabled={isReadOnly}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select print operator" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {printOperators.map((operator) => (
+                      <SelectItem key={operator.id} value={operator.id}>
+                        {operator.full_name}
                       </SelectItem>
                     ))}
                   </SelectContent>

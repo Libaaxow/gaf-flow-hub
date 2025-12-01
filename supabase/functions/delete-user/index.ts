@@ -103,6 +103,12 @@ Deno.serve(async (req) => {
       .update({ salesperson_id: null })
       .eq('salesperson_id', userId)
 
+    // 4b. Nullify print_operator_id in orders
+    await supabaseAdmin
+      .from('orders')
+      .update({ print_operator_id: null })
+      .eq('print_operator_id', userId)
+
     // 5. Nullify references in order_files (uploaded_by)
     await supabaseAdmin
       .from('order_files')

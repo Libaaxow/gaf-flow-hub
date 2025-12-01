@@ -127,8 +127,11 @@ const AccountantDashboard = () => {
   // Workflow states
   const [workflowOrders, setWorkflowOrders] = useState<any[]>([]);
   const [designers, setDesigners] = useState<any[]>([]);
+  const [printOperators, setPrintOperators] = useState<any[]>([]);
   const [selectedDesigner, setSelectedDesigner] = useState('');
+  const [selectedPrintOperator, setSelectedPrintOperator] = useState('');
   const [selectedOrderForAssignment, setSelectedOrderForAssignment] = useState('');
+  const [selectedOrderForPrintAssignment, setSelectedOrderForPrintAssignment] = useState('');
   
   // Payment form states
   const [selectedOrder, setSelectedOrder] = useState<string>('');
@@ -219,6 +222,7 @@ const AccountantDashboard = () => {
     fetchAllData();
     fetchWorkflowOrders();
     fetchDesigners();
+    fetchPrintOperators();
 
     // Set up single realtime channel for all tables
     const channel = supabase
@@ -475,6 +479,27 @@ const AccountantDashboard = () => {
     }
   };
 
+  const fetchPrintOperators = async () => {
+    try {
+      const { data } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'print_operator');
+      
+      if (data && data.length > 0) {
+        const operatorIds = data.map(d => d.user_id);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', operatorIds);
+        
+        setPrintOperators(profiles || []);
+      }
+    } catch (error) {
+      console.error('Error fetching print operators:', error);
+    }
+  };
+
   const fetchWorkflowOrders = async () => {
     try {
       const { data: ordersData, error } = await supabase
@@ -579,7 +604,16 @@ const AccountantDashboard = () => {
     }
   };
 
-  const handleApproveAndSendToPrint = async (orderId: string) => {
+  const handleApproveAndSendToPrint = async (orderId: string, printOperatorId?: string) => {
+    if (!printOperatorId) {
+      toast({
+        title: 'Print Operator Required',
+        description: 'Please select a print operator to assign this job to',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -614,9 +648,10 @@ const AccountantDashboard = () => {
       const totalAmount = invoice.total_amount || 0;
       const isPaid = totalPaid >= totalAmount;
 
-      // Prepare update object - combine all updates into one
+      // Prepare update object - combine all updates into one including print operator assignment
       const orderUpdate: any = {
-        status: 'printing'
+        status: 'printing',
+        print_operator_id: printOperatorId
       };
 
       if (isPaid) {
@@ -647,7 +682,7 @@ const AccountantDashboard = () => {
         orderUpdate.payment_status = currentPaid > 0 ? 'partial' : 'unpaid';
       }
 
-      // Single update combining status and payment info
+      // Single update combining status, print operator, and payment info
       const { error } = await supabase
         .from('orders')
         .update(orderUpdate)
@@ -662,6 +697,8 @@ const AccountantDashboard = () => {
           : 'Order marked as debt and sent to print operator',
       });
 
+      setSelectedOrderForPrintAssignment('');
+      setSelectedPrintOperator('');
       fetchWorkflowOrders();
     } catch (error: any) {
       toast({
@@ -1893,13 +1930,47 @@ const AccountantDashboard = () => {
                                   </Button>
                                 </>
                               )}
-                              <Button 
-                                size="sm" 
-                                onClick={() => handleApproveAndSendToPrint(order.id)}
-                              >
-                                <CheckCircle className="mr-2 h-4 w-4" />
-                                Send to Print
-                              </Button>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button size="sm">
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Send to Print
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-64" align="start">
+                                  <div className="space-y-4">
+                                    <div className="space-y-2">
+                                      <Label>Select Print Operator</Label>
+                                      <Select
+                                        value={selectedOrderForPrintAssignment === order.id ? selectedPrintOperator : ''}
+                                        onValueChange={(value) => {
+                                          setSelectedOrderForPrintAssignment(order.id);
+                                          setSelectedPrintOperator(value);
+                                        }}
+                                      >
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Choose operator..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {printOperators.map((op) => (
+                                            <SelectItem key={op.id} value={op.id}>
+                                              {op.full_name}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    <Button 
+                                      size="sm" 
+                                      className="w-full"
+                                      disabled={selectedOrderForPrintAssignment !== order.id || !selectedPrintOperator}
+                                      onClick={() => handleApproveAndSendToPrint(order.id, selectedPrintOperator)}
+                                    >
+                                      Assign & Send
+                                    </Button>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
                               <Button 
                                 size="sm" 
                                 variant="outline"
