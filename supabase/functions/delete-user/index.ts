@@ -14,7 +14,6 @@ Deno.serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     
-    // Create admin client with service role
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: {
         autoRefreshToken: false,
@@ -22,7 +21,6 @@ Deno.serve(async (req) => {
       },
     })
 
-    // Get the authorization header to verify the requesting user
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
       return new Response(
@@ -31,7 +29,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Verify the requesting user is an admin
     const token = authHeader.replace('Bearer ', '')
     const { data: { user: requestingUser }, error: authError } = await supabaseAdmin.auth.getUser(token)
     
@@ -42,7 +39,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Check if requesting user is admin
     const { data: roles } = await supabaseAdmin
       .from('user_roles')
       .select('role')
@@ -57,7 +53,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get the user ID to delete from request body
     const { userId } = await req.json()
     
     if (!userId) {
@@ -67,7 +62,6 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Prevent admin from deleting themselves
     if (userId === requestingUser.id) {
       return new Response(
         JSON.stringify({ error: 'Cannot delete your own account' }),
@@ -75,19 +69,96 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Delete user roles first
+    console.log(`Starting deletion process for user: ${userId}`)
+
+    // 1. Delete user's commissions
+    const { error: commErr } = await supabaseAdmin
+      .from('commissions')
+      .delete()
+      .eq('user_id', userId)
+    if (commErr) console.log('Error deleting commissions:', commErr.message)
+
+    // 2. Delete user's notifications
+    const { error: notifErr } = await supabaseAdmin
+      .from('notifications')
+      .delete()
+      .eq('recipient_id', userId)
+    if (notifErr) console.log('Error deleting notifications:', notifErr.message)
+
+    // 3. Delete user's order comments
+    const { error: commentsErr } = await supabaseAdmin
+      .from('order_comments')
+      .delete()
+      .eq('user_id', userId)
+    if (commentsErr) console.log('Error deleting order comments:', commentsErr.message)
+
+    // 4. Nullify references in orders (designer_id, salesperson_id)
     await supabaseAdmin
+      .from('orders')
+      .update({ designer_id: null })
+      .eq('designer_id', userId)
+    
+    await supabaseAdmin
+      .from('orders')
+      .update({ salesperson_id: null })
+      .eq('salesperson_id', userId)
+
+    // 5. Nullify references in order_files (uploaded_by)
+    await supabaseAdmin
+      .from('order_files')
+      .update({ uploaded_by: null })
+      .eq('uploaded_by', userId)
+
+    // 6. Nullify references in order_history (user_id)
+    await supabaseAdmin
+      .from('order_history')
+      .update({ user_id: null })
+      .eq('user_id', userId)
+
+    // 7. Nullify references in payments (recorded_by)
+    await supabaseAdmin
+      .from('payments')
+      .update({ recorded_by: null })
+      .eq('recorded_by', userId)
+
+    // 8. Nullify references in expenses (recorded_by, approved_by)
+    await supabaseAdmin
+      .from('expenses')
+      .update({ recorded_by: null })
+      .eq('recorded_by', userId)
+    
+    await supabaseAdmin
+      .from('expenses')
+      .update({ approved_by: null })
+      .eq('approved_by', userId)
+
+    // 9. Nullify references in invoices (created_by)
+    await supabaseAdmin
+      .from('invoices')
+      .update({ created_by: null })
+      .eq('created_by', userId)
+
+    // 10. Nullify paid_by in commissions
+    await supabaseAdmin
+      .from('commissions')
+      .update({ paid_by: null })
+      .eq('paid_by', userId)
+
+    // 11. Delete user roles
+    const { error: rolesErr } = await supabaseAdmin
       .from('user_roles')
       .delete()
       .eq('user_id', userId)
+    if (rolesErr) console.log('Error deleting user roles:', rolesErr.message)
 
-    // Delete profile (will cascade from auth.users delete, but do it explicitly)
-    await supabaseAdmin
+    // 12. Delete profile
+    const { error: profileErr } = await supabaseAdmin
       .from('profiles')
       .delete()
       .eq('id', userId)
+    if (profileErr) console.log('Error deleting profile:', profileErr.message)
 
-    // Delete the user from auth.users using admin API
+    // 13. Finally delete the auth user
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId)
 
     if (deleteError) {
@@ -97,6 +168,8 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    console.log(`User ${userId} permanently deleted successfully`)
 
     return new Response(
       JSON.stringify({ success: true, message: 'User permanently deleted' }),
