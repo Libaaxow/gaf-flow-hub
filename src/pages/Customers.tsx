@@ -485,7 +485,12 @@ const Customers = () => {
                   {filteredCustomers.map((customer) => (
                     <>
                       <tr key={customer.id} className="border-b hover:bg-muted/30 transition-colors">
-                        <td className="px-6 py-4 font-medium">{customer.name}</td>
+                        <td 
+                          className="px-6 py-4 font-medium text-primary hover:underline cursor-pointer"
+                          onClick={() => navigate(`/customers/${customer.id}/analytics`)}
+                        >
+                          {customer.name}
+                        </td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.phone || '-'}</td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.company_name || '-'}</td>
                         <td className="px-6 py-4">
@@ -493,11 +498,11 @@ const Customers = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => toggleCustomerDetails(customer.id)}
+                              onClick={() => navigate(`/customers/${customer.id}/analytics`)}
                               className="gap-2"
                             >
                               <Package className="h-4 w-4" />
-                              View
+                              Analytics
                             </Button>
                             <Button
                               variant="outline"

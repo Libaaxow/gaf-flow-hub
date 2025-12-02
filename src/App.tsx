@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ProfileSettings from "./pages/ProfileSettings";
 import PendingApproval from "./pages/PendingApproval";
 import CustomerOrderHistory from "./pages/CustomerOrderHistory";
+import CustomerAnalytics from "./pages/CustomerAnalytics";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +63,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Customers />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/customers/:customerId/analytics"
+              element={
+                <ProtectedRoute>
+                  <CustomerAnalytics />
                 </ProtectedRoute>
               }
             />
