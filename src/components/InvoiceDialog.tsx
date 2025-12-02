@@ -26,31 +26,38 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
   if (!order) return null;
 
   // Parse order items - handle both orders and invoices
-  const items = order.invoice_items && order.invoice_items.length > 0
-    ? order.invoice_items.map((item: any) => ({
-        description: item.description || "Item",
-        quantity: item.quantity || 1,
-        unitPrice: item.unit_price || 0,
-        amount: item.amount || 0,
-      }))
-    : order.order_items && order.order_items.length > 0
-    ? order.order_items.map((item: any) => ({
-        description: item.description || item.item_name || "Item",
-        quantity: item.quantity || 1,
-        unitPrice: item.unit_price || 0,
-        amount: (item.quantity || 1) * (item.unit_price || 0),
-      }))
-    : [{
-        description: order.job_title || order.description || "Service",
-        quantity: order.quantity || 1,
-        unitPrice: order.order_value || order.total_amount || order.subtotal || 0,
-        amount: order.order_value || order.total_amount || order.subtotal || 0,
-      }];
-
-  console.log("Invoice Dialog - Order:", order);
-  console.log("Invoice Dialog - Items:", items);
+  console.log("Invoice Dialog - Full Order Data:", order);
   console.log("Invoice items raw:", order.invoice_items);
   console.log("Order items raw:", order.order_items);
+  
+  const items = order.invoice_items && Array.isArray(order.invoice_items) && order.invoice_items.length > 0
+    ? order.invoice_items.map((item: any) => {
+        console.log("Parsing invoice item:", item);
+        return {
+          description: item.description || "Item",
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unit_price) || 0,
+          amount: Number(item.amount) || 0,
+        };
+      })
+    : order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0
+    ? order.order_items.map((item: any) => {
+        console.log("Parsing order item:", item);
+        return {
+          description: item.description || item.item_name || "Item",
+          quantity: Number(item.quantity) || 1,
+          unitPrice: Number(item.unit_price) || 0,
+          amount: (Number(item.quantity) || 1) * (Number(item.unit_price) || 0),
+        };
+      })
+    : [{
+        description: order.job_title || order.description || "Service",
+        quantity: Number(order.quantity) || 1,
+        unitPrice: Number(order.order_value || order.total_amount || order.subtotal) || 0,
+        amount: Number(order.order_value || order.total_amount || order.subtotal) || 0,
+      }];
+
+  console.log("Invoice Dialog - Parsed Items:", items);
 
   const handleDownloadPDF = () => {
     setIsGenerating(true);
