@@ -64,22 +64,30 @@ export const InvoiceTemplate = ({
       {/* Items Table */}
       <table className="w-full mb-8 border-collapse">
         <thead>
-          <tr className="border-y border-border">
+          <tr className="border-y border-border bg-muted/50">
             <th className="text-left py-3 px-4 font-semibold">Description</th>
-            <th className="text-left py-3 px-4 font-semibold">Qty</th>
-            <th className="text-left py-3 px-4 font-semibold">Unit Price</th>
-            <th className="text-left py-3 px-4 font-semibold">Amount</th>
+            <th className="text-center py-3 px-4 font-semibold w-20">Qty</th>
+            <th className="text-right py-3 px-4 font-semibold w-32">Unit Price</th>
+            <th className="text-right py-3 px-4 font-semibold w-32">Amount</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item, index) => (
-            <tr key={index} className="border-b border-border">
-              <td className="py-4 px-4">{item.description}</td>
-              <td className="py-4 px-4">{item.quantity}</td>
-              <td className="py-4 px-4">${item.unitPrice.toFixed(2)}</td>
-              <td className="py-4 px-4">${item.amount.toFixed(2)}</td>
+          {items && items.length > 0 ? (
+            items.map((item, index) => (
+              <tr key={index} className="border-b border-border hover:bg-muted/20">
+                <td className="py-4 px-4">{item.description}</td>
+                <td className="py-4 px-4 text-center">{item.quantity}</td>
+                <td className="py-4 px-4 text-right">${Number(item.unitPrice).toFixed(2)}</td>
+                <td className="py-4 px-4 text-right font-medium">${Number(item.amount).toFixed(2)}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td colSpan={4} className="py-8 px-4 text-center text-muted-foreground">
+                No items found
+              </td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
 
