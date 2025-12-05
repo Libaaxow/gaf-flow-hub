@@ -246,15 +246,77 @@ const AccountantDashboard = () => {
   }, [debouncedFetchAllData]);
 
   useEffect(() => {
-    fetchFinancialData();
+    fetchFilteredData();
   }, [startDate, endDate]);
 
   const fetchAllData = async () => {
     await Promise.all([
-      fetchFinancialData(),
+      fetchActualStats(),
+      fetchFilteredData(),
       fetchCustomers(),
       fetchInvoices(),
     ]);
+  };
+
+  // Fetch actual total stats (not filtered by date)
+  const fetchActualStats = async () => {
+    try {
+      // Get all orders for actual revenue calculation
+      const { data: allOrdersData } = await supabase
+        .from('orders')
+        .select('order_value, amount_paid');
+
+      // Get all invoices for revenue calculation
+      const { data: allInvoices } = await supabase
+        .from('invoices')
+        .select('total_amount, amount_paid, order_id');
+
+      // Get all commissions
+      const { data: allCommissions } = await supabase
+        .from('commissions')
+        .select('commission_amount, paid_status');
+
+      // Get all approved expenses
+      const { data: allExpenses } = await supabase
+        .from('expenses')
+        .select('amount, approval_status')
+        .eq('approval_status', 'approved');
+
+      // Calculate revenue from orders
+      const orderRevenue = allOrdersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
+      const orderCollected = allOrdersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
+
+      // Calculate revenue from standalone invoices (not linked to orders)
+      const standaloneInvoices = allInvoices?.filter(inv => !inv.order_id) || [];
+      const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+      const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
+
+      // Combine order and invoice totals
+      const totalRevenue = orderRevenue + invoiceRevenue;
+      const collectedAmount = orderCollected + invoiceCollected;
+      const outstandingAmount = totalRevenue - collectedAmount;
+      const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
+      const profit = collectedAmount - totalExpenses;
+      const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
+      const paidCommissions = allCommissions?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
+      
+      const { count: invoiceCount } = await supabase
+        .from('invoices')
+        .select('*', { count: 'exact', head: true });
+
+      setStats({
+        totalRevenue,
+        collectedAmount,
+        outstandingAmount,
+        totalExpenses,
+        profit,
+        pendingCommissions,
+        paidCommissions,
+        totalInvoices: invoiceCount || 0,
+      });
+    } catch (error: any) {
+      console.error('Error fetching actual stats:', error);
+    }
   };
 
   const fetchCustomers = async () => {
@@ -296,7 +358,7 @@ const AccountantDashboard = () => {
     }
   };
 
-  const fetchFinancialData = async () => {
+  const fetchFilteredData = async () => {
     try {
       setLoading(true);
 
@@ -412,44 +474,6 @@ const AccountantDashboard = () => {
       setOrders(ordersData || []);
       setExpenses(expensesData || []);
       setPayments(paymentsData || []);
-
-      // Calculate revenue from orders
-      const orderRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
-      const orderCollected = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
-
-      // Get all invoices for revenue calculation
-      const { data: allInvoices } = await supabase
-        .from('invoices')
-        .select('total_amount, amount_paid, order_id');
-
-      // Calculate revenue from standalone invoices (not linked to orders)
-      const standaloneInvoices = allInvoices?.filter(inv => !inv.order_id) || [];
-      const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
-      const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
-
-      // Combine order and invoice totals
-      const totalRevenue = orderRevenue + invoiceRevenue;
-      const collectedAmount = orderCollected + invoiceCollected;
-      const outstandingAmount = totalRevenue - collectedAmount;
-      const totalExpenses = expensesData?.filter(e => e.approval_status === 'approved').reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
-      const profit = collectedAmount - totalExpenses;
-      const pendingCommissions = commissionsData?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
-      const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
-      
-      const { count: invoiceCount } = await supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true });
-
-      setStats({
-        totalRevenue,
-        collectedAmount,
-        outstandingAmount,
-        totalExpenses,
-        profit,
-        pendingCommissions,
-        paidCommissions,
-        totalInvoices: invoiceCount || 0,
-      });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -1012,7 +1036,8 @@ const AccountantDashboard = () => {
       setInvoicePaymentNotes('');
       setInvoicePaymentDialogOpen(false);
       
-      fetchFinancialData();
+      fetchActualStats();
+      fetchFilteredData();
       fetchInvoices();
     } catch (error: any) {
       console.error('Invoice payment recording error:', error);
@@ -1066,7 +1091,8 @@ const AccountantDashboard = () => {
       setExpenseSupplier('');
       setExpenseNotes('');
       
-      fetchFinancialData();
+      fetchActualStats();
+      fetchFilteredData();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -1096,7 +1122,8 @@ const AccountantDashboard = () => {
         description: 'Commission marked as paid',
       });
 
-      fetchFinancialData();
+      fetchActualStats();
+      fetchFilteredData();
       fetchWorkflowOrders();
     } catch (error: any) {
       toast({
@@ -1257,7 +1284,7 @@ const AccountantDashboard = () => {
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
       fetchInvoices();
-      fetchFinancialData();
+      fetchActualStats();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -1372,7 +1399,7 @@ const AccountantDashboard = () => {
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
       fetchInvoices();
-      fetchFinancialData();
+      fetchActualStats();
     } catch (error: any) {
       toast({
         title: 'Error',
