@@ -646,6 +646,7 @@ export type Database = {
         | "print_operator"
         | "accountant"
         | "marketing"
+        | "board"
       order_status:
         | "pending"
         | "designing"
@@ -811,6 +812,7 @@ export const Constants = {
         "print_operator",
         "accountant",
         "marketing",
+        "board",
       ],
       order_status: [
         "pending",
