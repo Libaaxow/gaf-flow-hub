@@ -38,7 +38,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, PieChart as RechartPie, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell } from 'recharts';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -564,7 +564,7 @@ const BoardDashboard = () => {
             </CardHeader>
             <CardContent className="h-[300px]">
               {monthlyData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer config={{ revenue: { label: "Revenue", color: "hsl(var(--primary))" }, expenses: { label: "Expenses", color: "hsl(var(--destructive))" } }} className="h-full w-full">
                   <BarChart data={monthlyData}>
                     <XAxis dataKey="month" fontSize={12} />
                     <YAxis fontSize={12} />
@@ -572,7 +572,7 @@ const BoardDashboard = () => {
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" radius={[4, 4, 0, 0]} />
                   </BarChart>
-                </ResponsiveContainer>
+                </ChartContainer>
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   No data available for selected period
@@ -591,7 +591,7 @@ const BoardDashboard = () => {
             </CardHeader>
             <CardContent className="h-[300px]">
               {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ChartContainer config={{ value: { label: "Amount", color: "hsl(var(--primary))" } }} className="h-full w-full">
                   <RechartPie>
                     <Pie
                       data={pieData}
@@ -608,7 +608,7 @@ const BoardDashboard = () => {
                     </Pie>
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </RechartPie>
-                </ResponsiveContainer>
+                </ChartContainer>
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
                   No expense data available
