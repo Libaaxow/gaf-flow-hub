@@ -119,26 +119,41 @@ const BoardDashboard = () => {
 
   const fetchStats = useCallback(async () => {
     try {
-      const { data: ordersData } = await supabase
+      const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('order_value, amount_paid, status');
+      
+      if (ordersError) console.error('Board: orders error', ordersError);
 
-      const { data: invoicesData } = await supabase
+      const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
         .select('total_amount, amount_paid, order_id');
+      
+      if (invoicesError) console.error('Board: invoices error', invoicesError);
 
-      const { data: commissionsData } = await supabase
+      const { data: commissionsData, error: commissionsError } = await supabase
         .from('commissions')
         .select('commission_amount, paid_status');
+      
+      if (commissionsError) console.error('Board: commissions error', commissionsError);
 
-      const { data: expensesData } = await supabase
+      const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
         .select('amount, approval_status')
         .eq('approval_status', 'approved');
+      
+      if (expensesError) console.error('Board: expenses error', expensesError);
 
       const { count: customerCount } = await supabase
         .from('customers')
         .select('*', { count: 'exact', head: true });
+
+      console.log('Board fetchStats data counts:', {
+        orders: ordersData?.length,
+        invoices: invoicesData?.length,
+        commissions: commissionsData?.length,
+        expenses: expensesData?.length,
+      });
 
       const orderRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
       const orderCollected = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
@@ -159,6 +174,17 @@ const BoardDashboard = () => {
 
       const totalOrders = ordersData?.length || 0;
       const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered').length || 0;
+
+      console.log('Board calculated stats:', {
+        orderRevenue,
+        invoiceRevenue,
+        totalRevenue,
+        orderCollected,
+        invoiceCollected,
+        collectedAmount,
+        totalExpenses,
+        netProfit,
+      });
 
       setStats({
         totalRevenue,
