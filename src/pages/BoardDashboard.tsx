@@ -33,12 +33,8 @@ import {
 } from 'lucide-react';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { cn } from '@/lib/utils';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell } from 'recharts';
+import { ChartContainer } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell, Tooltip } from 'recharts';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -568,7 +564,7 @@ const BoardDashboard = () => {
                   <BarChart data={monthlyData}>
                     <XAxis dataKey="month" fontSize={12} />
                     <YAxis fontSize={12} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
                     <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" radius={[4, 4, 0, 0]} />
                     <Bar dataKey="expenses" fill="hsl(var(--destructive))" name="Expenses" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -606,7 +602,7 @@ const BoardDashboard = () => {
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Tooltip formatter={(value: number) => `$${value.toFixed(2)}`} />
                   </RechartPie>
                 </ChartContainer>
               ) : (
