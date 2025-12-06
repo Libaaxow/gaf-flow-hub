@@ -20,6 +20,7 @@ const AVAILABLE_ROLES = [
   { value: 'designer', label: 'Designer', color: 'bg-primary' },
   { value: 'print_operator', label: 'Print Operator', color: 'bg-accent' },
   { value: 'accountant', label: 'Accountant', color: 'bg-warning' },
+  { value: 'board', label: 'Board', color: 'bg-secondary' },
 ];
 
 export const RoleManager = ({ userId, currentRoles, onUpdate }: RoleManagerProps) => {
@@ -53,7 +54,7 @@ export const RoleManager = ({ userId, currentRoles, onUpdate }: RoleManagerProps
           .from('user_roles')
           .insert(selectedRoles.map(role => ({ 
             user_id: userId, 
-            role: role as 'admin' | 'sales' | 'designer' | 'print_operator' | 'accountant'
+            role: role as 'admin' | 'sales' | 'designer' | 'print_operator' | 'accountant' | 'board'
           })));
 
         if (insertError) throw insertError;

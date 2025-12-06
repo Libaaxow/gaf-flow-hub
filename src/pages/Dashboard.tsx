@@ -9,6 +9,7 @@ import SalesDashboard from './SalesDashboard';
 import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
+import BoardDashboard from './BoardDashboard';
 
 interface DashboardStats {
   totalSales: number;
@@ -179,6 +180,11 @@ const Dashboard = () => {
   // Render accountant dashboard for accountants
   if (userRole === 'accountant') {
     return <AccountantDashboard />;
+  }
+
+  // Render board dashboard for shareholders
+  if (userRole === 'board') {
+    return <BoardDashboard />;
   }
 
   return (
