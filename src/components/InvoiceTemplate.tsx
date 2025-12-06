@@ -167,9 +167,9 @@ export const InvoiceTemplate = ({
         <div className="flex items-end gap-4">
           <img src={qrCode} alt="QR Code" className="w-24 h-24" />
           <div className="text-xs">
-            <p className="font-bold text-[#1e40af] uppercase">FADLAN HALKAAN ISKAANGAREE</p>
-            <p className="font-bold text-[#1e40af] uppercase">SI AAD U HUBISO</p>
-            <p className="text-gray-600 italic mt-1">Please Scan Here To Verify</p>
+            <p className="font-bold text-[#1e40af] uppercase">FADLAN HALKAN SCAN GIREE</p>
+            <p className="font-bold text-[#1e40af] uppercase">SI AAD U BIXISO LACAGTA</p>
+            <p className="text-gray-600 italic mt-1">Please Scan Here To Pay</p>
           </div>
         </div>
 
