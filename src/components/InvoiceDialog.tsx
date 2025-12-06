@@ -59,6 +59,32 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
 
   console.log("Invoice Dialog - Parsed Items:", items);
 
+  // Get customer info
+  const customerName = order.customer?.name || order.customers?.name || order.customer_name || "N/A";
+  const customerContact = order.customer?.phone || order.customers?.phone || "";
+  const customerEmail = order.customer?.email || order.customers?.email || "";
+  const customerAddress = order.customer?.address || order.customers?.address || "";
+  
+  // Get salesperson name
+  const salesperson = order.salesperson?.full_name || order.salesperson_name || "";
+  
+  // Get payment method
+  const paymentMethod = order.payment_method ? 
+    order.payment_method.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase()) : 
+    "Cash";
+
+  // Calculate totals
+  const totalAmount = Number(order.total_amount || order.order_value || order.subtotal) || 0;
+  const amountPaid = Number(order.amount_paid) || 0;
+
+  const status = (
+    order.status === "paid" || order.payment_status === "paid"
+      ? "PAID"
+      : order.status === "partial" || order.payment_status === "partial"
+      ? "PARTIAL"
+      : "UNPAID"
+  ) as "PAID" | "UNPAID" | "PARTIAL";
+
   const handleDownloadPDF = () => {
     setIsGenerating(true);
     
@@ -69,17 +95,17 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
       
       const invoiceData = {
         invoiceNumber: order.invoice_number || order.id || "N/A",
-        invoiceDate: format(new Date(order.invoice_date || order.created_at || Date.now()), "MMMM d, yyyy"),
-        customerName: order.customer?.name || order.customers?.name || order.customer_name || "N/A",
-        customerContact: order.customer?.phone || order.customer?.email || order.customers?.phone || order.customers?.email,
-        items: items,
-        status: (
-          order.status === "paid" || order.payment_status === "paid"
-            ? "PAID"
-            : order.status === "partial" || order.payment_status === "partial"
-            ? "PARTIAL"
-            : "UNPAID"
-        ) as "PAID" | "UNPAID" | "PARTIAL",
+        invoiceDate: format(new Date(order.invoice_date || order.created_at || Date.now()), "dd.MM.yyyy"),
+        customerName,
+        customerContact,
+        customerEmail,
+        customerAddress,
+        salesperson,
+        paymentMethod,
+        items,
+        status,
+        amountPaid,
+        totalAmount,
       };
       
       console.log("Invoice data prepared:", invoiceData);
@@ -113,16 +139,16 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         <InvoiceTemplate
           invoiceNumber={order.invoice_number || order.id || "N/A"}
           invoiceDate={new Date(order.invoice_date || order.created_at || Date.now())}
-          customerName={order.customer?.name || order.customers?.name || order.customer_name || "N/A"}
-          customerContact={order.customer?.phone || order.customer?.email || order.customers?.phone || order.customers?.email}
+          customerName={customerName}
+          customerContact={customerContact}
+          customerEmail={customerEmail}
+          customerAddress={customerAddress}
+          salesperson={salesperson}
+          paymentMethod={paymentMethod}
           items={items}
-          status={
-            order.status === "paid" || order.payment_status === "paid"
-              ? "PAID"
-              : order.status === "partial" || order.payment_status === "partial"
-              ? "PARTIAL"
-              : "UNPAID"
-          }
+          status={status}
+          amountPaid={amountPaid}
+          totalAmount={totalAmount}
         />
 
         <DialogFooter>
