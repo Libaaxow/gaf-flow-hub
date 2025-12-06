@@ -87,6 +87,27 @@ const BoardDashboard = () => {
   const [endDate, setEndDate] = useState<Date>(endOfYear(new Date()));
 
   const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFetchingRef = useRef(false);
+
+  const fetchAllData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchMonthlyData(),
+        fetchRecentPayments(),
+        fetchRecentExpenses(),
+        fetchTopCustomers(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching board data:', error);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [startDate, endDate]);
 
   const debouncedFetch = useCallback(() => {
     if (refetchTimeoutRef.current) {
@@ -95,11 +116,13 @@ const BoardDashboard = () => {
     refetchTimeoutRef.current = setTimeout(() => {
       fetchAllData();
     }, 1000);
-  }, []);
+  }, [fetchAllData]);
 
   useEffect(() => {
     fetchAllData();
+  }, [fetchAllData]);
 
+  useEffect(() => {
     const channel = supabase
       .channel('board-all-changes')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
@@ -116,10 +139,6 @@ const BoardDashboard = () => {
       supabase.removeChannel(channel);
     };
   }, [debouncedFetch]);
-
-  useEffect(() => {
-    fetchAllData();
-  }, [startDate, endDate]);
 
   const handleDatePresetChange = (preset: string) => {
     setDateRangePreset(preset);
@@ -149,22 +168,7 @@ const BoardDashboard = () => {
     }
   };
 
-  const fetchAllData = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchStats(),
-        fetchMonthlyData(),
-        fetchRecentPayments(),
-        fetchRecentExpenses(),
-        fetchTopCustomers(),
-      ]);
-    } catch (error) {
-      console.error('Error fetching board data:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // fetchAllData is defined above as a useCallback
 
   const fetchStats = async () => {
     try {
