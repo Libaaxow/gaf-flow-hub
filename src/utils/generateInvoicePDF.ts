@@ -1,12 +1,17 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import logoImg from "@/assets/gaf-media-logo-full.png";
+import logoImg from "@/assets/gaf-media-logo-poster.png";
+import qrCodeImg from "@/assets/qr-code-gaf.png";
 
 interface InvoiceData {
   invoiceNumber: string;
   invoiceDate: string;
   customerName: string;
   customerContact?: string;
+  customerEmail?: string;
+  customerAddress?: string;
+  salesperson?: string;
+  paymentMethod?: string;
   items: Array<{
     description: string;
     quantity: number;
@@ -14,6 +19,8 @@ interface InvoiceData {
     amount: number;
   }>;
   status: "PAID" | "UNPAID" | "PARTIAL";
+  amountPaid?: number;
+  totalAmount?: number;
 }
 
 export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => {
@@ -27,172 +34,193 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
       format: "a4",
     });
 
-  // Add company logo
-  pdf.addImage(logoImg, "PNG", 20, 15, 50, 20);
+    const pageWidth = 210;
+    const leftMargin = 15;
+    const rightMargin = 195;
 
-  // Company Header - Right aligned
-  pdf.setFontSize(11);
-  pdf.setTextColor(51, 51, 51);
-  pdf.setFont(undefined, "bold");
-  pdf.text("GAF MEDIA", 210 - 20, 20, { align: "right" });
-  
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
-  pdf.setFont(undefined, "normal");
-  pdf.text("Shanemo Shatrale Baidoa Somalia", 210 - 20, 26, { align: "right" });
-  pdf.text("Phone: 0619130707", 210 - 20, 31, { align: "right" });
-  pdf.text("Email: gafmedia02@gmail.com", 210 - 20, 36, { align: "right" });
+    // Header with Blue Bar and Logo
+    pdf.setFillColor(30, 64, 175); // Blue color
+    pdf.rect(leftMargin, 10, 60, 12, "F");
+    pdf.setFontSize(16);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("BAIDOA", leftMargin + 30, 18, { align: "center" });
 
-  // Subtle line separator
-  pdf.setDrawColor(230, 230, 230);
-  pdf.setLineWidth(0.5);
-  pdf.line(20, 45, 190, 45);
+    // Logo on right
+    pdf.addImage(logoImg, "PNG", 140, 5, 55, 35);
 
-  // Invoice Title
-  pdf.setFontSize(28);
-  pdf.setTextColor(41, 98, 255);
-  pdf.setFont(undefined, "bold");
-  pdf.text("INVOICE", 20, 58);
+    // Invoice Title - Centered
+    pdf.setFontSize(20);
+    pdf.setTextColor(30, 64, 175);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("QAANSHEEG", pageWidth / 2, 55, { align: "center" });
+    
+    pdf.setFontSize(10);
+    pdf.setTextColor(220, 38, 38);
+    pdf.text("INVOICE", pageWidth / 2, 61, { align: "center" });
 
-  // Status badge
-  const statusColor = 
-    data.status === "PAID" ? [34, 197, 94] : 
-    data.status === "PARTIAL" ? [234, 179, 8] : 
-    [239, 68, 68];
-  pdf.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-  pdf.roundedRect(150, 50, 40, 10, 2, 2, "F");
-  pdf.setFontSize(10);
-  pdf.setTextColor(255, 255, 255);
-  pdf.setFont(undefined, "bold");
-  pdf.text(data.status, 170, 56.5, { align: "center" });
+    // Two Column Layout for Customer and Invoice Info
+    const infoStartY = 70;
+    const labelColor = [30, 64, 175];
+    const grayColor = [128, 128, 128];
+    const blackColor = [51, 51, 51];
 
-  // Invoice Information Box
-  pdf.setFillColor(248, 250, 252);
-  pdf.roundedRect(20, 68, 85, 28, 2, 2, "F");
-  
-  pdf.setFontSize(9);
-  pdf.setTextColor(102, 102, 102);
-  pdf.setFont(undefined, "bold");
-  pdf.text("Invoice Number:", 25, 75);
-  pdf.setFont(undefined, "normal");
-  pdf.setTextColor(51, 51, 51);
-  pdf.text(data.invoiceNumber, 25, 81);
+    pdf.setFontSize(8);
 
-  pdf.setFont(undefined, "bold");
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Invoice Date:", 25, 88);
-  pdf.setFont(undefined, "normal");
-  pdf.setTextColor(51, 51, 51);
-  pdf.text(data.invoiceDate, 25, 94);
+    // Left Column - Customer Info
+    const leftCol = leftMargin;
+    let leftY = infoStartY;
 
-  // Bill To Box
-  pdf.setFillColor(248, 250, 252);
-  pdf.roundedRect(110, 68, 80, 28, 2, 2, "F");
-  
-  pdf.setFontSize(9);
-  pdf.setFont(undefined, "bold");
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Bill To:", 115, 75);
-  
-  pdf.setFontSize(10);
-  pdf.setFont(undefined, "bold");
-  pdf.setTextColor(51, 51, 51);
-  pdf.text(data.customerName, 115, 82);
-  
-  if (data.customerContact) {
-    pdf.setFontSize(9);
-    pdf.setFont(undefined, "normal");
-    pdf.setTextColor(102, 102, 102);
-    pdf.text(data.customerContact, 115, 88);
-  }
+    const addLeftRow = (somaliLabel: string, englishLabel: string, value: string) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+      pdf.text(somaliLabel, leftCol, leftY);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      pdf.text(`(${englishLabel}):`, leftCol + 25, leftY);
+      pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
+      pdf.text(value, leftCol + 50, leftY);
+      leftY += 5;
+    };
 
-  // Items Table with modern styling
-  const tableData = data.items.map(item => [
-    item.description,
-    item.quantity.toString(),
-    `$${item.unitPrice.toFixed(2)}`,
-    `$${item.amount.toFixed(2)}`
-  ]);
+    addLeftRow("Macmiilka", "Customer", data.customerName);
+    addLeftRow("Wakiilka", "Contact Person", data.customerName);
+    addLeftRow("Lambarka", "Telephone", data.customerContact || "-");
+    addLeftRow("Emailka", "Email", data.customerEmail || "-");
+    addLeftRow("Cinwaanka", "Address", data.customerAddress || "Baidoa, Somalia");
 
-  autoTable(pdf, {
-    startY: 105,
-    head: [['Description', 'Qty', 'Unit Price', 'Amount']],
-    body: tableData,
-    theme: 'plain',
-    styles: {
-      fontSize: 10,
-      cellPadding: 4,
-      textColor: [51, 51, 51],
-      lineColor: [230, 230, 230],
-      lineWidth: 0.1,
-    },
-    headStyles: {
-      fillColor: [248, 250, 252],
-      textColor: [51, 51, 51],
-      fontStyle: 'bold',
-      fontSize: 10,
-      cellPadding: 5,
-    },
-    alternateRowStyles: {
-      fillColor: [252, 252, 253],
-    },
-    columnStyles: {
-      0: { cellWidth: 90 },
-      1: { cellWidth: 25, halign: 'center' },
-      2: { cellWidth: 35, halign: 'right' },
-      3: { cellWidth: 35, halign: 'right' },
-    },
-  });
+    // Right Column - Invoice Info
+    const rightCol = 110;
+    let rightY = infoStartY;
 
-  // Totals Section
-  const finalY = (pdf as any).lastAutoTable.finalY + 10;
-  const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0);
-  
-  // Totals box
-  pdf.setFillColor(248, 250, 252);
-  pdf.roundedRect(130, finalY, 60, 25, 2, 2, "F");
-  
-  pdf.setFontSize(10);
-  pdf.setFont(undefined, "normal");
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Subtotal:", 135, finalY + 7);
-  pdf.text(`$${subtotal.toFixed(2)}`, 185, finalY + 7, { align: 'right' });
-  
-  pdf.text("Tax (0%):", 135, finalY + 14);
-  pdf.text("$0.00", 185, finalY + 14, { align: 'right' });
-  
-  // Grand Total
-  pdf.setDrawColor(230, 230, 230);
-  pdf.line(135, finalY + 17, 185, finalY + 17);
-  
-  pdf.setFontSize(12);
-  pdf.setFont(undefined, "bold");
-  pdf.setTextColor(41, 98, 255);
-  pdf.text("Total:", 135, finalY + 23);
-  pdf.text(`$${subtotal.toFixed(2)}`, 185, finalY + 23, { align: 'right' });
+    const addRightRow = (somaliLabel: string, englishLabel: string, value: string) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(labelColor[0], labelColor[1], labelColor[2]);
+      pdf.text(somaliLabel, rightCol, rightY);
+      pdf.setFont("helvetica", "normal");
+      pdf.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      pdf.text(`(${englishLabel}):`, rightCol + 30, rightY);
+      pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
+      pdf.text(value, rightCol + 55, rightY);
+      rightY += 5;
+    };
 
-  // Payment Information Section (placeholder)
-  const paymentY = finalY + 35;
-  pdf.setFontSize(11);
-  pdf.setFont(undefined, "bold");
-  pdf.setTextColor(51, 51, 51);
-  pdf.text("Payment Information", 20, paymentY);
-  
-  pdf.setFontSize(9);
-  pdf.setFont(undefined, "normal");
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Bank Account Details:", 20, paymentY + 7);
-  pdf.text("(Payment details will be added here)", 20, paymentY + 13);
+    addRightRow("Taariikhada", "Invoice Date", data.invoiceDate);
+    addRightRow("Iibiyaha", "Salesperson", data.salesperson || "-");
+    addRightRow("Tixraaca", "Invoice#", data.invoiceNumber);
+    addRightRow("Xarunta", "Branch", "Baidoa");
+    addRightRow("Nooca Bixinta", "Payment Method", data.paymentMethod || "Cash");
 
-  // Footer
-  const footerY = 270;
-  pdf.setDrawColor(230, 230, 230);
-  pdf.line(20, footerY - 5, 190, footerY - 5);
-  
-  pdf.setFontSize(8);
-  pdf.setTextColor(102, 102, 102);
-  pdf.text("Thank you for your business!", 105, footerY, { align: "center" });
-  pdf.text("For any questions, please contact us at gafmedia02@gmail.com or call 0619130707", 105, footerY + 5, { align: "center" });
+    // Items Table
+    const tableStartY = 100;
+    const tableData = data.items.map(item => [
+      item.description,
+      item.quantity.toString(),
+      item.unitPrice.toFixed(2),
+      `$${item.amount.toFixed(2)}`
+    ]);
+
+    autoTable(pdf, {
+      startY: tableStartY,
+      head: [[
+        { content: 'Faah faahin (Description)', styles: { halign: 'left' } },
+        { content: 'Tirada (Quantity)', styles: { halign: 'center' } },
+        { content: 'Qiimaha (Unit Price)', styles: { halign: 'right' } },
+        { content: 'Wadarta (Amount)', styles: { halign: 'right' } }
+      ]],
+      body: tableData,
+      theme: 'plain',
+      styles: {
+        fontSize: 9,
+        cellPadding: 3,
+        textColor: [51, 51, 51],
+        lineColor: [200, 200, 200],
+        lineWidth: 0.1,
+      },
+      headStyles: {
+        fillColor: [30, 64, 175],
+        textColor: [255, 255, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+        cellPadding: 4,
+      },
+      bodyStyles: {
+        textColor: [220, 38, 38],
+      },
+      columnStyles: {
+        0: { cellWidth: 80, textColor: [220, 38, 38] },
+        1: { cellWidth: 25, halign: 'center', textColor: [51, 51, 51] },
+        2: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
+        3: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
+      },
+    });
+
+    // Footer Section
+    const finalY = (pdf as any).lastAutoTable.finalY + 10;
+    const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0);
+    const total = data.totalAmount ?? subtotal;
+    const amountPaid = data.amountPaid ?? 0;
+    const amountDue = total - amountPaid;
+
+    // QR Code Section
+    pdf.addImage(qrCodeImg, "PNG", leftMargin, finalY, 25, 25);
+    
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(30, 64, 175);
+    pdf.text("FADLAN HALKAAN ISKAANGAREE", leftMargin + 30, finalY + 8);
+    pdf.text("SI AAD U HUBISO", leftMargin + 30, finalY + 13);
+    pdf.setFont("helvetica", "italic");
+    pdf.setTextColor(128, 128, 128);
+    pdf.text("Please Scan Here To Verify", leftMargin + 30, finalY + 20);
+
+    // Totals Section - Right side
+    const totalsX = 130;
+    let totalsY = finalY;
+
+    const addTotalRow = (somaliLabel: string, englishLabel: string, value: string, isBold = false) => {
+      pdf.setFontSize(8);
+      pdf.setFont("helvetica", isBold ? "bold" : "normal");
+      pdf.setTextColor(51, 51, 51);
+      pdf.text(`${somaliLabel} (${englishLabel}):`, totalsX, totalsY);
+      pdf.text(value, rightMargin, totalsY, { align: "right" });
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(totalsX, totalsY + 2, rightMargin, totalsY + 2);
+      totalsY += 7;
+    };
+
+    addTotalRow("Wadarta Guud", "Total Amount", `$${total.toFixed(2)}`);
+    addTotalRow("Canshuurta Kahor", "Untaxed Amount", `$${subtotal.toFixed(2)}`);
+    addTotalRow("Canshuurta", "VAT", "$0.00");
+    addTotalRow("Lacagta La Bixiyey", "Amount Paid", `$${amountPaid.toFixed(2)}`);
+    
+    // Amount Due - Highlighted
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Haraa (Amount Due):", totalsX, totalsY);
+    if (amountDue > 0) {
+      pdf.setTextColor(220, 38, 38);
+    } else {
+      pdf.setTextColor(34, 197, 94);
+    }
+    pdf.text(`$${amountDue.toFixed(2)}`, rightMargin, totalsY, { align: "right" });
+
+    // Status Badge at bottom
+    const statusY = totalsY + 15;
+    const statusText = data.status === "PAID" ? "PAID / LA BIXIYEY" : 
+                       data.status === "PARTIAL" ? "PARTIAL / QAYB" : 
+                       "UNPAID / LAMA BIXIN";
+    const statusColor = data.status === "PAID" ? [34, 197, 94] : 
+                        data.status === "PARTIAL" ? [234, 179, 8] : 
+                        [220, 38, 38];
+    
+    pdf.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
+    const statusWidth = 45;
+    pdf.roundedRect(pageWidth / 2 - statusWidth / 2, statusY - 4, statusWidth, 8, 2, 2, "F");
+    pdf.setFontSize(8);
+    pdf.setTextColor(255, 255, 255);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(statusText, pageWidth / 2, statusY + 1, { align: "center" });
 
     console.log("PDF generation complete, initiating download...");
     const filename = `Invoice-${invoiceNumber}.pdf`;
