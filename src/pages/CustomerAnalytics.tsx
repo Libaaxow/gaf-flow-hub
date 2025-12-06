@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { 
   ArrowLeft,
@@ -13,14 +13,13 @@ import {
   Phone, 
   Building2, 
   DollarSign,
-  FileText,
   TrendingUp,
   Gift,
   Heart,
   Package,
   Calendar
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isAfter } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 interface Customer {
@@ -51,6 +50,8 @@ interface Invoice {
   invoice_date: string;
 }
 
+type DateFilter = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all';
+
 const CustomerAnalytics = () => {
   const { customerId } = useParams();
   const navigate = useNavigate();
@@ -59,6 +60,7 @@ const CustomerAnalytics = () => {
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
   useEffect(() => {
     if (customerId) {
@@ -80,20 +82,20 @@ const CustomerAnalytics = () => {
       if (customerError) throw customerError;
       setCustomer(customerData);
 
-      // Fetch orders
+      // Fetch orders with all needed fields
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
-        .select('*')
+        .select('id, job_title, order_value, amount_paid, payment_status, status, created_at')
         .eq('customer_id', customerId)
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
 
-      // Fetch invoices
+      // Fetch invoices with all needed fields
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
-        .select('*')
+        .select('id, invoice_number, total_amount, amount_paid, status, invoice_date')
         .eq('customer_id', customerId)
         .order('invoice_date', { ascending: false });
 
@@ -109,6 +111,38 @@ const CustomerAnalytics = () => {
       setLoading(false);
     }
   };
+
+  // Get filter start date based on selected filter
+  const getFilterStartDate = (filter: DateFilter): Date | null => {
+    const now = new Date();
+    switch (filter) {
+      case 'daily':
+        return startOfDay(now);
+      case 'weekly':
+        return startOfWeek(now, { weekStartsOn: 1 });
+      case 'monthly':
+        return startOfMonth(now);
+      case 'yearly':
+        return startOfYear(now);
+      case 'all':
+      default:
+        return null;
+    }
+  };
+
+  // Filter orders based on date filter
+  const filteredOrders = useMemo(() => {
+    const startDate = getFilterStartDate(dateFilter);
+    if (!startDate) return orders;
+    return orders.filter(order => isAfter(new Date(order.created_at), startDate));
+  }, [orders, dateFilter]);
+
+  // Filter invoices based on date filter
+  const filteredInvoices = useMemo(() => {
+    const startDate = getFilterStartDate(dateFilter);
+    if (!startDate) return invoices;
+    return invoices.filter(invoice => isAfter(new Date(invoice.invoice_date), startDate));
+  }, [invoices, dateFilter]);
 
   if (loading) {
     return (
@@ -136,21 +170,23 @@ const CustomerAnalytics = () => {
     );
   }
 
-  // Calculate metrics
-  const totalRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
-  const totalPaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
+  // Calculate metrics based on filtered data
+  const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.order_value || 0), 0);
+  const totalPaid = filteredOrders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
   const totalOutstanding = totalRevenue - totalPaid;
-  const totalOrders = orders.length;
-  const totalInvoices = invoices.length;
+  const totalOrders = filteredOrders.length;
+  const totalInvoices = filteredInvoices.length;
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
   
-  // Calculate loyalty score (0-100)
+  // Calculate loyalty score (0-100) - using all-time data for consistency
+  const allTimeRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
+  const allTimePaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
   const daysSinceFirstOrder = customer.created_at ? 
     Math.floor((Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  const ordersPerMonth = daysSinceFirstOrder > 0 ? (totalOrders / (daysSinceFirstOrder / 30)) : 0;
-  const paymentRate = totalRevenue > 0 ? (totalPaid / totalRevenue) * 100 : 0;
+  const ordersPerMonth = daysSinceFirstOrder > 0 ? (orders.length / (daysSinceFirstOrder / 30)) : 0;
+  const paymentRate = allTimeRevenue > 0 ? (allTimePaid / allTimeRevenue) * 100 : 0;
   const loyaltyScore = Math.min(100, Math.round(
-    (ordersPerMonth * 20) + (paymentRate * 0.3) + (totalOrders * 2)
+    (ordersPerMonth * 20) + (paymentRate * 0.3) + (orders.length * 2)
   ));
 
   // Get loyalty level
@@ -163,23 +199,41 @@ const CustomerAnalytics = () => {
 
   const loyaltyLevel = getLoyaltyLevel(loyaltyScore);
 
-  // Prepare revenue over time data (last 6 months)
-  const revenueByMonth = orders.reduce((acc, order) => {
-    const month = format(new Date(order.created_at), 'MMM yyyy');
-    if (!acc[month]) {
-      acc[month] = 0;
+  // Prepare revenue over time data based on filter
+  const revenueByPeriod = filteredOrders.reduce((acc, order) => {
+    let periodKey: string;
+    const orderDate = new Date(order.created_at);
+    
+    switch (dateFilter) {
+      case 'daily':
+        periodKey = format(orderDate, 'HH:00');
+        break;
+      case 'weekly':
+        periodKey = format(orderDate, 'EEE');
+        break;
+      case 'monthly':
+        periodKey = format(orderDate, 'dd MMM');
+        break;
+      case 'yearly':
+        periodKey = format(orderDate, 'MMM');
+        break;
+      default:
+        periodKey = format(orderDate, 'MMM yyyy');
     }
-    acc[month] += order.order_value || 0;
+    
+    if (!acc[periodKey]) {
+      acc[periodKey] = 0;
+    }
+    acc[periodKey] += order.order_value || 0;
     return acc;
   }, {} as Record<string, number>);
 
-  const revenueData = Object.entries(revenueByMonth)
-    .map(([month, revenue]) => ({ month, revenue }))
-    .slice(-6);
+  const revenueData = Object.entries(revenueByPeriod)
+    .map(([period, revenue]) => ({ period, revenue }));
 
   // Invoice status breakdown
-  const invoiceStatusData = invoices.reduce((acc, invoice) => {
-    const status = invoice.status;
+  const invoiceStatusData = filteredInvoices.reduce((acc, invoice) => {
+    const status = invoice.status || 'unknown';
     const existing = acc.find(item => item.name === status);
     if (existing) {
       existing.value += 1;
@@ -190,8 +244,8 @@ const CustomerAnalytics = () => {
   }, [] as Array<{ name: string; value: number }>);
 
   // Payment status breakdown
-  const paymentStatusData = orders.reduce((acc, order) => {
-    const status = order.payment_status;
+  const paymentStatusData = filteredOrders.reduce((acc, order) => {
+    const status = order.payment_status || 'unknown';
     const existing = acc.find(item => item.name === status);
     if (existing) {
       existing.value += 1;
@@ -203,11 +257,21 @@ const CustomerAnalytics = () => {
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
+  const getFilterLabel = (filter: DateFilter) => {
+    switch (filter) {
+      case 'daily': return 'Today';
+      case 'weekly': return 'This Week';
+      case 'monthly': return 'This Month';
+      case 'yearly': return 'This Year';
+      case 'all': return 'All Time';
+    }
+  };
+
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={() => navigate('/customers')}>
               <ArrowLeft className="h-5 w-5" />
@@ -224,6 +288,21 @@ const CustomerAnalytics = () => {
             {loyaltyLevel.icon} {loyaltyLevel.label} Customer
           </Badge>
         </div>
+
+        {/* Date Filter Tabs */}
+        <Card>
+          <CardContent className="pt-4">
+            <Tabs value={dateFilter} onValueChange={(value) => setDateFilter(value as DateFilter)}>
+              <TabsList className="grid w-full grid-cols-5">
+                <TabsTrigger value="daily">Daily</TabsTrigger>
+                <TabsTrigger value="weekly">Weekly</TabsTrigger>
+                <TabsTrigger value="monthly">Monthly</TabsTrigger>
+                <TabsTrigger value="yearly">Yearly</TabsTrigger>
+                <TabsTrigger value="all">All Time</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardContent>
+        </Card>
 
         {/* Customer Info Card */}
         <Card>
@@ -278,7 +357,7 @@ const CustomerAnalytics = () => {
             <CardContent>
               <div className="text-2xl font-bold text-primary">${totalRevenue.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Paid: ${totalPaid.toLocaleString()}
+                {getFilterLabel(dateFilter)} • Paid: ${totalPaid.toLocaleString()}
               </p>
             </CardContent>
           </Card>
@@ -304,7 +383,7 @@ const CustomerAnalytics = () => {
             <CardContent>
               <div className="text-2xl font-bold text-green-500">{totalOrders}</div>
               <p className="text-xs text-muted-foreground mt-1">
-                Avg: ${averageOrderValue.toFixed(0)} per order
+                {getFilterLabel(dateFilter)} • Avg: ${averageOrderValue.toFixed(0)}
               </p>
             </CardContent>
           </Card>
@@ -342,7 +421,7 @@ const CustomerAnalytics = () => {
                   <div>
                     <p className="font-medium">Send Thank You Card</p>
                     <p className="text-sm text-muted-foreground">
-                      Express gratitude for ${totalRevenue.toLocaleString()} in business
+                      Express gratitude for ${allTimeRevenue.toLocaleString()} in total business
                     </p>
                   </div>
                 </div>
@@ -386,25 +465,31 @@ const CustomerAnalytics = () => {
           <Card>
             <CardHeader>
               <CardTitle>Revenue Over Time</CardTitle>
-              <CardDescription>Last 6 months of revenue</CardDescription>
+              <CardDescription>{getFilterLabel(dateFilter)} revenue breakdown</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="hsl(var(--primary))" 
-                    strokeWidth={2}
-                    name="Revenue ($)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {revenueData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={revenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="period" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']} />
+                    <Legend />
+                    <Line 
+                      type="monotone" 
+                      dataKey="revenue" 
+                      stroke="hsl(var(--primary))" 
+                      strokeWidth={2}
+                      name="Revenue ($)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No data for {getFilterLabel(dateFilter).toLowerCase()}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -412,40 +497,46 @@ const CustomerAnalytics = () => {
           <Card>
             <CardHeader>
               <CardTitle>Payment Status</CardTitle>
-              <CardDescription>Order payment distribution</CardDescription>
+              <CardDescription>Order payment distribution - {getFilterLabel(dateFilter)}</CardDescription>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={paymentStatusData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {paymentStatusData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+              {paymentStatusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={paymentStatusData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, value }) => `${name}: ${value}`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {paymentStatusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                  No data for {getFilterLabel(dateFilter).toLowerCase()}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
 
         {/* Invoice Status Chart */}
-        {invoices.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Invoice Overview</CardTitle>
-              <CardDescription>{totalInvoices} total invoices</CardDescription>
-            </CardHeader>
-            <CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice Overview</CardTitle>
+            <CardDescription>{totalInvoices} invoices - {getFilterLabel(dateFilter)}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {invoiceStatusData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={invoiceStatusData}>
                   <CartesianGrid strokeDasharray="3 3" />
@@ -456,47 +547,55 @@ const CustomerAnalytics = () => {
                   <Bar dataKey="value" fill="hsl(var(--primary))" name="Invoice Count" />
                 </BarChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+                No invoices for {getFilterLabel(dateFilter).toLowerCase()}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>Latest 5 orders from this customer</CardDescription>
+            <CardTitle>Orders - {getFilterLabel(dateFilter)}</CardTitle>
+            <CardDescription>{filteredOrders.length} orders found</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {orders.slice(0, 5).map((order) => (
-                <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                  <div className="flex-1">
-                    <p className="font-medium">{order.job_title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {format(new Date(order.created_at), 'PPP')}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="text-right">
-                      <p className="font-semibold">${order.order_value.toLocaleString()}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Paid: ${order.amount_paid.toLocaleString()}
-                      </p>
+              {filteredOrders.length > 0 ? (
+                filteredOrders.slice(0, 10).map((order) => (
+                  <div 
+                    key={order.id} 
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/orders/${order.id}`)}
+                  >
+                    <div className="flex items-center gap-4">
+                      <Package className="h-8 w-8 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{order.job_title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(order.created_at), 'PPp')}
+                        </p>
+                      </div>
                     </div>
-                    <Badge className={
-                      order.payment_status === 'paid' 
-                        ? 'bg-green-500/10 text-green-500' 
-                        : order.payment_status === 'partial'
-                        ? 'bg-orange-500/10 text-orange-500'
-                        : 'bg-red-500/10 text-red-500'
-                    }>
-                      {order.payment_status}
-                    </Badge>
+                    <div className="text-right">
+                      <p className="font-bold">${(order.order_value || 0).toLocaleString()}</p>
+                      <Badge 
+                        variant={
+                          order.payment_status === 'paid' ? 'default' : 
+                          order.payment_status === 'partial' ? 'secondary' : 'destructive'
+                        }
+                      >
+                        {order.payment_status || 'unpaid'}
+                      </Badge>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  No orders found for {getFilterLabel(dateFilter).toLowerCase()}
                 </div>
-              ))}
-              {orders.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">No orders yet</p>
               )}
             </div>
           </CardContent>
