@@ -37,14 +37,21 @@ const Dashboard = () => {
     const fetchStats = async () => {
       try {
         // Check user role
-        const { data: roleData } = await supabase
+        const { data: roleData, error: roleError } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', user?.id)
-          .single();
+          .maybeSingle();
 
+        if (roleError) {
+          console.error('Error fetching user role:', roleError);
+        }
+        
         if (roleData) {
+          console.log('User role found:', roleData.role);
           setUserRole(roleData.role);
+        } else {
+          console.log('No role found for user:', user?.id);
         }
         
 
