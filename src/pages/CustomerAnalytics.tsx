@@ -17,7 +17,8 @@ import {
   Gift,
   Heart,
   Package,
-  Calendar
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { format, startOfDay, startOfWeek, startOfMonth, startOfYear, isAfter } from 'date-fns';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
@@ -170,23 +171,42 @@ const CustomerAnalytics = () => {
     );
   }
 
-  // Calculate metrics based on filtered data
-  const totalRevenue = filteredOrders.reduce((sum, order) => sum + (order.order_value || 0), 0);
-  const totalPaid = filteredOrders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
+  // Calculate metrics from BOTH orders AND invoices
+  // Use orders if available, otherwise fall back to invoices
+  const orderRevenue = filteredOrders.reduce((sum, order) => sum + (order.order_value || 0), 0);
+  const orderPaid = filteredOrders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
+  
+  // Invoice-based metrics
+  const invoiceTotal = filteredInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const invoicePaid = filteredInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+  
+  // Use whichever source has data (prefer invoices as they're more accurate for financial tracking)
+  const totalRevenue = invoiceTotal > 0 ? invoiceTotal : orderRevenue;
+  const totalPaid = invoicePaid > 0 ? invoicePaid : orderPaid;
   const totalOutstanding = totalRevenue - totalPaid;
+  
   const totalOrders = filteredOrders.length;
-  const totalInvoices = filteredInvoices.length;
-  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0;
+  const totalInvoiceCount = filteredInvoices.length;
+  const averageValue = totalInvoiceCount > 0 
+    ? invoiceTotal / totalInvoiceCount 
+    : (totalOrders > 0 ? orderRevenue / totalOrders : 0);
   
   // Calculate loyalty score (0-100) - using all-time data for consistency
-  const allTimeRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
-  const allTimePaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
+  const allTimeInvoiceTotal = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const allTimeInvoicePaid = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+  const allTimeOrderRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
+  const allTimeOrderPaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
+  
+  const allTimeRevenue = allTimeInvoiceTotal > 0 ? allTimeInvoiceTotal : allTimeOrderRevenue;
+  const allTimePaid = allTimeInvoicePaid > 0 ? allTimeInvoicePaid : allTimeOrderPaid;
+  
   const daysSinceFirstOrder = customer.created_at ? 
     Math.floor((Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  const ordersPerMonth = daysSinceFirstOrder > 0 ? (orders.length / (daysSinceFirstOrder / 30)) : 0;
+  const totalTransactions = Math.max(orders.length, invoices.length);
+  const transactionsPerMonth = daysSinceFirstOrder > 0 ? (totalTransactions / (daysSinceFirstOrder / 30)) : 0;
   const paymentRate = allTimeRevenue > 0 ? (allTimePaid / allTimeRevenue) * 100 : 0;
   const loyaltyScore = Math.min(100, Math.round(
-    (ordersPerMonth * 20) + (paymentRate * 0.3) + (orders.length * 2)
+    (transactionsPerMonth * 20) + (paymentRate * 0.3) + (totalTransactions * 2)
   ));
 
   // Get loyalty level
@@ -199,32 +219,34 @@ const CustomerAnalytics = () => {
 
   const loyaltyLevel = getLoyaltyLevel(loyaltyScore);
 
-  // Prepare revenue over time data based on filter
-  const revenueByPeriod = filteredOrders.reduce((acc, order) => {
+  // Prepare revenue over time data - use invoices if available, otherwise orders
+  const revenueSource = filteredInvoices.length > 0 ? filteredInvoices : filteredOrders;
+  const revenueByPeriod = revenueSource.reduce((acc, item) => {
     let periodKey: string;
-    const orderDate = new Date(order.created_at);
+    const itemDate = new Date('invoice_date' in item ? item.invoice_date : item.created_at);
     
     switch (dateFilter) {
       case 'daily':
-        periodKey = format(orderDate, 'HH:00');
+        periodKey = format(itemDate, 'HH:00');
         break;
       case 'weekly':
-        periodKey = format(orderDate, 'EEE');
+        periodKey = format(itemDate, 'EEE');
         break;
       case 'monthly':
-        periodKey = format(orderDate, 'dd MMM');
+        periodKey = format(itemDate, 'dd MMM');
         break;
       case 'yearly':
-        periodKey = format(orderDate, 'MMM');
+        periodKey = format(itemDate, 'MMM');
         break;
       default:
-        periodKey = format(orderDate, 'MMM yyyy');
+        periodKey = format(itemDate, 'MMM yyyy');
     }
     
     if (!acc[periodKey]) {
       acc[periodKey] = 0;
     }
-    acc[periodKey] += order.order_value || 0;
+    const amount = 'total_amount' in item ? item.total_amount : item.order_value;
+    acc[periodKey] += amount || 0;
     return acc;
   }, {} as Record<string, number>);
 
@@ -243,17 +265,30 @@ const CustomerAnalytics = () => {
     return acc;
   }, [] as Array<{ name: string; value: number }>);
 
-  // Payment status breakdown
-  const paymentStatusData = filteredOrders.reduce((acc, order) => {
-    const status = order.payment_status || 'unknown';
-    const existing = acc.find(item => item.name === status);
-    if (existing) {
-      existing.value += 1;
-    } else {
-      acc.push({ name: status, value: 1 });
-    }
-    return acc;
-  }, [] as Array<{ name: string; value: number }>);
+  // Payment status breakdown - combine orders and invoices
+  const paymentStatusData: Array<{ name: string; value: number }> = [];
+  
+  if (filteredInvoices.length > 0) {
+    filteredInvoices.forEach(inv => {
+      const status = inv.status === 'paid' ? 'paid' : (inv.amount_paid > 0 ? 'partial' : 'unpaid');
+      const existing = paymentStatusData.find(item => item.name === status);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        paymentStatusData.push({ name: status, value: 1 });
+      }
+    });
+  } else if (filteredOrders.length > 0) {
+    filteredOrders.forEach(order => {
+      const status = order.payment_status || 'unknown';
+      const existing = paymentStatusData.find(item => item.name === status);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        paymentStatusData.push({ name: status, value: 1 });
+      }
+    });
+  }
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -377,13 +412,21 @@ const CustomerAnalytics = () => {
 
           <Card className="border-green-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
-              <Package className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-medium">
+                {totalInvoiceCount > 0 ? 'Total Invoices' : 'Total Orders'}
+              </CardTitle>
+              {totalInvoiceCount > 0 ? (
+                <FileText className="h-4 w-4 text-green-500" />
+              ) : (
+                <Package className="h-4 w-4 text-green-500" />
+              )}
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">{totalOrders}</div>
+              <div className="text-2xl font-bold text-green-500">
+                {totalInvoiceCount > 0 ? totalInvoiceCount : totalOrders}
+              </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {getFilterLabel(dateFilter)} • Avg: ${averageOrderValue.toFixed(0)}
+                {getFilterLabel(dateFilter)} • Avg: ${averageValue.toFixed(0)}
               </p>
             </CardContent>
           </Card>
@@ -396,7 +439,7 @@ const CustomerAnalytics = () => {
             <CardContent>
               <div className="text-2xl font-bold text-purple-500">{loyaltyScore}/100</div>
               <p className="text-xs text-muted-foreground mt-1">
-                {loyaltyScore >= 60 ? 'Excellent loyalty! 🎉' : 'Building relationship'}
+                {loyaltyScore >= 60 ? 'Excellent loyalty!' : 'Building relationship'}
               </p>
             </CardContent>
           </Card>
@@ -497,7 +540,7 @@ const CustomerAnalytics = () => {
           <Card>
             <CardHeader>
               <CardTitle>Payment Status</CardTitle>
-              <CardDescription>Order payment distribution - {getFilterLabel(dateFilter)}</CardDescription>
+              <CardDescription>Payment distribution - {getFilterLabel(dateFilter)}</CardDescription>
             </CardHeader>
             <CardContent>
               {paymentStatusData.length > 0 ? (
@@ -533,7 +576,7 @@ const CustomerAnalytics = () => {
         <Card>
           <CardHeader>
             <CardTitle>Invoice Overview</CardTitle>
-            <CardDescription>{totalInvoices} invoices - {getFilterLabel(dateFilter)}</CardDescription>
+            <CardDescription>{totalInvoiceCount} invoices - {getFilterLabel(dateFilter)}</CardDescription>
           </CardHeader>
           <CardContent>
             {invoiceStatusData.length > 0 ? (
@@ -555,16 +598,62 @@ const CustomerAnalytics = () => {
           </CardContent>
         </Card>
 
-        {/* Recent Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Orders - {getFilterLabel(dateFilter)}</CardTitle>
-            <CardDescription>{filteredOrders.length} orders found</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {filteredOrders.length > 0 ? (
-                filteredOrders.slice(0, 10).map((order) => (
+        {/* Recent Invoices */}
+        {filteredInvoices.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoices - {getFilterLabel(dateFilter)}</CardTitle>
+              <CardDescription>{filteredInvoices.length} invoices found</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredInvoices.slice(0, 10).map((invoice) => (
+                  <div 
+                    key={invoice.id} 
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-4">
+                      <FileText className="h-8 w-8 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">{invoice.invoice_number}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {format(new Date(invoice.invoice_date), 'PP')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-bold">${(invoice.total_amount || 0).toLocaleString()}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">
+                          Paid: ${(invoice.amount_paid || 0).toLocaleString()}
+                        </span>
+                        <Badge 
+                          variant={
+                            invoice.status === 'paid' ? 'default' : 
+                            invoice.status === 'partial' ? 'secondary' : 'destructive'
+                          }
+                        >
+                          {invoice.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Recent Orders */}
+        {filteredOrders.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Orders - {getFilterLabel(dateFilter)}</CardTitle>
+              <CardDescription>{filteredOrders.length} orders found</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {filteredOrders.slice(0, 10).map((order) => (
                   <div 
                     key={order.id} 
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
@@ -591,15 +680,22 @@ const CustomerAnalytics = () => {
                       </Badge>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  No orders found for {getFilterLabel(dateFilter).toLowerCase()}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Empty state */}
+        {filteredOrders.length === 0 && filteredInvoices.length === 0 && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="text-center text-muted-foreground">
+                No orders or invoices found for {getFilterLabel(dateFilter).toLowerCase()}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );
