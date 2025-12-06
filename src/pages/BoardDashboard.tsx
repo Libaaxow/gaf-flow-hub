@@ -89,57 +89,6 @@ const BoardDashboard = () => {
   const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
 
-  const fetchAllData = useCallback(async () => {
-    if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
-    setLoading(true);
-    try {
-      await Promise.all([
-        fetchStats(),
-        fetchMonthlyData(),
-        fetchRecentPayments(),
-        fetchRecentExpenses(),
-        fetchTopCustomers(),
-      ]);
-    } catch (error) {
-      console.error('Error fetching board data:', error);
-    } finally {
-      setLoading(false);
-      isFetchingRef.current = false;
-    }
-  }, [startDate, endDate]);
-
-  const debouncedFetch = useCallback(() => {
-    if (refetchTimeoutRef.current) {
-      clearTimeout(refetchTimeoutRef.current);
-    }
-    refetchTimeoutRef.current = setTimeout(() => {
-      fetchAllData();
-    }, 1000);
-  }, [fetchAllData]);
-
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
-
-  useEffect(() => {
-    const channel = supabase
-      .channel('board-all-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, debouncedFetch)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, debouncedFetch)
-      .subscribe();
-
-    return () => {
-      if (refetchTimeoutRef.current) {
-        clearTimeout(refetchTimeoutRef.current);
-      }
-      supabase.removeChannel(channel);
-    };
-  }, [debouncedFetch]);
-
   const handleDatePresetChange = (preset: string) => {
     setDateRangePreset(preset);
     const today = new Date();
@@ -168,41 +117,32 @@ const BoardDashboard = () => {
     }
   };
 
-  // fetchAllData is defined above as a useCallback
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
-      // Get all orders
       const { data: ordersData } = await supabase
         .from('orders')
         .select('order_value, amount_paid, status');
 
-      // Get all invoices
       const { data: invoicesData } = await supabase
         .from('invoices')
         .select('total_amount, amount_paid, order_id');
 
-      // Get all commissions
       const { data: commissionsData } = await supabase
         .from('commissions')
         .select('commission_amount, paid_status');
 
-      // Get approved expenses
       const { data: expensesData } = await supabase
         .from('expenses')
         .select('amount, approval_status')
         .eq('approval_status', 'approved');
 
-      // Get customer count
       const { count: customerCount } = await supabase
         .from('customers')
         .select('*', { count: 'exact', head: true });
 
-      // Calculate revenue from orders
       const orderRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
       const orderCollected = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
 
-      // Standalone invoices (not linked to orders)
       const standaloneInvoices = invoicesData?.filter(inv => !inv.order_id) || [];
       const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
       const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
@@ -237,9 +177,9 @@ const BoardDashboard = () => {
     } catch (error) {
       console.error('Error fetching stats:', error);
     }
-  };
+  }, []);
 
-  const fetchMonthlyData = async () => {
+  const fetchMonthlyData = useCallback(async () => {
     try {
       const { data: payments } = await supabase
         .from('payments')
@@ -254,7 +194,6 @@ const BoardDashboard = () => {
         .gte('expense_date', startDate.toISOString())
         .lte('expense_date', endDate.toISOString());
 
-      // Group by month
       const monthlyMap = new Map<string, { revenue: number; expenses: number }>();
 
       payments?.forEach(p => {
@@ -280,9 +219,9 @@ const BoardDashboard = () => {
     } catch (error) {
       console.error('Error fetching monthly data:', error);
     }
-  };
+  }, [startDate, endDate]);
 
-  const fetchRecentPayments = async () => {
+  const fetchRecentPayments = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('payments')
@@ -301,9 +240,9 @@ const BoardDashboard = () => {
     } catch (error) {
       console.error('Error fetching payments:', error);
     }
-  };
+  }, []);
 
-  const fetchRecentExpenses = async () => {
+  const fetchRecentExpenses = useCallback(async () => {
     try {
       const { data } = await supabase
         .from('expenses')
@@ -315,15 +254,14 @@ const BoardDashboard = () => {
     } catch (error) {
       console.error('Error fetching expenses:', error);
     }
-  };
+  }, []);
 
-  const fetchTopCustomers = async () => {
+  const fetchTopCustomers = useCallback(async () => {
     try {
       const { data: invoices } = await supabase
         .from('invoices')
         .select('customer_id, total_amount, customer:customers(name)');
 
-      // Group by customer
       const customerMap = new Map<string, { name: string; total: number }>();
       invoices?.forEach(inv => {
         const existing = customerMap.get(inv.customer_id) || { name: (inv.customer as any)?.name || 'Unknown', total: 0 };
@@ -339,7 +277,58 @@ const BoardDashboard = () => {
     } catch (error) {
       console.error('Error fetching top customers:', error);
     }
-  };
+  }, []);
+
+  const fetchAllData = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    setLoading(true);
+    try {
+      await Promise.all([
+        fetchStats(),
+        fetchMonthlyData(),
+        fetchRecentPayments(),
+        fetchRecentExpenses(),
+        fetchTopCustomers(),
+      ]);
+    } catch (error) {
+      console.error('Error fetching board data:', error);
+    } finally {
+      setLoading(false);
+      isFetchingRef.current = false;
+    }
+  }, [fetchStats, fetchMonthlyData, fetchRecentPayments, fetchRecentExpenses, fetchTopCustomers]);
+
+  const debouncedFetch = useCallback(() => {
+    if (refetchTimeoutRef.current) {
+      clearTimeout(refetchTimeoutRef.current);
+    }
+    refetchTimeoutRef.current = setTimeout(() => {
+      fetchAllData();
+    }, 1000);
+  }, [fetchAllData]);
+
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel('board-all-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, debouncedFetch)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, debouncedFetch)
+      .subscribe();
+
+    return () => {
+      if (refetchTimeoutRef.current) {
+        clearTimeout(refetchTimeoutRef.current);
+      }
+      supabase.removeChannel(channel);
+    };
+  }, [debouncedFetch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
