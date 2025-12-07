@@ -560,6 +560,113 @@ export type Database = {
           },
         ]
       }
+      product_vendors: {
+        Row: {
+          created_at: string
+          id: string
+          is_preferred: boolean
+          notes: string | null
+          product_id: string
+          unit_cost: number
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_preferred?: boolean
+          notes?: string | null
+          product_id: string
+          unit_cost?: number
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_preferred?: boolean
+          notes?: string | null
+          product_id?: string
+          unit_cost?: number
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_vendors_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_vendors_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          category: string | null
+          cost_price: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          name: string
+          preferred_vendor_id: string | null
+          product_code: string
+          reorder_level: number
+          selling_price: number
+          status: string
+          stock_quantity: number
+          unit: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          preferred_vendor_id?: string | null
+          product_code: string
+          reorder_level?: number
+          selling_price?: number
+          status?: string
+          stock_quantity?: number
+          unit?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          cost_price?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          preferred_vendor_id?: string | null
+          product_code?: string
+          reorder_level?: number
+          selling_price?: number
+          status?: string
+          stock_quantity?: number
+          unit?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "products_preferred_vendor_id_fkey"
+            columns: ["preferred_vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -595,6 +702,122 @@ export type Database = {
           whatsapp_number?: string | null
         }
         Relationships: []
+      }
+      purchase_order_items: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          product_id: string
+          purchase_order_id: string
+          quantity: number
+          received_quantity: number
+          unit_cost: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          product_id: string
+          purchase_order_id: string
+          quantity?: number
+          received_quantity?: number
+          unit_cost?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          product_id?: string
+          purchase_order_id?: string
+          quantity?: number
+          received_quantity?: number
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_order_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_order_items_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          delivery_terms: string | null
+          expected_delivery_date: string | null
+          id: string
+          notes: string | null
+          order_date: string
+          po_number: string
+          received_date: string | null
+          status: Database["public"]["Enums"]["purchase_order_status"]
+          subtotal: number
+          total_amount: number
+          updated_at: string
+          vat_amount: number
+          vat_enabled: boolean
+          vat_percentage: number
+          vendor_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          delivery_terms?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number: string
+          received_date?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_enabled?: boolean
+          vat_percentage?: number
+          vendor_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          delivery_terms?: string | null
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          order_date?: string
+          po_number?: string
+          received_date?: string | null
+          status?: Database["public"]["Enums"]["purchase_order_status"]
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number
+          vat_enabled?: boolean
+          vat_percentage?: number
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotation_items: {
         Row: {
@@ -715,6 +938,30 @@ export type Database = {
           },
         ]
       }
+      tax_settings: {
+        Row: {
+          id: string
+          updated_at: string
+          updated_by: string | null
+          vat_enabled: boolean
+          vat_percentage: number
+        }
+        Insert: {
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          vat_enabled?: boolean
+          vat_percentage?: number
+        }
+        Update: {
+          id?: string
+          updated_at?: string
+          updated_by?: string | null
+          vat_enabled?: boolean
+          vat_percentage?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -740,6 +987,132 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_bills: {
+        Row: {
+          amount_paid: number
+          bill_date: string
+          bill_number: string
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          notes: string | null
+          purchase_order_id: string | null
+          status: Database["public"]["Enums"]["vendor_bill_status"]
+          subtotal: number
+          total_amount: number
+          updated_at: string
+          vat_amount: number
+          vendor_id: string
+        }
+        Insert: {
+          amount_paid?: number
+          bill_date?: string
+          bill_number: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          status?: Database["public"]["Enums"]["vendor_bill_status"]
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number
+          vendor_id: string
+        }
+        Update: {
+          amount_paid?: number
+          bill_date?: string
+          bill_number?: string
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          notes?: string | null
+          purchase_order_id?: string | null
+          status?: Database["public"]["Enums"]["vendor_bill_status"]
+          subtotal?: number
+          total_amount?: number
+          updated_at?: string
+          vat_amount?: number
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_bills_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_bills_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendor_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string
+          payment_number: string
+          recorded_by: string | null
+          reference_number: string | null
+          vendor_bill_id: string | null
+          vendor_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method: string
+          payment_number: string
+          recorded_by?: string | null
+          reference_number?: string | null
+          vendor_bill_id?: string | null
+          vendor_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string
+          payment_number?: string
+          recorded_by?: string | null
+          reference_number?: string | null
+          vendor_bill_id?: string | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_payments_vendor_bill_id_fkey"
+            columns: ["vendor_bill_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_bills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_payments_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
             referencedColumns: ["id"]
           },
         ]
@@ -795,8 +1168,12 @@ export type Database = {
     }
     Functions: {
       generate_invoice_number: { Args: never; Returns: string }
+      generate_po_number: { Args: never; Returns: string }
+      generate_product_code: { Args: never; Returns: string }
       generate_quotation_number: { Args: never; Returns: string }
+      generate_vendor_bill_number: { Args: never; Returns: string }
       generate_vendor_code: { Args: never; Returns: string }
+      generate_vendor_payment_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -855,6 +1232,12 @@ export type Database = {
         | "mug"
         | "sticker"
         | "other"
+      purchase_order_status:
+        | "draft"
+        | "sent"
+        | "approved"
+        | "received"
+        | "cancelled"
       quotation_status:
         | "draft"
         | "sent"
@@ -863,6 +1246,7 @@ export type Database = {
         | "rejected"
         | "expired"
         | "cancelled"
+      vendor_bill_status: "unpaid" | "partially_paid" | "paid"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1033,6 +1417,13 @@ export const Constants = {
         "sticker",
         "other",
       ],
+      purchase_order_status: [
+        "draft",
+        "sent",
+        "approved",
+        "received",
+        "cancelled",
+      ],
       quotation_status: [
         "draft",
         "sent",
@@ -1042,6 +1433,7 @@ export const Constants = {
         "expired",
         "cancelled",
       ],
+      vendor_bill_status: ["unpaid", "partially_paid", "paid"],
     },
   },
 } as const
