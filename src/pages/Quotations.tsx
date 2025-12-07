@@ -89,7 +89,7 @@ interface Quotation {
   tax_rate: number;
   tax_amount: number;
   total_amount: number;
-  status: 'draft' | 'sent' | 'approved' | 'converted';
+  status: 'draft' | 'sent' | 'approved' | 'converted' | 'rejected' | 'expired' | 'cancelled';
   notes: string | null;
   terms: string | null;
   converted_invoice_id: string | null;
@@ -135,6 +135,9 @@ const Quotations = () => {
     sent: 0,
     approved: 0,
     converted: 0,
+    rejected: 0,
+    expired: 0,
+    cancelled: 0,
     conversionRate: 0,
   });
 
@@ -159,7 +162,7 @@ const Quotations = () => {
       
       const typedData = (data || []).map(q => ({
         ...q,
-        status: q.status as 'draft' | 'sent' | 'approved' | 'converted'
+        status: q.status as 'draft' | 'sent' | 'approved' | 'converted' | 'rejected' | 'expired' | 'cancelled'
       }));
       
       setQuotations(typedData);
@@ -170,9 +173,12 @@ const Quotations = () => {
       const sent = typedData.filter(q => q.status === 'sent').length;
       const approved = typedData.filter(q => q.status === 'approved').length;
       const converted = typedData.filter(q => q.status === 'converted').length;
+      const rejected = typedData.filter(q => q.status === 'rejected').length;
+      const expired = typedData.filter(q => q.status === 'expired').length;
+      const cancelled = typedData.filter(q => q.status === 'cancelled').length;
       const conversionRate = total > 0 ? ((converted / total) * 100) : 0;
 
-      setStats({ total, draft, sent, approved, converted, conversionRate });
+      setStats({ total, draft, sent, approved, converted, rejected, expired, cancelled, conversionRate });
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -385,7 +391,7 @@ const Quotations = () => {
     }
   };
 
-  const handleStatusChange = async (quotation: Quotation, newStatus: 'draft' | 'sent' | 'approved' | 'converted') => {
+  const handleStatusChange = async (quotation: Quotation, newStatus: 'draft' | 'sent' | 'approved' | 'converted' | 'rejected' | 'expired' | 'cancelled') => {
     try {
       const { error } = await supabase
         .from('quotations')
@@ -517,6 +523,9 @@ const Quotations = () => {
       case 'sent': return 'bg-blue-100 text-blue-800';
       case 'approved': return 'bg-green-100 text-green-800';
       case 'converted': return 'bg-purple-100 text-purple-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'expired': return 'bg-orange-100 text-orange-800';
+      case 'cancelled': return 'bg-slate-100 text-slate-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -610,6 +619,9 @@ const Quotations = () => {
                   <SelectItem value="sent">Sent</SelectItem>
                   <SelectItem value="approved">Approved</SelectItem>
                   <SelectItem value="converted">Converted</SelectItem>
+                  <SelectItem value="rejected">Rejected</SelectItem>
+                  <SelectItem value="expired">Expired</SelectItem>
+                  <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={filterCustomer} onValueChange={setFilterCustomer}>
@@ -689,7 +701,7 @@ const Quotations = () => {
                         <TableCell>
                           <Select
                             value={quotation.status}
-                            onValueChange={(value) => handleStatusChange(quotation, value as 'draft' | 'sent' | 'approved' | 'converted')}
+                            onValueChange={(value) => handleStatusChange(quotation, value as 'draft' | 'sent' | 'approved' | 'converted' | 'rejected' | 'expired' | 'cancelled')}
                             disabled={quotation.status === 'converted'}
                           >
                             <SelectTrigger className={cn('w-28 h-7 text-xs', getStatusColor(quotation.status))}>
@@ -699,6 +711,9 @@ const Quotations = () => {
                               <SelectItem value="draft">Draft</SelectItem>
                               <SelectItem value="sent">Sent</SelectItem>
                               <SelectItem value="approved">Approved</SelectItem>
+                              <SelectItem value="rejected">Rejected</SelectItem>
+                              <SelectItem value="expired">Expired</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
