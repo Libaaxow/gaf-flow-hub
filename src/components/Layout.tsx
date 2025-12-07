@@ -16,6 +16,7 @@ import {
   FileText,
   Receipt,
   ExternalLink,
+  Building2,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -24,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
+  { href: '/vendors', label: 'Vendors', icon: Building2 },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
   { href: '/quotations', label: 'Quotations', icon: FileText },
   { href: '/customer-history', label: 'Order History', icon: History },

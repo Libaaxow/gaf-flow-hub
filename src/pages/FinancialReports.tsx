@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { CalendarIcon, Download, DollarSign, TrendingDown, TrendingUp } from 'lucide-react';
+import { CalendarIcon, Download, DollarSign, TrendingDown, TrendingUp, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
@@ -46,6 +46,20 @@ interface Expense {
   payment_method: string;
   approval_status: string;
   notes?: string;
+  vendor_id?: string;
+}
+
+interface Vendor {
+  id: string;
+  vendor_code: string;
+  name: string;
+  status: string;
+}
+
+interface VendorReport {
+  vendor: Vendor;
+  totalSpending: number;
+  transactionCount: number;
 }
 
 const FinancialReports = () => {
@@ -53,8 +67,11 @@ const FinancialReports = () => {
   const [dateTo, setDateTo] = useState<Date>();
   const [paymentMethod, setPaymentMethod] = useState<string>('all');
   const [expenseCategory, setExpenseCategory] = useState<string>('all');
+  const [vendorFilter, setVendorFilter] = useState<string>('all');
   const [payments, setPayments] = useState<Payment[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendorReports, setVendorReports] = useState<VendorReport[]>([]);
   const [loading, setLoading] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
@@ -63,6 +80,7 @@ const FinancialReports = () => {
   useEffect(() => {
     fetchPayments();
     fetchExpenses();
+    fetchVendors();
   }, []);
 
   const fetchPayments = async () => {
@@ -161,6 +179,50 @@ const FinancialReports = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVendors = async () => {
+    try {
+      const { data: vendorsData, error: vendorsError } = await supabase
+        .from('vendors')
+        .select('id, vendor_code, name, status')
+        .eq('status', 'active')
+        .order('name');
+
+      if (vendorsError) throw vendorsError;
+      setVendors(vendorsData || []);
+
+      // Fetch expenses with vendor_id to calculate vendor reports
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select('vendor_id, amount')
+        .not('vendor_id', 'is', null);
+
+      if (expensesError) throw expensesError;
+
+      // Calculate vendor reports
+      const vendorMap = new Map<string, { totalSpending: number; transactionCount: number }>();
+      
+      (expensesData || []).forEach((expense: { vendor_id: string | null; amount: number }) => {
+        if (expense.vendor_id) {
+          const existing = vendorMap.get(expense.vendor_id) || { totalSpending: 0, transactionCount: 0 };
+          existing.totalSpending += expense.amount || 0;
+          existing.transactionCount += 1;
+          vendorMap.set(expense.vendor_id, existing);
+        }
+      });
+
+      const reports: VendorReport[] = (vendorsData || []).map((vendor: Vendor) => ({
+        vendor,
+        totalSpending: vendorMap.get(vendor.id)?.totalSpending || 0,
+        transactionCount: vendorMap.get(vendor.id)?.transactionCount || 0,
+      })).filter((r: VendorReport) => r.totalSpending > 0)
+        .sort((a: VendorReport, b: VendorReport) => b.totalSpending - a.totalSpending);
+
+      setVendorReports(reports);
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
     }
   };
 
