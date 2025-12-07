@@ -585,6 +585,125 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_items: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          quantity: number
+          quotation_id: string
+          unit_price: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          description: string
+          id?: string
+          quantity?: number
+          quotation_id: string
+          unit_price?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          quantity?: number
+          quotation_id?: string
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotations: {
+        Row: {
+          converted_invoice_id: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          discount_amount: number | null
+          discount_type: string | null
+          discount_value: number | null
+          id: string
+          notes: string | null
+          quotation_date: string
+          quotation_number: string
+          status: Database["public"]["Enums"]["quotation_status"]
+          subtotal: number
+          tax_amount: number
+          tax_rate: number | null
+          terms: string | null
+          total_amount: number
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          converted_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string
+          notes?: string | null
+          quotation_date?: string
+          quotation_number: string
+          status?: Database["public"]["Enums"]["quotation_status"]
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number | null
+          terms?: string | null
+          total_amount?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          converted_invoice_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
+          id?: string
+          notes?: string | null
+          quotation_date?: string
+          quotation_number?: string
+          status?: Database["public"]["Enums"]["quotation_status"]
+          subtotal?: number
+          tax_amount?: number
+          tax_rate?: number | null
+          terms?: string | null
+          total_amount?: number
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_converted_invoice_id_fkey"
+            columns: ["converted_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -620,6 +739,7 @@ export type Database = {
     }
     Functions: {
       generate_invoice_number: { Args: never; Returns: string }
+      generate_quotation_number: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -678,6 +798,7 @@ export type Database = {
         | "mug"
         | "sticker"
         | "other"
+      quotation_status: "draft" | "sent" | "approved" | "converted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -848,6 +969,7 @@ export const Constants = {
         "sticker",
         "other",
       ],
+      quotation_status: ["draft", "sent", "approved", "converted"],
     },
   },
 } as const
