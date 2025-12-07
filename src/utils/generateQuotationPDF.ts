@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoImg from "@/assets/gaf-media-logo-poster.png";
 import qrCodeImg from "@/assets/qr-code-gaf.png";
+import companyStamp from "@/assets/company-stamp.png";
 
 interface QuotationData {
   quotationNumber: string;
@@ -245,6 +246,10 @@ export const generateQuotationPDF = (quotationNumber: string, data: QuotationDat
     pdf.setTextColor(255, 255, 255);
     pdf.setFont("helvetica", "bold");
     pdf.text(statusText, pageWidth / 2, statusY + 1, { align: "center" });
+
+    // Company Stamp with Signature - Bottom right
+    const stampY = statusY + 15;
+    pdf.addImage(companyStamp, "PNG", rightMargin - 50, stampY, 50, 40);
 
     console.log("PDF generation complete, initiating download...");
     const filename = `Quotation-${quotationNumber}.pdf`;
