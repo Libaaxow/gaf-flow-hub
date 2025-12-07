@@ -25,6 +25,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
   { href: '/orders', label: 'Orders', icon: ShoppingCart },
+  { href: '/quotations', label: 'Quotations', icon: FileText },
   { href: '/customer-history', label: 'Order History', icon: History },
   { href: '/reports', label: 'Reports', icon: BarChart3 },
   { href: '/customer-reports', label: 'Customer Reports', icon: FileText },

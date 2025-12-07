@@ -20,6 +20,7 @@ import ProfileSettings from "./pages/ProfileSettings";
 import PendingApproval from "./pages/PendingApproval";
 import CustomerOrderHistory from "./pages/CustomerOrderHistory";
 import CustomerAnalytics from "./pages/CustomerAnalytics";
+import Quotations from "./pages/Quotations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -135,6 +136,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CustomerOrderHistory />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quotations"
+              element={
+                <ProtectedRoute>
+                  <Quotations />
                 </ProtectedRoute>
               }
             />
