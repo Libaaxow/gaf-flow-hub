@@ -798,7 +798,14 @@ export type Database = {
         | "mug"
         | "sticker"
         | "other"
-      quotation_status: "draft" | "sent" | "approved" | "converted"
+      quotation_status:
+        | "draft"
+        | "sent"
+        | "approved"
+        | "converted"
+        | "rejected"
+        | "expired"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -969,7 +976,15 @@ export const Constants = {
         "sticker",
         "other",
       ],
-      quotation_status: ["draft", "sent", "approved", "converted"],
+      quotation_status: [
+        "draft",
+        "sent",
+        "approved",
+        "converted",
+        "rejected",
+        "expired",
+        "cancelled",
+      ],
     },
   },
 } as const

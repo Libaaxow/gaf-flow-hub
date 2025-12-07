@@ -26,7 +26,7 @@ interface QuotationData {
   totalAmount: number;
   notes?: string;
   terms?: string;
-  status: "draft" | "sent" | "approved" | "converted";
+  status: "draft" | "sent" | "approved" | "converted" | "rejected" | "expired" | "cancelled";
 }
 
 export const generateQuotationPDF = (quotationNumber: string, data: QuotationData) => {
