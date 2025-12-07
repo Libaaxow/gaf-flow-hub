@@ -37,11 +37,11 @@ interface VendorStats {
 
 const vendorSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
-  contact_person: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email('Invalid email').optional().or(z.literal('')),
-  address: z.string().optional(),
-  notes: z.string().optional(),
+  contact_person: z.string().nullable().optional(),
+  phone: z.string().nullable().optional(),
+  email: z.string().email('Invalid email').nullable().optional().or(z.literal('')).or(z.null()),
+  address: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
 });
 
 const Vendors = () => {
@@ -359,7 +359,7 @@ const Vendors = () => {
                   Add Vendor
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Add New Vendor</DialogTitle>
                 </DialogHeader>
@@ -547,9 +547,8 @@ const Vendors = () => {
           </CardContent>
         </Card>
 
-        {/* View Vendor Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Vendor Details</DialogTitle>
             </DialogHeader>
@@ -637,9 +636,8 @@ const Vendors = () => {
           </DialogContent>
         </Dialog>
 
-        {/* Edit Vendor Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Vendor</DialogTitle>
             </DialogHeader>
