@@ -8,6 +8,8 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
+import Vendors from "./pages/Vendors";
+import VendorAnalytics from "./pages/VendorAnalytics";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
@@ -72,6 +74,22 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CustomerAnalytics />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendors"
+              element={
+                <ProtectedRoute>
+                  <Vendors />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendors/:vendorId/analytics"
+              element={
+                <ProtectedRoute>
+                  <VendorAnalytics />
                 </ProtectedRoute>
               }
             />
