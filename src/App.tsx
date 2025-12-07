@@ -10,6 +10,12 @@ import Dashboard from "./pages/Dashboard";
 import Customers from "./pages/Customers";
 import Vendors from "./pages/Vendors";
 import VendorAnalytics from "./pages/VendorAnalytics";
+import Products from "./pages/Products";
+import PurchaseOrders from "./pages/PurchaseOrders";
+import VendorBills from "./pages/VendorBills";
+import VendorPayments from "./pages/VendorPayments";
+import TaxSettings from "./pages/TaxSettings";
+import VendorReports from "./pages/VendorReports";
 import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
@@ -82,6 +88,54 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Vendors />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/products"
+              element={
+                <ProtectedRoute>
+                  <Products />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/purchase-orders"
+              element={
+                <ProtectedRoute>
+                  <PurchaseOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendor-bills"
+              element={
+                <ProtectedRoute>
+                  <VendorBills />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendor-payments"
+              element={
+                <ProtectedRoute>
+                  <VendorPayments />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tax-settings"
+              element={
+                <ProtectedRoute>
+                  <TaxSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/vendor-reports"
+              element={
+                <ProtectedRoute>
+                  <VendorReports />
                 </ProtectedRoute>
               }
             />
