@@ -17,28 +17,36 @@ import {
   Receipt,
   ExternalLink,
   Building2,
+  Package,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: any;
+  roles?: string[]; // If undefined, visible to all roles
+}
+
+const navItems: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/customers', label: 'Customers', icon: Users },
-  { href: '/vendors', label: 'Vendors', icon: Building2 },
-  { href: '/products', label: 'Products', icon: ShoppingCart },
-  { href: '/purchase-orders', label: 'Purchase Orders', icon: FileText },
-  { href: '/vendor-bills', label: 'Vendor Bills', icon: Receipt },
-  { href: '/vendor-payments', label: 'Vendor Payments', icon: Receipt },
-  { href: '/vendor-reports', label: 'Vendor Reports', icon: BarChart3 },
-  { href: '/orders', label: 'Orders', icon: ShoppingCart },
-  { href: '/quotations', label: 'Quotations', icon: FileText },
-  { href: '/customer-history', label: 'Order History', icon: History },
-  { href: '/reports', label: 'Reports', icon: BarChart3 },
-  { href: '/customer-reports', label: 'Customer Reports', icon: FileText },
-  { href: '/financial-reports', label: 'Financial Reports', icon: Receipt },
-  { href: '/tax-settings', label: 'Tax Settings', icon: Settings },
-  { href: '/users', label: 'Users', icon: UserCog },
+  { href: '/vendors', label: 'Vendors', icon: Building2, roles: ['admin', 'accountant', 'board'] },
+  { href: '/products', label: 'Products', icon: Package },
+  { href: '/purchase-orders', label: 'Purchase Orders', icon: FileText, roles: ['admin', 'accountant', 'board'] },
+  { href: '/vendor-bills', label: 'Vendor Bills', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
+  { href: '/vendor-payments', label: 'Vendor Payments', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
+  { href: '/vendor-reports', label: 'Vendor Reports', icon: BarChart3, roles: ['admin', 'accountant', 'board'] },
+  { href: '/orders', label: 'Orders', icon: ShoppingCart, roles: ['admin', 'accountant', 'designer', 'print_operator', 'marketing'] },
+  { href: '/quotations', label: 'Quotations', icon: FileText, roles: ['admin', 'accountant', 'board'] },
+  { href: '/customer-history', label: 'Order History', icon: History, roles: ['admin', 'accountant'] },
+  { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'accountant', 'board'] },
+  { href: '/customer-reports', label: 'Customer Reports', icon: FileText, roles: ['admin', 'accountant', 'board'] },
+  { href: '/financial-reports', label: 'Financial Reports', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
+  { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
+  { href: '/users', label: 'Users', icon: UserCog, roles: ['admin'] },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -46,9 +54,11 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
+      // Fetch profile
       supabase
         .from('profiles')
         .select('full_name, avatar_url')
@@ -57,12 +67,32 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         .then(({ data }) => {
           if (data) setProfile(data);
         });
+
+      // Fetch user role
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setUserRole(data.role);
+        });
     }
   }, [user]);
 
+  // Filter nav items based on user role
+  const filteredNavItems = navItems.filter(item => {
+    // If no roles specified, visible to all
+    if (!item.roles) return true;
+    // If user has no role yet, hide role-restricted items
+    if (!userRole) return false;
+    // Check if user role is in allowed roles
+    return item.roles.includes(userRole);
+  });
+
   const NavLinks = () => (
     <>
-      {navItems.map((item) => {
+      {filteredNavItems.map((item) => {
         const Icon = item.icon;
         const isActive = location.pathname === item.href;
         
@@ -90,7 +120,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
             <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
             <p className="text-sm text-muted-foreground">Management System</p>
           </div>
-          <nav className="flex-1 space-y-2 p-4">
+          <nav className="flex-1 space-y-2 p-4 overflow-y-auto">
             <NavLinks />
           </nav>
           <div className="border-t p-4 space-y-3">
@@ -151,7 +181,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                     <img src={gafMediaLogo} alt="GAF MEDIA" className="h-16 w-auto mb-2" />
                     <p className="text-sm text-muted-foreground">Management System</p>
                   </div>
-                  <nav className="flex-1 space-y-2 p-4">
+                  <nav className="flex-1 space-y-2 p-4 overflow-y-auto">
                     <NavLinks />
                   </nav>
                   <div className="border-t p-4 space-y-3">
