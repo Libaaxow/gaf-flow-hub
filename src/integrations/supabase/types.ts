@@ -159,45 +159,60 @@ export type Database = {
       invoice_items: {
         Row: {
           amount: number
+          area_m2: number | null
           cost_per_unit: number | null
           created_at: string
           description: string
+          height_m: number | null
           id: string
           invoice_id: string
           line_cost: number | null
           line_profit: number | null
           product_id: string | null
           quantity: number
+          rate_per_m2: number | null
           retail_unit: string | null
+          sale_type: string
           unit_price: number
+          width_m: number | null
         }
         Insert: {
           amount?: number
+          area_m2?: number | null
           cost_per_unit?: number | null
           created_at?: string
           description: string
+          height_m?: number | null
           id?: string
           invoice_id: string
           line_cost?: number | null
           line_profit?: number | null
           product_id?: string | null
           quantity?: number
+          rate_per_m2?: number | null
           retail_unit?: string | null
+          sale_type?: string
           unit_price?: number
+          width_m?: number | null
         }
         Update: {
           amount?: number
+          area_m2?: number | null
           cost_per_unit?: number | null
           created_at?: string
           description?: string
+          height_m?: number | null
           id?: string
           invoice_id?: string
           line_cost?: number | null
           line_profit?: number | null
           product_id?: string | null
           quantity?: number
+          rate_per_m2?: number | null
           retail_unit?: string | null
+          sale_type?: string
           unit_price?: number
+          width_m?: number | null
         }
         Relationships: [
           {
@@ -644,6 +659,7 @@ export type Database = {
         Row: {
           category: string | null
           conversion_rate: number
+          cost_per_m2: number | null
           cost_per_retail_unit: number | null
           cost_price: number
           created_at: string
@@ -657,15 +673,21 @@ export type Database = {
           purchase_unit: string
           reorder_level: number
           retail_unit: string
+          roll_length: number | null
+          roll_width: number | null
+          sale_type: string
           selling_price: number
+          selling_price_per_m2: number | null
           status: string
           stock_quantity: number
+          total_roll_area: number | null
           unit: string
           updated_at: string
         }
         Insert: {
           category?: string | null
           conversion_rate?: number
+          cost_per_m2?: number | null
           cost_per_retail_unit?: number | null
           cost_price?: number
           created_at?: string
@@ -679,15 +701,21 @@ export type Database = {
           purchase_unit?: string
           reorder_level?: number
           retail_unit?: string
+          roll_length?: number | null
+          roll_width?: number | null
+          sale_type?: string
           selling_price?: number
+          selling_price_per_m2?: number | null
           status?: string
           stock_quantity?: number
+          total_roll_area?: number | null
           unit?: string
           updated_at?: string
         }
         Update: {
           category?: string | null
           conversion_rate?: number
+          cost_per_m2?: number | null
           cost_per_retail_unit?: number | null
           cost_price?: number
           created_at?: string
@@ -701,9 +729,14 @@ export type Database = {
           purchase_unit?: string
           reorder_level?: number
           retail_unit?: string
+          roll_length?: number | null
+          roll_width?: number | null
+          sale_type?: string
           selling_price?: number
+          selling_price_per_m2?: number | null
           status?: string
           stock_quantity?: number
+          total_roll_area?: number | null
           unit?: string
           updated_at?: string
         }

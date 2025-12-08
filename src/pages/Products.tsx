@@ -33,6 +33,13 @@ interface Product {
   preferred_vendor_id: string | null;
   status: string;
   created_at: string;
+  // Area-based fields
+  sale_type: string;
+  roll_width: number | null;
+  roll_length: number | null;
+  total_roll_area: number | null;
+  cost_per_m2: number | null;
+  selling_price_per_m2: number | null;
 }
 
 interface Vendor {
@@ -43,6 +50,10 @@ interface Vendor {
 
 const PURCHASE_UNITS = ['Box', 'Roll', 'Carton', 'Pack', 'Bag', 'Bundle', 'Drum', 'Pallet'];
 const RETAIL_UNITS = ['Piece', 'Meter', 'Sheet', 'Kg', 'Liter', 'Unit', 'Pair', 'Set'];
+const SALE_TYPES = [
+  { value: 'unit', label: 'Unit-Based (Standard)' },
+  { value: 'area', label: 'Area-Based (H × W in m²)' },
+];
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -55,6 +66,10 @@ const productSchema = z.object({
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
   preferred_vendor_id: z.string().nullable().optional(),
+  sale_type: z.enum(['unit', 'area']).optional(),
+  roll_width: z.number().nullable().optional(),
+  roll_length: z.number().nullable().optional(),
+  selling_price_per_m2: z.number().nullable().optional(),
 });
 
 const Products = () => {
@@ -71,6 +86,8 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [canManageProducts, setCanManageProducts] = useState(false);
+  const [newProductSaleType, setNewProductSaleType] = useState<string>('unit');
+  const [editProductSaleType, setEditProductSaleType] = useState<string>('unit');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -139,22 +156,37 @@ const Products = () => {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
+    const saleType = (formData.get('sale_type') as string) || 'unit';
+    const rollWidth = parseFloat(formData.get('roll_width') as string) || null;
+    const rollLength = parseFloat(formData.get('roll_length') as string) || null;
+    const costPrice = parseFloat(formData.get('cost_price') as string) || 0;
+    const sellingPriceM2 = parseFloat(formData.get('selling_price_per_m2') as string) || null;
+    
+    // Calculate area-based fields
+    const totalRollArea = (rollWidth && rollLength) ? rollWidth * rollLength : null;
+    const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
+    
     const productData = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
       purchase_unit: formData.get('purchase_unit') as string,
-      retail_unit: formData.get('retail_unit') as string,
-      unit: formData.get('retail_unit') as string, // Keep unit synced with retail_unit for backward compatibility
-      conversion_rate: parseFloat(formData.get('conversion_rate') as string) || 1,
-      cost_price: parseFloat(formData.get('cost_price') as string) || 0,
-      selling_price: parseFloat(formData.get('selling_price') as string) || 0,
+      retail_unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
+      unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
+      conversion_rate: saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1),
+      cost_price: costPrice,
+      selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
       reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
+      sale_type: saleType,
+      roll_width: saleType === 'area' ? rollWidth : null,
+      roll_length: saleType === 'area' ? rollLength : null,
+      total_roll_area: saleType === 'area' ? totalRollArea : null,
+      cost_per_m2: saleType === 'area' ? costPerM2 : null,
+      selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
 
     try {
-      productSchema.parse(productData);
       const productCode = await generateProductCode();
 
       const { error } = await supabase
@@ -183,23 +215,37 @@ const Products = () => {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
+    const saleType = (formData.get('sale_type') as string) || 'unit';
+    const rollWidth = parseFloat(formData.get('roll_width') as string) || null;
+    const rollLength = parseFloat(formData.get('roll_length') as string) || null;
+    const costPrice = parseFloat(formData.get('cost_price') as string) || 0;
+    const sellingPriceM2 = parseFloat(formData.get('selling_price_per_m2') as string) || null;
+    
+    // Calculate area-based fields
+    const totalRollArea = (rollWidth && rollLength) ? rollWidth * rollLength : null;
+    const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
+    
     const productData = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
       purchase_unit: formData.get('purchase_unit') as string,
-      retail_unit: formData.get('retail_unit') as string,
-      unit: formData.get('retail_unit') as string, // Keep unit synced with retail_unit
-      conversion_rate: parseFloat(formData.get('conversion_rate') as string) || 1,
-      cost_price: parseFloat(formData.get('cost_price') as string) || 0,
-      selling_price: parseFloat(formData.get('selling_price') as string) || 0,
+      retail_unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
+      unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
+      conversion_rate: saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1),
+      cost_price: costPrice,
+      selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
       reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
+      sale_type: saleType,
+      roll_width: saleType === 'area' ? rollWidth : null,
+      roll_length: saleType === 'area' ? rollLength : null,
+      total_roll_area: saleType === 'area' ? totalRollArea : null,
+      cost_per_m2: saleType === 'area' ? costPerM2 : null,
+      selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
 
     try {
-      productSchema.parse(productData);
-
       const { error } = await supabase
         .from('products')
         .update(productData)
@@ -315,59 +361,124 @@ const Products = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="category">Category</Label>
-                    <Input id="category" name="category" placeholder="e.g. Electronics" />
+                    <Input id="category" name="category" placeholder="e.g. Banner, Vinyl, Sticker" />
                   </div>
                   
-                  {/* Dual Unit Section */}
-                  <div className="p-3 bg-muted/50 rounded-lg space-y-3">
-                    <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-2">
-                        <Label htmlFor="purchase_unit">Purchase Unit *</Label>
-                        <Select name="purchase_unit" defaultValue="Box">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PURCHASE_UNITS.map((u) => (
-                              <SelectItem key={u} value={u}>{u}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="conversion_rate">= How Many</Label>
-                        <Input id="conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue="1" min="0.0001" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="retail_unit">Retail Unit *</Label>
-                        <Select name="retail_unit" defaultValue="Piece">
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {RETAIL_UNITS.map((u) => (
-                              <SelectItem key={u} value={u}>{u}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">Example: 1 Box = 12 Pieces means purchase unit is Box, retail unit is Piece, conversion rate is 12</p>
+                  {/* Sale Type Selection */}
+                  <div className="space-y-2">
+                    <Label htmlFor="sale_type">Sale Type *</Label>
+                    <Select name="sale_type" value={newProductSaleType} onValueChange={setNewProductSaleType}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SALE_TYPES.map((type) => (
+                          <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {newProductSaleType === 'area' 
+                        ? 'For roll materials sold by area (m²) like Banner, Flex, Vinyl' 
+                        : 'Standard unit-based selling (Pieces, Meters, etc.)'}
+                    </p>
                   </div>
+
+                  {/* Area-Based Roll Configuration */}
+                  {newProductSaleType === 'area' && (
+                    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                      <p className="text-sm font-medium text-primary">Roll Dimensions (per purchase unit)</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="roll_width">Roll Width (meters) *</Label>
+                          <Input id="roll_width" name="roll_width" type="number" step="0.01" placeholder="e.g. 1.52" required />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="roll_length">Roll Length (meters) *</Label>
+                          <Input id="roll_length" name="roll_length" type="number" step="0.01" placeholder="e.g. 50" required />
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Total area per roll will be calculated automatically</p>
+                    </div>
+                  )}
+                  
+                  {/* Unit Conversion Section - Only for unit-based products */}
+                  {newProductSaleType === 'unit' && (
+                    <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                      <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-2">
+                          <Label htmlFor="purchase_unit">Purchase Unit *</Label>
+                          <Select name="purchase_unit" defaultValue="Box">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PURCHASE_UNITS.map((u) => (
+                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="conversion_rate">= How Many</Label>
+                          <Input id="conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue="1" min="0.0001" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="retail_unit">Retail Unit *</Label>
+                          <Select name="retail_unit" defaultValue="Piece">
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {RETAIL_UNITS.map((u) => (
+                                <SelectItem key={u} value={u}>{u}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Example: 1 Box = 12 Pieces</p>
+                    </div>
+                  )}
+
+                  {/* Purchase Unit for area-based */}
+                  {newProductSaleType === 'area' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="purchase_unit">Purchase Unit *</Label>
+                      <Select name="purchase_unit" defaultValue="Roll">
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PURCHASE_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">Cost per Purchase Unit ($)</Label>
+                      <Label htmlFor="cost_price">Cost per {newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="selling_price">Selling Price per Retail Unit ($)</Label>
-                      <Input id="selling_price" name="selling_price" type="number" step="0.01" defaultValue="0" />
+                      <Label htmlFor={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'}>
+                        Selling Price per {newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)
+                      </Label>
+                      <Input 
+                        id={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
+                        name={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
+                        type="number" 
+                        step="0.01" 
+                        defaultValue="0" 
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reorder_level">Reorder Level (in retail units)</Label>
+                    <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
                     <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
                   </div>
                   <div className="space-y-2">
@@ -571,33 +682,66 @@ const Products = () => {
                   <div><Label className="text-muted-foreground">Code</Label><p className="font-mono">{selectedProduct.product_code}</p></div>
                   <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{selectedProduct.name}</p></div>
                   <div><Label className="text-muted-foreground">Category</Label><p>{selectedProduct.category || '-'}</p></div>
+                  <div><Label className="text-muted-foreground">Sale Type</Label>
+                    <Badge variant={selectedProduct.sale_type === 'area' ? 'outline' : 'default'}>
+                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : 'Unit-Based'}
+                    </Badge>
+                  </div>
                   <div><Label className="text-muted-foreground">Status</Label><Badge variant={selectedProduct.status === 'active' ? 'default' : 'secondary'}>{selectedProduct.status}</Badge></div>
                 </div>
                 
-                {/* Unit Conversion Info */}
-                <div className="p-3 bg-muted/50 rounded-lg space-y-2">
-                  <p className="text-sm font-medium">Unit Conversion</p>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div><Label className="text-muted-foreground">Purchase Unit</Label><p>{selectedProduct.purchase_unit}</p></div>
-                    <div><Label className="text-muted-foreground">Conversion</Label><p className="font-mono">1:{selectedProduct.conversion_rate}</p></div>
-                    <div><Label className="text-muted-foreground">Retail Unit</Label><p>{selectedProduct.retail_unit}</p></div>
+                {/* Area-Based Roll Info */}
+                {selectedProduct.sale_type === 'area' && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-2">
+                    <p className="text-sm font-medium text-primary">Roll Dimensions</p>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div><Label className="text-muted-foreground">Width</Label><p>{selectedProduct.roll_width} m</p></div>
+                      <div><Label className="text-muted-foreground">Length</Label><p>{selectedProduct.roll_length} m</p></div>
+                      <div><Label className="text-muted-foreground">Total Area</Label><p className="font-medium">{selectedProduct.total_roll_area} m²</p></div>
+                    </div>
                   </div>
-                </div>
+                )}
+                
+                {/* Unit Conversion Info - for unit-based products */}
+                {selectedProduct.sale_type !== 'area' && (
+                  <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                    <p className="text-sm font-medium">Unit Conversion</p>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div><Label className="text-muted-foreground">Purchase Unit</Label><p>{selectedProduct.purchase_unit}</p></div>
+                      <div><Label className="text-muted-foreground">Conversion</Label><p className="font-mono">1:{selectedProduct.conversion_rate}</p></div>
+                      <div><Label className="text-muted-foreground">Retail Unit</Label><p>{selectedProduct.retail_unit}</p></div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pricing Info */}
                 <div className="p-3 bg-primary/5 rounded-lg space-y-2">
                   <p className="text-sm font-medium">Pricing & Profit</p>
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div><Label className="text-muted-foreground">Cost per {selectedProduct.purchase_unit}</Label><p>${selectedProduct.cost_price.toLocaleString()}</p></div>
-                    <div><Label className="text-muted-foreground">Cost per {selectedProduct.retail_unit}</Label><p className="text-muted-foreground">${(selectedProduct.cost_per_retail_unit || 0).toFixed(2)}</p></div>
-                    <div><Label className="text-muted-foreground">Selling Price per {selectedProduct.retail_unit}</Label><p>${selectedProduct.selling_price.toLocaleString()}</p></div>
-                    <div><Label className="text-muted-foreground">Profit per {selectedProduct.retail_unit}</Label><p className={`font-medium ${(selectedProduct.profit_per_unit || 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>${(selectedProduct.profit_per_unit || 0).toFixed(2)}</p></div>
+                    {selectedProduct.sale_type === 'area' ? (
+                      <>
+                        <div><Label className="text-muted-foreground">Cost per m²</Label><p className="text-muted-foreground">${(selectedProduct.cost_per_m2 || 0).toFixed(4)}</p></div>
+                        <div><Label className="text-muted-foreground">Selling Price per m²</Label><p>${(selectedProduct.selling_price_per_m2 || 0).toLocaleString()}</p></div>
+                        <div><Label className="text-muted-foreground">Profit per m²</Label>
+                          <p className={`font-medium ${((selectedProduct.selling_price_per_m2 || 0) - (selectedProduct.cost_per_m2 || 0)) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                            ${((selectedProduct.selling_price_per_m2 || 0) - (selectedProduct.cost_per_m2 || 0)).toFixed(4)}
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div><Label className="text-muted-foreground">Cost per {selectedProduct.retail_unit}</Label><p className="text-muted-foreground">${(selectedProduct.cost_per_retail_unit || 0).toFixed(2)}</p></div>
+                        <div><Label className="text-muted-foreground">Selling Price per {selectedProduct.retail_unit}</Label><p>${selectedProduct.selling_price.toLocaleString()}</p></div>
+                        <div><Label className="text-muted-foreground">Profit per {selectedProduct.retail_unit}</Label><p className={`font-medium ${(selectedProduct.profit_per_unit || 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>${(selectedProduct.profit_per_unit || 0).toFixed(2)}</p></div>
+                      </>
+                    )}
                   </div>
                 </div>
 
                 {/* Stock Info */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div><Label className="text-muted-foreground">Stock (in {selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity}</p></div>
+                  <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
                   <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
                 </div>
                 
@@ -610,7 +754,12 @@ const Products = () => {
         </Dialog>
 
         {/* Edit Dialog */}
-        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+          setIsEditDialogOpen(open);
+          if (open && selectedProduct) {
+            setEditProductSaleType(selectedProduct.sale_type || 'unit');
+          }
+        }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
@@ -626,55 +775,114 @@ const Products = () => {
                   <Input id="edit-category" name="category" defaultValue={selectedProduct.category || ''} />
                 </div>
                 
-                {/* Dual Unit Section */}
-                <div className="p-3 bg-muted/50 rounded-lg space-y-3">
-                  <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-purchase_unit">Purchase Unit *</Label>
-                      <Select name="purchase_unit" defaultValue={selectedProduct.purchase_unit}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {PURCHASE_UNITS.map((u) => (
-                            <SelectItem key={u} value={u}>{u}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-conversion_rate">= How Many</Label>
-                      <Input id="edit-conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue={selectedProduct.conversion_rate} min="0.0001" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-retail_unit">Retail Unit *</Label>
-                      <Select name="retail_unit" defaultValue={selectedProduct.retail_unit}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RETAIL_UNITS.map((u) => (
-                            <SelectItem key={u} value={u}>{u}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                {/* Sale Type Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="edit-sale_type">Sale Type *</Label>
+                  <Select name="sale_type" value={editProductSaleType} onValueChange={setEditProductSaleType}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SALE_TYPES.map((type) => (
+                        <SelectItem key={type.value} value={type.value}>{type.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Area-Based Roll Configuration */}
+                {editProductSaleType === 'area' && (
+                  <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+                    <p className="text-sm font-medium text-primary">Roll Dimensions (per purchase unit)</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-roll_width">Roll Width (meters) *</Label>
+                        <Input id="edit-roll_width" name="roll_width" type="number" step="0.01" defaultValue={selectedProduct.roll_width || ''} required />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-roll_length">Roll Length (meters) *</Label>
+                        <Input id="edit-roll_length" name="roll_length" type="number" step="0.01" defaultValue={selectedProduct.roll_length || ''} required />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+                
+                {/* Unit Conversion Section - Only for unit-based products */}
+                {editProductSaleType === 'unit' && (
+                  <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-purchase_unit">Purchase Unit *</Label>
+                        <Select name="purchase_unit" defaultValue={selectedProduct.purchase_unit}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PURCHASE_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-conversion_rate">= How Many</Label>
+                        <Input id="edit-conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue={selectedProduct.conversion_rate} min="0.0001" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-retail_unit">Retail Unit *</Label>
+                        <Select name="retail_unit" defaultValue={selectedProduct.retail_unit}>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RETAIL_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Purchase Unit for area-based */}
+                {editProductSaleType === 'area' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-purchase_unit">Purchase Unit *</Label>
+                    <Select name="purchase_unit" defaultValue={selectedProduct.purchase_unit || 'Roll'}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PURCHASE_UNITS.map((u) => (
+                          <SelectItem key={u} value={u}>{u}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-cost_price">Cost per Purchase Unit ($)</Label>
+                    <Label htmlFor="edit-cost_price">Cost per {editProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
                     <Input id="edit-cost_price" name="cost_price" type="number" step="0.01" defaultValue={selectedProduct.cost_price} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-selling_price">Selling Price per Retail Unit ($)</Label>
-                    <Input id="edit-selling_price" name="selling_price" type="number" step="0.01" defaultValue={selectedProduct.selling_price} />
+                    <Label htmlFor={editProductSaleType === 'area' ? 'edit-selling_price_per_m2' : 'edit-selling_price'}>
+                      Selling Price per {editProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)
+                    </Label>
+                    <Input 
+                      id={editProductSaleType === 'area' ? 'edit-selling_price_per_m2' : 'edit-selling_price'} 
+                      name={editProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
+                      type="number" 
+                      step="0.01" 
+                      defaultValue={editProductSaleType === 'area' ? (selectedProduct.selling_price_per_m2 || '') : selectedProduct.selling_price} 
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-reorder_level">Reorder Level (in retail units)</Label>
+                  <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
                   <Input id="edit-reorder_level" name="reorder_level" type="number" defaultValue={selectedProduct.reorder_level} />
                 </div>
                 <div className="space-y-2">
