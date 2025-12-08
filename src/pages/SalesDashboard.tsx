@@ -69,6 +69,9 @@ interface Product {
   stock_quantity: number;
   retail_unit: string;
   cost_per_retail_unit: number | null;
+  sale_type: string;
+  selling_price_per_m2: number | null;
+  cost_per_m2: number | null;
 }
 
 interface Commission {
@@ -116,8 +119,12 @@ const SalesDashboard = () => {
     unit_price: number;
     retail_unit: string;
     cost_per_unit: number;
+    sale_type: string;
+    height_m: number | null;
+    width_m: number | null;
+    area_m2: number | null;
   }>>([
-    { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }
+    { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0, sale_type: 'unit', height_m: null, width_m: null, area_m2: null }
   ]);
   const [creatingInvoice, setCreatingInvoice] = useState(false);
   
@@ -171,7 +178,7 @@ const SalesDashboard = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, selling_price, stock_quantity, retail_unit, cost_per_retail_unit')
+        .select('id, name, selling_price, stock_quantity, retail_unit, cost_per_retail_unit, sale_type, selling_price_per_m2, cost_per_m2')
         .eq('status', 'active')
         .order('name');
       
@@ -349,14 +356,20 @@ const SalesDashboard = () => {
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (product) {
+      const isArea = product.sale_type === 'area';
       const newItems = [...invoiceItems];
       newItems[index] = {
         ...newItems[index],
         product_id: productId,
         description: product.name,
-        unit_price: Number(product.selling_price),
-        retail_unit: product.retail_unit || 'piece',
-        cost_per_unit: Number(product.cost_per_retail_unit || 0),
+        unit_price: isArea ? Number(product.selling_price_per_m2 || 0) : Number(product.selling_price),
+        retail_unit: isArea ? 'm²' : (product.retail_unit || 'piece'),
+        cost_per_unit: isArea ? Number(product.cost_per_m2 || 0) : Number(product.cost_per_retail_unit || 0),
+        sale_type: product.sale_type || 'unit',
+        height_m: isArea ? 1 : null,
+        width_m: isArea ? 1 : null,
+        area_m2: isArea ? 1 : null,
+        quantity: isArea ? 1 : newItems[index].quantity,
       };
       setInvoiceItems(newItems);
     }
