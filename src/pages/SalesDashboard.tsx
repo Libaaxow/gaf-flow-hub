@@ -411,9 +411,31 @@ const SalesDashboard = () => {
       // Generate draft invoice number
       const { data: draftNumber } = await supabase.rpc('generate_draft_invoice_number');
 
-      // Create draft invoice
+      // First create an order with pending_accounting_review status
+      // This ensures the draft invoice appears in accountant's workflow
+      const orderData = {
+        customer_id: customerId,
+        job_title: formData.get('notes') as string || `Invoice ${draftNumber || 'Draft'}`,
+        description: invoiceItems.map(item => item.description).filter(Boolean).join(', ') || null,
+        order_value: subtotal,
+        amount_paid: 0,
+        payment_status: 'unpaid' as const,
+        status: 'pending_accounting_review' as const,
+        salesperson_id: user?.id,
+      };
+
+      const { data: newOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert([orderData])
+        .select()
+        .single();
+
+      if (orderError) throw orderError;
+
+      // Create draft invoice linked to the order
       const invoiceData = {
         customer_id: customerId,
+        order_id: newOrder.id,
         invoice_number: draftNumber || `DRAFT-${Date.now()}`,
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: formData.get('due_date') as string || null,
