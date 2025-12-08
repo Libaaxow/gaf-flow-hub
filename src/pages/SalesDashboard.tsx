@@ -462,7 +462,7 @@ const SalesDashboard = () => {
       e.currentTarget.reset();
       setPhoneNumber('');
       setExistingCustomer(null);
-      setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }]);
+      setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0, sale_type: 'unit', height_m: 0, width_m: 0, area_m2: 0 }]);
       setInvoiceFormOpen(false);
       await fetchDashboardData();
     } catch (error: any) {
@@ -825,7 +825,7 @@ const SalesDashboard = () => {
                 if (!open) {
                   setPhoneNumber('');
                   setExistingCustomer(null);
-                  setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }]);
+                  setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0, sale_type: 'unit', height_m: 0, width_m: 0, area_m2: 0 }]);
                 }
               }}>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background">
@@ -914,7 +914,7 @@ const SalesDashboard = () => {
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setInvoiceItems([...invoiceItems, { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }])}
+                          onClick={() => setInvoiceItems([...invoiceItems, { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0, sale_type: 'unit', height_m: 0, width_m: 0, area_m2: 0 }])}
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Item
