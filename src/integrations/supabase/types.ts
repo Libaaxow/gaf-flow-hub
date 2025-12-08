@@ -608,6 +608,8 @@ export type Database = {
       products: {
         Row: {
           category: string | null
+          conversion_rate: number
+          cost_per_retail_unit: number | null
           cost_price: number
           created_at: string
           created_by: string | null
@@ -616,7 +618,10 @@ export type Database = {
           name: string
           preferred_vendor_id: string | null
           product_code: string
+          profit_per_unit: number | null
+          purchase_unit: string
           reorder_level: number
+          retail_unit: string
           selling_price: number
           status: string
           stock_quantity: number
@@ -625,6 +630,8 @@ export type Database = {
         }
         Insert: {
           category?: string | null
+          conversion_rate?: number
+          cost_per_retail_unit?: number | null
           cost_price?: number
           created_at?: string
           created_by?: string | null
@@ -633,7 +640,10 @@ export type Database = {
           name: string
           preferred_vendor_id?: string | null
           product_code: string
+          profit_per_unit?: number | null
+          purchase_unit?: string
           reorder_level?: number
+          retail_unit?: string
           selling_price?: number
           status?: string
           stock_quantity?: number
@@ -642,6 +652,8 @@ export type Database = {
         }
         Update: {
           category?: string | null
+          conversion_rate?: number
+          cost_per_retail_unit?: number | null
           cost_price?: number
           created_at?: string
           created_by?: string | null
@@ -650,7 +662,10 @@ export type Database = {
           name?: string
           preferred_vendor_id?: string | null
           product_code?: string
+          profit_per_unit?: number | null
+          purchase_unit?: string
           reorder_level?: number
+          retail_unit?: string
           selling_price?: number
           status?: string
           stock_quantity?: number

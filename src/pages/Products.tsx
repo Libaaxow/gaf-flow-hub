@@ -21,8 +21,13 @@ interface Product {
   description: string | null;
   category: string | null;
   unit: string;
+  purchase_unit: string;
+  retail_unit: string;
+  conversion_rate: number;
   cost_price: number;
   selling_price: number;
+  cost_per_retail_unit: number;
+  profit_per_unit: number;
   stock_quantity: number;
   reorder_level: number;
   preferred_vendor_id: string | null;
@@ -36,11 +41,16 @@ interface Vendor {
   status: string;
 }
 
+const PURCHASE_UNITS = ['Box', 'Roll', 'Carton', 'Pack', 'Bag', 'Bundle', 'Drum', 'Pallet'];
+const RETAIL_UNITS = ['Piece', 'Meter', 'Sheet', 'Kg', 'Liter', 'Unit', 'Pair', 'Set'];
+
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   description: z.string().nullable().optional(),
   category: z.string().nullable().optional(),
-  unit: z.string().min(1, 'Unit is required'),
+  purchase_unit: z.string().min(1, 'Purchase unit is required'),
+  retail_unit: z.string().min(1, 'Retail unit is required'),
+  conversion_rate: z.number().min(0.0001, 'Conversion rate must be positive'),
   cost_price: z.number().min(0, 'Cost price must be positive'),
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
@@ -133,7 +143,10 @@ const Products = () => {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      unit: formData.get('unit') as string,
+      purchase_unit: formData.get('purchase_unit') as string,
+      retail_unit: formData.get('retail_unit') as string,
+      unit: formData.get('retail_unit') as string, // Keep unit synced with retail_unit for backward compatibility
+      conversion_rate: parseFloat(formData.get('conversion_rate') as string) || 1,
       cost_price: parseFloat(formData.get('cost_price') as string) || 0,
       selling_price: parseFloat(formData.get('selling_price') as string) || 0,
       reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
@@ -174,7 +187,10 @@ const Products = () => {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      unit: formData.get('unit') as string,
+      purchase_unit: formData.get('purchase_unit') as string,
+      retail_unit: formData.get('retail_unit') as string,
+      unit: formData.get('retail_unit') as string, // Keep unit synced with retail_unit
+      conversion_rate: parseFloat(formData.get('conversion_rate') as string) || 1,
       cost_price: parseFloat(formData.get('cost_price') as string) || 0,
       selling_price: parseFloat(formData.get('selling_price') as string) || 0,
       reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
@@ -297,40 +313,61 @@ const Products = () => {
                     <Label htmlFor="name">Product Name *</Label>
                     <Input id="name" name="name" required />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="category">Category</Label>
-                      <Input id="category" name="category" placeholder="e.g. Electronics" />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="unit">Unit *</Label>
-                      <Select name="unit" defaultValue="piece">
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="piece">Piece</SelectItem>
-                          <SelectItem value="kg">Kilogram</SelectItem>
-                          <SelectItem value="liter">Liter</SelectItem>
-                          <SelectItem value="meter">Meter</SelectItem>
-                          <SelectItem value="box">Box</SelectItem>
-                          <SelectItem value="pack">Pack</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="category">Category</Label>
+                    <Input id="category" name="category" placeholder="e.g. Electronics" />
                   </div>
+                  
+                  {/* Dual Unit Section */}
+                  <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                    <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="purchase_unit">Purchase Unit *</Label>
+                        <Select name="purchase_unit" defaultValue="Box">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {PURCHASE_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="conversion_rate">= How Many</Label>
+                        <Input id="conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue="1" min="0.0001" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="retail_unit">Retail Unit *</Label>
+                        <Select name="retail_unit" defaultValue="Piece">
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {RETAIL_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Example: 1 Box = 12 Pieces means purchase unit is Box, retail unit is Piece, conversion rate is 12</p>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">Cost Price ($)</Label>
+                      <Label htmlFor="cost_price">Cost per Purchase Unit ($)</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="selling_price">Selling Price ($)</Label>
+                      <Label htmlFor="selling_price">Selling Price per Retail Unit ($)</Label>
                       <Input id="selling_price" name="selling_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reorder_level">Reorder Level</Label>
+                    <Label htmlFor="reorder_level">Reorder Level (in retail units)</Label>
                     <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
                   </div>
                   <div className="space-y-2">
@@ -432,40 +469,59 @@ const Products = () => {
               <table className="w-full">
                 <thead>
                   <tr className="border-b bg-muted/50">
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Code</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Category</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Stock</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Cost</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Price</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="px-6 py-4 text-left text-sm font-medium text-muted-foreground">Actions</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Code</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Name</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Units</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Stock</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Cost/Retail</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Sell Price</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Profit</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="px-4 py-4 text-left text-sm font-medium text-muted-foreground">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredProducts.map((product) => (
                     <tr key={product.id} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="px-6 py-4 font-mono text-sm">{product.product_code}</td>
-                      <td className="px-6 py-4 font-medium">{product.name}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{product.category || '-'}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 font-mono text-sm">{product.product_code}</td>
+                      <td className="px-4 py-4">
+                        <div>
+                          <span className="font-medium">{product.name}</span>
+                          {product.category && <span className="text-xs text-muted-foreground block">{product.category}</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-sm">
+                        <div className="text-muted-foreground">
+                          <span className="block">Buy: {product.purchase_unit}</span>
+                          <span className="block">Sell: {product.retail_unit}</span>
+                          <span className="text-xs text-primary">1:{product.conversion_rate}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <span className={product.stock_quantity <= product.reorder_level ? 'text-destructive font-medium' : ''}>
-                            {product.stock_quantity}
+                            {product.stock_quantity} {product.retail_unit}
                           </span>
                           {product.stock_quantity <= product.reorder_level && (
                             <AlertTriangle className="h-4 w-4 text-yellow-500" />
                           )}
                         </div>
                       </td>
-                      <td className="px-6 py-4">${product.cost_price.toLocaleString()}</td>
-                      <td className="px-6 py-4">${product.selling_price.toLocaleString()}</td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4 text-sm">
+                        <span className="text-muted-foreground">${(product.cost_per_retail_unit || 0).toFixed(2)}</span>
+                      </td>
+                      <td className="px-4 py-4">${product.selling_price.toLocaleString()}</td>
+                      <td className="px-4 py-4">
+                        <span className={`font-medium ${(product.profit_per_unit || 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                          ${(product.profit_per_unit || 0).toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
                         <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
                           {product.status}
                         </Badge>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 py-4">
                         <div className="flex gap-2">
                           <Button variant="ghost" size="sm" onClick={() => { setSelectedProduct(product); setIsViewDialogOpen(true); }}>
                             <Eye className="h-4 w-4" />
@@ -491,7 +547,7 @@ const Products = () => {
                   ))}
                   {filteredProducts.length === 0 && (
                     <tr>
-                      <td colSpan={8} className="px-6 py-12 text-center text-muted-foreground">
+                      <td colSpan={9} className="px-6 py-12 text-center text-muted-foreground">
                         <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                         <p>No products found</p>
                       </td>
@@ -505,7 +561,7 @@ const Products = () => {
 
         {/* View Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Product Details</DialogTitle>
             </DialogHeader>
@@ -515,12 +571,36 @@ const Products = () => {
                   <div><Label className="text-muted-foreground">Code</Label><p className="font-mono">{selectedProduct.product_code}</p></div>
                   <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{selectedProduct.name}</p></div>
                   <div><Label className="text-muted-foreground">Category</Label><p>{selectedProduct.category || '-'}</p></div>
-                  <div><Label className="text-muted-foreground">Unit</Label><p>{selectedProduct.unit}</p></div>
-                  <div><Label className="text-muted-foreground">Cost Price</Label><p>${selectedProduct.cost_price.toLocaleString()}</p></div>
-                  <div><Label className="text-muted-foreground">Selling Price</Label><p>${selectedProduct.selling_price.toLocaleString()}</p></div>
-                  <div><Label className="text-muted-foreground">Stock</Label><p>{selectedProduct.stock_quantity}</p></div>
+                  <div><Label className="text-muted-foreground">Status</Label><Badge variant={selectedProduct.status === 'active' ? 'default' : 'secondary'}>{selectedProduct.status}</Badge></div>
+                </div>
+                
+                {/* Unit Conversion Info */}
+                <div className="p-3 bg-muted/50 rounded-lg space-y-2">
+                  <p className="text-sm font-medium">Unit Conversion</p>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><Label className="text-muted-foreground">Purchase Unit</Label><p>{selectedProduct.purchase_unit}</p></div>
+                    <div><Label className="text-muted-foreground">Conversion</Label><p className="font-mono">1:{selectedProduct.conversion_rate}</p></div>
+                    <div><Label className="text-muted-foreground">Retail Unit</Label><p>{selectedProduct.retail_unit}</p></div>
+                  </div>
+                </div>
+
+                {/* Pricing Info */}
+                <div className="p-3 bg-primary/5 rounded-lg space-y-2">
+                  <p className="text-sm font-medium">Pricing & Profit</p>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div><Label className="text-muted-foreground">Cost per {selectedProduct.purchase_unit}</Label><p>${selectedProduct.cost_price.toLocaleString()}</p></div>
+                    <div><Label className="text-muted-foreground">Cost per {selectedProduct.retail_unit}</Label><p className="text-muted-foreground">${(selectedProduct.cost_per_retail_unit || 0).toFixed(2)}</p></div>
+                    <div><Label className="text-muted-foreground">Selling Price per {selectedProduct.retail_unit}</Label><p>${selectedProduct.selling_price.toLocaleString()}</p></div>
+                    <div><Label className="text-muted-foreground">Profit per {selectedProduct.retail_unit}</Label><p className={`font-medium ${(selectedProduct.profit_per_unit || 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>${(selectedProduct.profit_per_unit || 0).toFixed(2)}</p></div>
+                  </div>
+                </div>
+
+                {/* Stock Info */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div><Label className="text-muted-foreground">Stock (in {selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity}</p></div>
                   <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
                 </div>
+                
                 {selectedProduct.description && (
                   <div><Label className="text-muted-foreground">Description</Label><p>{selectedProduct.description}</p></div>
                 )}
@@ -531,7 +611,7 @@ const Products = () => {
 
         {/* Edit Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Product</DialogTitle>
             </DialogHeader>
@@ -541,40 +621,60 @@ const Products = () => {
                   <Label htmlFor="edit-name">Product Name *</Label>
                   <Input id="edit-name" name="name" defaultValue={selectedProduct.name} required />
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-category">Category</Label>
-                    <Input id="edit-category" name="category" defaultValue={selectedProduct.category || ''} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-unit">Unit *</Label>
-                    <Select name="unit" defaultValue={selectedProduct.unit}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="piece">Piece</SelectItem>
-                        <SelectItem value="kg">Kilogram</SelectItem>
-                        <SelectItem value="liter">Liter</SelectItem>
-                        <SelectItem value="meter">Meter</SelectItem>
-                        <SelectItem value="box">Box</SelectItem>
-                        <SelectItem value="pack">Pack</SelectItem>
-                      </SelectContent>
-                    </Select>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-category">Category</Label>
+                  <Input id="edit-category" name="category" defaultValue={selectedProduct.category || ''} />
+                </div>
+                
+                {/* Dual Unit Section */}
+                <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">Unit Conversion</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-purchase_unit">Purchase Unit *</Label>
+                      <Select name="purchase_unit" defaultValue={selectedProduct.purchase_unit}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {PURCHASE_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-conversion_rate">= How Many</Label>
+                      <Input id="edit-conversion_rate" name="conversion_rate" type="number" step="0.0001" defaultValue={selectedProduct.conversion_rate} min="0.0001" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-retail_unit">Retail Unit *</Label>
+                      <Select name="retail_unit" defaultValue={selectedProduct.retail_unit}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {RETAIL_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-cost_price">Cost Price ($)</Label>
+                    <Label htmlFor="edit-cost_price">Cost per Purchase Unit ($)</Label>
                     <Input id="edit-cost_price" name="cost_price" type="number" step="0.01" defaultValue={selectedProduct.cost_price} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-selling_price">Selling Price ($)</Label>
+                    <Label htmlFor="edit-selling_price">Selling Price per Retail Unit ($)</Label>
                     <Input id="edit-selling_price" name="selling_price" type="number" step="0.01" defaultValue={selectedProduct.selling_price} />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-reorder_level">Reorder Level</Label>
+                  <Label htmlFor="edit-reorder_level">Reorder Level (in retail units)</Label>
                   <Input id="edit-reorder_level" name="reorder_level" type="number" defaultValue={selectedProduct.reorder_level} />
                 </div>
                 <div className="space-y-2">

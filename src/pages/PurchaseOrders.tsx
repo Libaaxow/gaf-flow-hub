@@ -43,12 +43,15 @@ interface Product {
   name: string;
   cost_price: number;
   unit: string;
+  purchase_unit: string;
+  retail_unit: string;
+  conversion_rate: number;
 }
 
 interface POItem {
   id?: string;
   product_id: string;
-  product?: { product_code: string; name: string; unit: string };
+  product?: { product_code: string; name: string; unit: string; purchase_unit: string; conversion_rate: number };
   quantity: number;
   unit_cost: number;
   amount: number;
@@ -147,7 +150,7 @@ const PurchaseOrders = () => {
   const fetchProducts = async () => {
     const { data } = await supabase
       .from('products')
-      .select('id, product_code, name, cost_price, unit')
+      .select('id, product_code, name, cost_price, unit, purchase_unit, retail_unit, conversion_rate')
       .eq('status', 'active')
       .order('name');
     setProducts(data || []);
@@ -165,7 +168,7 @@ const PurchaseOrders = () => {
   const fetchPOItems = async (poId: string) => {
     const { data } = await supabase
       .from('purchase_order_items')
-      .select('*, product:products(product_code, name, unit)')
+      .select('*, product:products(product_code, name, unit, purchase_unit, conversion_rate)')
       .eq('purchase_order_id', poId);
     setSelectedPOItems(data || []);
   };
@@ -523,8 +526,8 @@ const PurchaseOrders = () => {
                         <thead className="bg-muted/50">
                           <tr>
                             <th className="px-3 py-2 text-left text-sm">Product</th>
-                            <th className="px-3 py-2 text-left text-sm w-24">Qty</th>
-                            <th className="px-3 py-2 text-left text-sm w-32">Unit Cost</th>
+                            <th className="px-3 py-2 text-left text-sm w-24">Qty (Purchase Unit)</th>
+                            <th className="px-3 py-2 text-left text-sm w-32">Cost/Unit</th>
                             <th className="px-3 py-2 text-left text-sm w-32">Amount</th>
                             <th className="px-3 py-2 w-12"></th>
                           </tr>
@@ -731,7 +734,7 @@ const PurchaseOrders = () => {
                     <thead className="bg-muted/50">
                       <tr>
                         <th className="px-4 py-2 text-left text-sm">Product</th>
-                        <th className="px-4 py-2 text-left text-sm">Qty</th>
+                        <th className="px-4 py-2 text-left text-sm">Qty (Purchase Unit)</th>
                         <th className="px-4 py-2 text-left text-sm">Unit Cost</th>
                         <th className="px-4 py-2 text-left text-sm">Amount</th>
                       </tr>
@@ -740,7 +743,12 @@ const PurchaseOrders = () => {
                       {selectedPOItems.map((item) => (
                         <tr key={item.id} className="border-t">
                           <td className="px-4 py-2">{item.product?.name}</td>
-                          <td className="px-4 py-2">{item.quantity}</td>
+                          <td className="px-4 py-2">
+                            {item.quantity} {item.product?.purchase_unit || 'units'}
+                            <span className="text-xs text-muted-foreground block">
+                              = {(item.quantity * (item.product?.conversion_rate || 1)).toFixed(0)} retail units
+                            </span>
+                          </td>
                           <td className="px-4 py-2">${item.unit_cost.toFixed(2)}</td>
                           <td className="px-4 py-2">${item.amount.toFixed(2)}</td>
                         </tr>
