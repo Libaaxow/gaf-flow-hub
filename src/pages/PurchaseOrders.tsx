@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, ClipboardList, CheckCircle, XCircle, Truck, Send } from 'lucide-react';
+import { Plus, Search, Eye, ClipboardList, CheckCircle, XCircle, Truck, Send, Pencil } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -70,6 +70,8 @@ const PurchaseOrders = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingPO, setEditingPO] = useState<PurchaseOrder | null>(null);
   const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
   const [selectedPOItems, setSelectedPOItems] = useState<POItem[]>([]);
   const [canManagePO, setCanManagePO] = useState(false);
@@ -278,6 +280,101 @@ const PurchaseOrders = () => {
     }
   };
 
+  const handleEditPO = async (po: PurchaseOrder) => {
+    setEditingPO(po);
+    setSelectedVendor(po.vendor_id);
+    setOrderDate(po.order_date);
+    setExpectedDelivery(po.expected_delivery_date || '');
+    setNotes(po.notes || '');
+    setVatEnabled(po.vat_enabled);
+    setVatPercentage(po.vat_percentage);
+    
+    // Fetch PO items
+    const { data: items } = await supabase
+      .from('purchase_order_items')
+      .select('*, product:products(product_code, name, unit)')
+      .eq('purchase_order_id', po.id);
+    
+    if (items && items.length > 0) {
+      setPOItems(items.map(item => ({
+        id: item.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost,
+        amount: item.amount,
+      })));
+    }
+    
+    setIsEditDialogOpen(true);
+  };
+
+  const handleUpdatePO = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingPO) return;
+    
+    if (!selectedVendor) {
+      toast({ title: 'Error', description: 'Please select a vendor', variant: 'destructive' });
+      return;
+    }
+
+    if (poItems.some(item => !item.product_id)) {
+      toast({ title: 'Error', description: 'Please select products for all items', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const { subtotal, vatAmount, total } = calculateTotals();
+
+      // Update PO
+      const { error: poError } = await supabase
+        .from('purchase_orders')
+        .update({
+          vendor_id: selectedVendor,
+          order_date: orderDate,
+          expected_delivery_date: expectedDelivery || null,
+          subtotal,
+          vat_enabled: vatEnabled,
+          vat_percentage: vatPercentage,
+          vat_amount: vatAmount,
+          total_amount: total,
+          notes: notes || null,
+        })
+        .eq('id', editingPO.id);
+
+      if (poError) throw poError;
+
+      // Delete existing items
+      await supabase
+        .from('purchase_order_items')
+        .delete()
+        .eq('purchase_order_id', editingPO.id);
+
+      // Insert updated items
+      const itemsToInsert = poItems.map(item => ({
+        purchase_order_id: editingPO.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        unit_cost: item.unit_cost,
+        amount: item.amount,
+      }));
+
+      const { error: itemsError } = await supabase
+        .from('purchase_order_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast({ title: 'Success', description: 'Purchase order updated successfully' });
+      resetForm();
+      setIsEditDialogOpen(false);
+      setEditingPO(null);
+      fetchPurchaseOrders();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const resetForm = () => {
     setSelectedVendor('');
     setOrderDate(format(new Date(), 'yyyy-MM-dd'));
@@ -286,6 +383,7 @@ const PurchaseOrders = () => {
     setPOItems([{ product_id: '', quantity: 1, unit_cost: 0, amount: 0 }]);
     setVatEnabled(taxSettings.vat_enabled);
     setVatPercentage(taxSettings.vat_percentage);
+    setEditingPO(null);
   };
 
   const handleStatusChange = async (po: PurchaseOrder, newStatus: 'sent' | 'approved' | 'received' | 'cancelled') => {
@@ -571,6 +669,11 @@ const PurchaseOrders = () => {
                             <Eye className="h-4 w-4" />
                           </Button>
                           {canManagePO && po.status === 'draft' && (
+                            <Button variant="ghost" size="sm" onClick={() => handleEditPO(po)} title="Edit">
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canManagePO && po.status === 'draft' && (
                             <Button variant="ghost" size="sm" onClick={() => handleStatusChange(po, 'sent')} title="Send to Vendor">
                               <Send className="h-4 w-4" />
                             </Button>
@@ -657,6 +760,133 @@ const PurchaseOrders = () => {
                 )}
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit PO Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={(open) => { setIsEditDialogOpen(open); if (!open) resetForm(); }}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Purchase Order - {editingPO?.po_number}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleUpdatePO} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Vendor *</Label>
+                  <Select value={selectedVendor} onValueChange={setSelectedVendor}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select vendor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>{v.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Order Date</Label>
+                  <Input type="date" value={orderDate} onChange={(e) => setOrderDate(e.target.value)} />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Expected Delivery Date</Label>
+                <Input type="date" value={expectedDelivery} onChange={(e) => setExpectedDelivery(e.target.value)} />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addItem}>+ Add Item</Button>
+                </div>
+                <div className="border rounded-lg overflow-hidden">
+                  <table className="w-full">
+                    <thead className="bg-muted/50">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-sm">Product</th>
+                        <th className="px-3 py-2 text-left text-sm w-24">Qty</th>
+                        <th className="px-3 py-2 text-left text-sm w-32">Unit Cost</th>
+                        <th className="px-3 py-2 text-left text-sm w-32">Amount</th>
+                        <th className="px-3 py-2 w-12"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {poItems.map((item, index) => (
+                        <tr key={index} className="border-t">
+                          <td className="px-3 py-2">
+                            <Select value={item.product_id} onValueChange={(v) => handleProductChange(index, v)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {products.map((p) => (
+                                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => handleQuantityChange(index, parseInt(e.target.value) || 1)}
+                            />
+                          </td>
+                          <td className="px-3 py-2">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.unit_cost}
+                              onChange={(e) => handleUnitCostChange(index, parseFloat(e.target.value) || 0)}
+                            />
+                          </td>
+                          <td className="px-3 py-2 font-medium">${item.amount.toFixed(2)}</td>
+                          <td className="px-3 py-2">
+                            {poItems.length > 1 && (
+                              <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>×</Button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" checked={vatEnabled} onChange={(e) => setVatEnabled(e.target.checked)} className="rounded" />
+                  <span>Apply VAT</span>
+                </label>
+                {vatEnabled && (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={vatPercentage}
+                      onChange={(e) => setVatPercentage(parseFloat(e.target.value) || 0)}
+                      className="w-20"
+                    />
+                    <span>%</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between"><span>Subtotal:</span><span>${subtotal.toFixed(2)}</span></div>
+                {vatEnabled && <div className="flex justify-between"><span>VAT ({vatPercentage}%):</span><span>${vatAmount.toFixed(2)}</span></div>}
+                <div className="flex justify-between font-bold text-lg border-t pt-2"><span>Total:</span><span>${total.toFixed(2)}</span></div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Notes</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </div>
+
+              <Button type="submit" className="w-full">Update Purchase Order</Button>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
