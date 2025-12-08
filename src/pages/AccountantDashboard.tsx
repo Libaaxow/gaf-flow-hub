@@ -69,6 +69,16 @@ interface FinancialStats {
   totalInvoices: number;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  product_code: string;
+  retail_unit: string;
+  selling_price: number;
+  cost_per_retail_unit: number | null;
+  stock_quantity: number;
+}
+
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -177,10 +187,16 @@ const AccountantDashboard = () => {
     quantity: number;
     unit_price: number;
     amount: number;
+    product_id?: string;
+    retail_unit?: string;
+    cost_per_unit?: number;
+    line_cost?: number;
+    line_profit?: number;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unit_price: 0, amount: 0 }
   ]);
+  const [products, setProducts] = useState<Product[]>([]);
 
   // Report filter states
   const [reportType, setReportType] = useState('profit_loss');
@@ -255,7 +271,23 @@ const AccountantDashboard = () => {
       fetchFilteredData(),
       fetchCustomers(),
       fetchInvoices(),
+      fetchProducts(),
     ]);
+  };
+
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, product_code, retail_unit, selling_price, cost_per_retail_unit, stock_quantity')
+        .eq('status', 'active')
+        .order('name');
+
+      if (error) throw error;
+      setProducts(data || []);
+    } catch (error: any) {
+      console.error('Error fetching products:', error);
+    }
   };
 
   // Fetch actual total stats (not filtered by date)
@@ -1189,13 +1221,44 @@ const AccountantDashboard = () => {
     }
   };
 
+  const handleProductSelect = (index: number, productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const newItems = [...invoiceItems];
+    const quantity = newItems[index].quantity || 1;
+    const costPerUnit = product.cost_per_retail_unit || 0;
+    const lineCost = costPerUnit * quantity;
+    const lineAmount = product.selling_price * quantity;
+    const lineProfit = lineAmount - lineCost;
+
+    newItems[index] = {
+      ...newItems[index],
+      product_id: productId,
+      description: product.name,
+      unit_price: product.selling_price,
+      retail_unit: product.retail_unit,
+      cost_per_unit: costPerUnit,
+      line_cost: lineCost,
+      line_profit: lineProfit,
+      amount: lineAmount,
+    };
+    setInvoiceItems(newItems);
+  };
+
   const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
     const newItems = [...invoiceItems];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Auto-calculate amount
+    // Auto-calculate amount and profit
     if (field === 'quantity' || field === 'unit_price') {
-      newItems[index].amount = newItems[index].quantity * newItems[index].unit_price;
+      const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity;
+      const unitPrice = field === 'unit_price' ? Number(value) : newItems[index].unit_price;
+      const costPerUnit = newItems[index].cost_per_unit || 0;
+      
+      newItems[index].amount = quantity * unitPrice;
+      newItems[index].line_cost = quantity * costPerUnit;
+      newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
     }
     
     setInvoiceItems(newItems);
@@ -1203,6 +1266,10 @@ const AccountantDashboard = () => {
 
   const calculateInvoiceSubtotal = () => {
     return invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+  };
+
+  const calculateTotalProfit = () => {
+    return invoiceItems.reduce((sum, item) => sum + (item.line_profit || 0), 0);
   };
 
   const handleCreateInvoice = async () => {
@@ -1224,6 +1291,21 @@ const AccountantDashboard = () => {
         variant: 'destructive',
       });
       return;
+    }
+
+    // Validate stock availability for product items
+    for (const item of invoiceItems) {
+      if (item.product_id) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product && item.quantity > product.stock_quantity) {
+          toast({
+            title: 'Insufficient Stock',
+            description: `Not enough stock for ${product.name}. Available: ${product.stock_quantity} ${product.retail_unit}(s)`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
     }
 
     try {
@@ -1254,13 +1336,18 @@ const AccountantDashboard = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Insert invoice items
+      // Insert invoice items with product info and cost/profit data
       const itemsToInsert = invoiceItems.map(item => ({
         invoice_id: invoiceData.id,
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         amount: item.amount,
+        product_id: item.product_id || null,
+        retail_unit: item.retail_unit || 'piece',
+        cost_per_unit: item.cost_per_unit || 0,
+        line_cost: item.line_cost || 0,
+        line_profit: item.line_profit || 0,
       }));
 
       const { error: itemsError } = await supabase
@@ -1285,6 +1372,7 @@ const AccountantDashboard = () => {
       
       fetchInvoices();
       fetchActualStats();
+      fetchProducts(); // Refresh products to get updated stock
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -1303,13 +1391,18 @@ const AccountantDashboard = () => {
     setInvoiceTax(invoice.tax_amount?.toString() || '');
     setInvoiceNotes(invoice.notes || '');
     
-    // Load invoice items
+    // Load invoice items with product info
     if (invoice.invoice_items && invoice.invoice_items.length > 0) {
       setInvoiceItems(invoice.invoice_items.map((item: any) => ({
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         amount: item.amount,
+        product_id: item.product_id || undefined,
+        retail_unit: item.retail_unit || 'piece',
+        cost_per_unit: item.cost_per_unit || 0,
+        line_cost: item.line_cost || 0,
+        line_profit: item.line_profit || 0,
       })));
     } else {
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
@@ -1338,6 +1431,21 @@ const AccountantDashboard = () => {
       return;
     }
 
+    // Validate stock availability for product items
+    for (const item of invoiceItems) {
+      if (item.product_id) {
+        const product = products.find(p => p.id === item.product_id);
+        if (product && item.quantity > product.stock_quantity) {
+          toast({
+            title: 'Insufficient Stock',
+            description: `Not enough stock for ${product.name}. Available: ${product.stock_quantity} ${product.retail_unit}(s)`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
+
     try {
       const subtotal = calculateInvoiceSubtotal();
       const tax = parseFloat(invoiceTax) || 0;
@@ -1360,7 +1468,7 @@ const AccountantDashboard = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Delete existing invoice items
+      // Delete existing invoice items (triggers will restore inventory)
       const { error: deleteError } = await supabase
         .from('invoice_items')
         .delete()
@@ -1368,13 +1476,18 @@ const AccountantDashboard = () => {
 
       if (deleteError) throw deleteError;
 
-      // Insert new invoice items
+      // Insert new invoice items with product info
       const itemsToInsert = invoiceItems.map(item => ({
         invoice_id: editingInvoice.id,
         description: item.description,
         quantity: item.quantity,
         unit_price: item.unit_price,
         amount: item.amount,
+        product_id: item.product_id || null,
+        retail_unit: item.retail_unit || 'piece',
+        cost_per_unit: item.cost_per_unit || 0,
+        line_cost: item.line_cost || 0,
+        line_profit: item.line_profit || 0,
       }));
 
       const { error: itemsError } = await supabase
@@ -1400,6 +1513,7 @@ const AccountantDashboard = () => {
       
       fetchInvoices();
       fetchActualStats();
+      fetchProducts(); // Refresh products to get updated stock
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -2316,7 +2430,7 @@ const AccountantDashboard = () => {
                         {/* Invoice Items */}
                         <div className="space-y-4">
                           <div className="flex justify-between items-center">
-                            <Label>Invoice Items</Label>
+                            <Label>Invoice Items (Retail Units Only)</Label>
                             <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
                               <Plus className="h-4 w-4 mr-1" />
                               Add Item
@@ -2327,6 +2441,24 @@ const AccountantDashboard = () => {
                             <Card key={index} className="p-4">
                               <div className="grid gap-3">
                                 <div className="grid gap-2">
+                                  <Label>Product (Optional)</Label>
+                                  <Select 
+                                    value={item.product_id || ''} 
+                                    onValueChange={(value) => handleProductSelect(index, value)}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select product or type manually" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {products.map((product) => (
+                                        <SelectItem key={product.id} value={product.id}>
+                                          {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} (Stock: {product.stock_quantity})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="grid gap-2">
                                   <Label>Description *</Label>
                                   <Input
                                     value={item.description}
@@ -2334,9 +2466,9 @@ const AccountantDashboard = () => {
                                     placeholder="Item description"
                                   />
                                 </div>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-2">
                                   <div className="grid gap-2">
-                                    <Label>Quantity</Label>
+                                    <Label>Qty ({item.retail_unit || 'unit'})</Label>
                                     <Input
                                       type="number"
                                       min="1"
@@ -2352,6 +2484,8 @@ const AccountantDashboard = () => {
                                       step="0.01"
                                       value={item.unit_price}
                                       onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                      disabled={!!item.product_id}
+                                      className={item.product_id ? 'bg-muted' : ''}
                                     />
                                   </div>
                                   <div className="grid gap-2">
@@ -2363,7 +2497,23 @@ const AccountantDashboard = () => {
                                       className="bg-muted"
                                     />
                                   </div>
+                                  <div className="grid gap-2">
+                                    <Label>Profit</Label>
+                                    <Input
+                                      type="number"
+                                      value={(item.line_profit || 0).toFixed(2)}
+                                      disabled
+                                      className="bg-muted text-success"
+                                    />
+                                  </div>
                                 </div>
+                                {item.product_id && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Cost: ${(item.cost_per_unit || 0).toFixed(2)}/{item.retail_unit} | 
+                                    Line Cost: ${(item.line_cost || 0).toFixed(2)} | 
+                                    Profit: ${(item.line_profit || 0).toFixed(2)}
+                                  </div>
+                                )}
                                 {invoiceItems.length > 1 && (
                                   <Button
                                     type="button"
@@ -2378,9 +2528,15 @@ const AccountantDashboard = () => {
                             </Card>
                           ))}
 
-                          <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                            <span className="font-semibold">Subtotal:</span>
-                            <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                              <span className="font-semibold">Subtotal:</span>
+                              <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 bg-success/10 rounded-lg">
+                              <span className="text-sm text-success font-medium">Est. Profit (internal):</span>
+                              <span className="text-success font-bold">${calculateTotalProfit().toFixed(2)}</span>
+                            </div>
                           </div>
                         </div>
 
@@ -3680,7 +3836,7 @@ const AccountantDashboard = () => {
             {/* Invoice Items */}
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <Label>Invoice Items</Label>
+                <Label>Invoice Items (Retail Units Only)</Label>
                 <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
                   <Plus className="h-4 w-4 mr-1" />
                   Add Item
@@ -3691,6 +3847,24 @@ const AccountantDashboard = () => {
                 <Card key={index} className="p-4">
                   <div className="grid gap-3">
                     <div className="grid gap-2">
+                      <Label>Product (Optional)</Label>
+                      <Select 
+                        value={item.product_id || ''} 
+                        onValueChange={(value) => handleProductSelect(index, value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product or type manually" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {products.map((product) => (
+                            <SelectItem key={product.id} value={product.id}>
+                              {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} (Stock: {product.stock_quantity})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid gap-2">
                       <Label>Description *</Label>
                       <Input
                         value={item.description}
@@ -3698,9 +3872,9 @@ const AccountantDashboard = () => {
                         placeholder="Item description"
                       />
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-4 gap-2">
                       <div className="grid gap-2">
-                        <Label>Quantity *</Label>
+                        <Label>Qty ({item.retail_unit || 'unit'})</Label>
                         <Input
                           type="number"
                           min="1"
@@ -3709,13 +3883,15 @@ const AccountantDashboard = () => {
                         />
                       </div>
                       <div className="grid gap-2">
-                        <Label>Unit Price *</Label>
+                        <Label>Unit Price</Label>
                         <Input
                           type="number"
                           min="0"
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                          disabled={!!item.product_id}
+                          className={item.product_id ? 'bg-muted' : ''}
                         />
                       </div>
                       <div className="grid gap-2">
@@ -3727,7 +3903,23 @@ const AccountantDashboard = () => {
                           className="bg-muted"
                         />
                       </div>
+                      <div className="grid gap-2">
+                        <Label>Profit</Label>
+                        <Input
+                          type="number"
+                          value={(item.line_profit || 0).toFixed(2)}
+                          disabled
+                          className="bg-muted text-success"
+                        />
+                      </div>
                     </div>
+                    {item.product_id && (
+                      <div className="text-xs text-muted-foreground">
+                        Cost: ${(item.cost_per_unit || 0).toFixed(2)}/{item.retail_unit} | 
+                        Line Cost: ${(item.line_cost || 0).toFixed(2)} | 
+                        Profit: ${(item.line_profit || 0).toFixed(2)}
+                      </div>
+                    )}
                     {invoiceItems.length > 1 && (
                       <Button
                         type="button"
@@ -3742,9 +3934,15 @@ const AccountantDashboard = () => {
                 </Card>
               ))}
 
-              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                <span className="font-semibold">Subtotal:</span>
-                <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                  <span className="font-semibold">Subtotal:</span>
+                  <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-success/10 rounded-lg">
+                  <span className="text-sm text-success font-medium">Est. Profit (internal):</span>
+                  <span className="text-success font-bold">${calculateTotalProfit().toFixed(2)}</span>
+                </div>
               </div>
             </div>
 
