@@ -222,10 +222,12 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string
+          draft_by_sales: string | null
           due_date: string | null
           id: string
           invoice_date: string
           invoice_number: string
+          is_draft: boolean | null
           notes: string | null
           order_id: string | null
           status: string
@@ -240,10 +242,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id: string
+          draft_by_sales?: string | null
           due_date?: string | null
           id?: string
           invoice_date?: string
           invoice_number: string
+          is_draft?: boolean | null
           notes?: string | null
           order_id?: string | null
           status?: string
@@ -258,10 +262,12 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string
+          draft_by_sales?: string | null
           due_date?: string | null
           id?: string
           invoice_date?: string
           invoice_number?: string
+          is_draft?: boolean | null
           notes?: string | null
           order_id?: string | null
           status?: string
@@ -277,6 +283,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_draft_by_sales_fkey"
+            columns: ["draft_by_sales"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
@@ -1204,6 +1217,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_draft_invoice_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
       generate_product_code: { Args: never; Returns: string }
