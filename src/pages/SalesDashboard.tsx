@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DollarSign, Users, Package, CheckCircle, Clock, Plus, TrendingUp, Edit, Eye, Calendar as CalendarIcon, Download, Activity } from 'lucide-react';
+import { DollarSign, Users, CheckCircle, Clock, Plus, TrendingUp, Eye, Calendar as CalendarIcon, Download, Activity, FileText } from 'lucide-react';
 import { generateDailyActivityPDF } from '@/utils/generateDailyActivityPDF';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -28,8 +28,8 @@ interface DashboardStats {
   totalSales: number;
   totalCommission: number;
   customersAdded: number;
-  activeJobs: number;
-  completedJobs: number;
+  draftInvoices: number;
+  completedInvoices: number;
 }
 
 interface Customer {
@@ -40,27 +40,35 @@ interface Customer {
   company_name: string | null;
   created_at: string;
   created_by: string | null;
-  total_orders?: number;
+  total_invoices?: number;
   total_spent?: number;
-  last_order_date?: string | null;
+  last_invoice_date?: string | null;
 }
 
-interface Order {
+interface Invoice {
   id: string;
-  job_title: string;
-  description: string | null;
-  print_type: string | null;
-  quantity: number | null;
-  notes: string | null;
-  order_value: number;
-  status: string;
-  payment_status: string;
-  delivery_date: string | null;
-  created_at: string;
+  invoice_number: string;
   customer_id: string;
-  designer_id: string | null;
-  designer_name?: string | null;
+  invoice_date: string;
+  due_date: string | null;
+  subtotal: number;
+  tax_amount: number;
+  total_amount: number;
+  amount_paid: number;
+  status: string;
+  is_draft: boolean;
+  notes: string | null;
+  created_at: string;
   customers: { name: string } | null;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  selling_price: number;
+  stock_quantity: number;
+  retail_unit: string;
+  cost_per_retail_unit: number | null;
 }
 
 interface Commission {
@@ -84,30 +92,34 @@ const SalesDashboard = () => {
     totalSales: 0,
     totalCommission: 0,
     customersAdded: 0,
-    activeJobs: 0,
-    completedJobs: 0,
+    draftInvoices: 0,
+    completedInvoices: 0,
   });
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCustomerDialogOpen, setIsCustomerDialogOpen] = useState(false);
   const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
-  const [orderFormOpen, setOrderFormOpen] = useState(false);
+  const [invoiceFormOpen, setInvoiceFormOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
   const [existingCustomer, setExistingCustomer] = useState<any>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
-  const [showOrderFields, setShowOrderFields] = useState(false);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [designers, setDesigners] = useState<any[]>([]);
-  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const [showInvoiceFields, setShowInvoiceFields] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
-  const [orderHistory, setOrderHistory] = useState<any[]>([]);
-  const [orderItems, setOrderItems] = useState<Array<{ description: string; quantity: number; unit_price: number }>>([
-    { description: '', quantity: 1, unit_price: 0 }
+  const [invoiceItems, setInvoiceItems] = useState<Array<{ 
+    product_id: string | null;
+    description: string; 
+    quantity: number; 
+    unit_price: number;
+    retail_unit: string;
+    cost_per_unit: number;
+  }>>([
+    { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }
   ]);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
   
   // Separate state for my customers (for display in My Customers tab)
   const myCustomers = customers.filter(c => c.created_by === user?.id);
@@ -115,18 +127,18 @@ const SalesDashboard = () => {
   useEffect(() => {
     fetchUserRole();
     fetchDashboardData();
-    fetchDesigners();
+    fetchProducts();
     
-    // Set up realtime subscription for orders
+    // Set up realtime subscription for invoices
     const channel = supabase
-      .channel('sales-orders-changes')
+      .channel('sales-invoices-changes')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'orders',
-          filter: `salesperson_id=eq.${user?.id}`,
+          table: 'invoices',
+          filter: `draft_by_sales=eq.${user?.id}`,
         },
         () => {
           fetchDashboardData();
@@ -155,24 +167,18 @@ const SalesDashboard = () => {
     }
   };
 
-  const fetchDesigners = async () => {
+  const fetchProducts = async () => {
     try {
-      const { data } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'designer');
+      const { data, error } = await supabase
+        .from('products')
+        .select('id, name, selling_price, stock_quantity, retail_unit, cost_per_retail_unit')
+        .eq('status', 'active')
+        .order('name');
       
-      if (data && data.length > 0) {
-        const designerIds = data.map(d => d.user_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', designerIds);
-        
-        setDesigners(profiles || []);
-      }
+      if (error) throw error;
+      setProducts(data || []);
     } catch (error) {
-      console.error('Error fetching designers:', error);
+      console.error('Error fetching products:', error);
     }
   };
 
@@ -181,18 +187,7 @@ const SalesDashboard = () => {
       const startDate = startOfDay(dateFilter).toISOString();
       const endDate = endOfDay(dateFilter).toISOString();
 
-      // Fetch order history for today's activity
-      const { data: historyData } = await supabase
-        .from('order_history')
-        .select('*, orders(job_title, status, customers(name))')
-        .eq('user_id', user?.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false });
-      
-      setOrderHistory(historyData || []);
-
-      // Fetch all customers (for order creation dropdown)
+      // Fetch all customers (for invoice creation dropdown)
       const { data: allCustomersData, error: allCustomersError } = await supabase
         .from('customers')
         .select('*')
@@ -202,42 +197,20 @@ const SalesDashboard = () => {
 
       // Fetch customers created by this salesperson (for stats)
       const myCustomersData = allCustomersData?.filter(c => c.created_by === user?.id) || [];
-      const customersData = myCustomersData;
 
-      // Fetch orders for this salesperson
-      
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
+      // Fetch invoices created by this salesperson
+      const { data: invoicesData, error: invoicesError } = await supabase
+        .from('invoices')
         .select(`
           *,
           customers (name)
         `)
-        .eq('salesperson_id', user?.id)
+        .eq('draft_by_sales', user?.id)
         .gte('created_at', startDate)
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
-      if (ordersError) throw ordersError;
-
-      // Batch fetch all unique designer profiles in a single query
-      const designerIds = [...new Set((ordersData || []).map(o => o.designer_id).filter(Boolean))];
-      
-      let designerMap = new Map();
-      if (designerIds.length > 0) {
-        const { data: designerData } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', designerIds);
-        
-        designerMap = new Map((designerData || []).map(p => [p.id, p]));
-      }
-
-      const ordersWithDesigners = (ordersData || []).map(order => ({
-        ...order,
-        designer_name: order.designer_id 
-          ? (designerMap.get(order.designer_id)?.full_name || null)
-          : 'Pending Accountant Assignment',
-      }));
+      if (invoicesError) throw invoicesError;
 
       // Fetch commissions
       const { data: commissionsData, error: commissionsError } = await supabase
@@ -252,39 +225,37 @@ const SalesDashboard = () => {
       if (commissionsError) throw commissionsError;
 
       // Calculate stats
-      const totalSales = ordersWithDesigners?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
+      const totalSales = invoicesData?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
       const totalCommission = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
-      const activeJobs = ordersWithDesigners?.filter(o => 
-        o.status === 'pending_accounting_review' || o.status === 'designing' || o.status === 'awaiting_accounting_approval' || o.status === 'ready_for_print' || o.status === 'printing'
-      ).length || 0;
-      const completedJobs = ordersWithDesigners?.filter(o => o.status === 'delivered').length || 0;
+      const draftInvoices = invoicesData?.filter(i => i.is_draft || i.status === 'draft').length || 0;
+      const completedInvoices = invoicesData?.filter(i => i.status === 'paid').length || 0;
 
       // Calculate customer statistics
-      const customersWithStats = customersData?.map(customer => {
-        const customerOrders = ordersWithDesigners?.filter(o => o.customer_id === customer.id) || [];
-        const totalOrders = customerOrders.length;
-        const totalSpent = customerOrders.reduce((sum, o) => sum + Number(o.order_value || 0), 0);
-        const lastOrder = customerOrders.length > 0 ? customerOrders[0].created_at : null;
+      const customersWithStats = myCustomersData.map(customer => {
+        const customerInvoices = invoicesData?.filter(i => i.customer_id === customer.id) || [];
+        const totalInvoices = customerInvoices.length;
+        const totalSpent = customerInvoices.reduce((sum, i) => sum + Number(i.total_amount || 0), 0);
+        const lastInvoice = customerInvoices.length > 0 ? customerInvoices[0].created_at : null;
         
         return {
           ...customer,
-          total_orders: totalOrders,
+          total_invoices: totalInvoices,
           total_spent: totalSpent,
-          last_order_date: lastOrder,
+          last_invoice_date: lastInvoice,
         };
-      }) || [];
+      });
 
       setStats({
         totalSales,
         totalCommission,
-        customersAdded: customersData?.length || 0,
-        activeJobs,
-        completedJobs,
+        customersAdded: myCustomersData.length || 0,
+        draftInvoices,
+        completedInvoices,
       });
 
       // Use all customers for dropdowns, but show stats for only my customers
       setCustomers(allCustomersData || []);
-      setOrders(ordersWithDesigners || []);
+      setInvoices(invoicesData || []);
       setCommissions(commissionsData || []);
     } catch (error: any) {
       toast({
@@ -311,57 +282,20 @@ const SalesDashboard = () => {
     };
 
     try {
-      // Insert customer
-      const { data: newCustomer, error: customerError } = await supabase
+      const { error: customerError } = await supabase
         .from('customers')
-        .insert([customerData])
-        .select()
-        .single();
+        .insert([customerData]);
 
       if (customerError) throw customerError;
 
-      // If phone is 9+ digits and order fields are filled, create order too
-      if (showOrderFields && newCustomer) {
-        const jobTitle = formData.get('job_title') as string;
-        const orderValue = formData.get('order_value') as string;
-        
-        if (jobTitle && orderValue) {
-          const orderData = {
-            customer_id: newCustomer.id,
-            job_title: jobTitle,
-            description: (formData.get('description') as string) || null,
-            order_value: parseFloat(orderValue),
-            salesperson_id: user?.id,
-            delivery_date: (formData.get('delivery_date') as string) || null,
-          };
+      toast({
+        title: 'Success',
+        description: 'Customer added successfully',
+      });
 
-          const { error: orderError } = await supabase
-            .from('orders')
-            .insert([orderData]);
-
-          if (orderError) throw orderError;
-
-          toast({
-            title: 'Success',
-            description: 'Customer and order created successfully',
-          });
-        } else {
-          toast({
-            title: 'Success',
-            description: 'Customer added successfully',
-          });
-        }
-      } else {
-        toast({
-          title: 'Success',
-          description: 'Customer added successfully',
-        });
-      }
-
-      // Reset form before closing dialog
       form.reset();
       setPhoneNumber('');
-      setShowOrderFields(false);
+      setShowInvoiceFields(false);
       setIsCustomerDialogOpen(false);
       fetchDashboardData();
     } catch (error: any) {
@@ -388,7 +322,7 @@ const SalesDashboard = () => {
 
       setExistingCustomer(data);
       setPhoneCheckOpen(false);
-      setOrderFormOpen(true);
+      setInvoiceFormOpen(true);
 
       if (data) {
         toast({
@@ -412,12 +346,28 @@ const SalesDashboard = () => {
     }
   };
 
-  const handleAddOrder = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleProductSelect = (index: number, productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (product) {
+      const newItems = [...invoiceItems];
+      newItems[index] = {
+        ...newItems[index],
+        product_id: productId,
+        description: product.name,
+        unit_price: Number(product.selling_price),
+        retail_unit: product.retail_unit || 'piece',
+        cost_per_unit: Number(product.cost_per_retail_unit || 0),
+      };
+      setInvoiceItems(newItems);
+    }
+  };
+
+  const handleCreateDraftInvoice = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
     try {
-      setUploadingFiles(true);
+      setCreatingInvoice(true);
       let customerId = existingCustomer?.id;
 
       // Create new customer if doesn't exist
@@ -440,87 +390,67 @@ const SalesDashboard = () => {
         customerId = newCustomer.id;
       }
 
-      // Calculate total order value from items
-      const totalOrderValue = orderItems.reduce((sum, item) => 
+      // Calculate totals
+      const subtotal = invoiceItems.reduce((sum, item) => 
         sum + (item.quantity * item.unit_price), 0
       );
 
-      // Combine items into description
-      const itemsDescription = orderItems
-        .map((item, idx) => 
-          `${idx + 1}. ${item.description} - Qty: ${item.quantity} x $${item.unit_price.toFixed(2)}`
-        )
-        .join('\n');
+      // Generate draft invoice number
+      const { data: draftNumber } = await supabase.rpc('generate_draft_invoice_number');
 
-      // Create order
-      const orderData = {
+      // Create draft invoice
+      const invoiceData = {
         customer_id: customerId,
-        job_title: formData.get('job_title') as string,
-        description: itemsDescription,
-        print_type: formData.get('print_type') as string,
-        quantity: orderItems.reduce((sum, item) => sum + item.quantity, 0),
+        invoice_number: draftNumber || `DRAFT-${Date.now()}`,
+        invoice_date: new Date().toISOString().split('T')[0],
+        due_date: formData.get('due_date') as string || null,
+        subtotal: subtotal,
+        tax_amount: 0,
+        total_amount: subtotal,
+        amount_paid: 0,
+        status: 'draft',
+        is_draft: true,
+        draft_by_sales: user?.id,
         notes: formData.get('notes') as string || null,
-        order_value: totalOrderValue,
-        salesperson_id: user?.id,
-        delivery_date: formData.get('delivery_date') as string || null,
-        status: 'pending_accounting_review' as const,
       };
 
-      // Insert order
-      const { data: newOrder, error: orderError } = await supabase
-        .from('orders')
-        .insert([orderData])
+      const { data: newInvoice, error: invoiceError } = await supabase
+        .from('invoices')
+        .insert([invoiceData])
         .select()
         .single();
 
-      if (orderError) throw orderError;
+      if (invoiceError) throw invoiceError;
 
-      // Handle file uploads if any
-      const fileInput = e.currentTarget.querySelector('input[type="file"]') as HTMLInputElement;
-      if (fileInput?.files && fileInput.files.length > 0) {
-        const files = Array.from(fileInput.files);
-        
-        for (const file of files) {
-          const fileName = `${newOrder.id}/${Date.now()}_${file.name}`;
-          
-          // Upload file to storage without any compression or transformation
-          // Preserves original size, resolution, and color mode (CMYK, etc.)
-          const { error: uploadError } = await supabase.storage
-            .from('order-files')
-            .upload(fileName, file, {
-              contentType: file.type || 'application/octet-stream',
-              cacheControl: '3600',
-              upsert: false
-            });
+      // Create invoice items (without product_id to avoid inventory reduction for drafts)
+      const itemsToInsert = invoiceItems.map(item => ({
+        invoice_id: newInvoice.id,
+        description: item.description,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        amount: item.quantity * item.unit_price,
+        retail_unit: item.retail_unit,
+        // Don't set product_id for draft invoices to avoid inventory reduction
+        // Accountant will link products when finalizing
+      }));
 
-          if (uploadError) throw uploadError;
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(itemsToInsert);
 
-          // Record file in database
-          const { error: fileRecordError } = await supabase
-            .from('order_files')
-            .insert({
-              order_id: newOrder.id,
-              file_name: file.name,
-              file_path: fileName,
-              file_type: file.type,
-              uploaded_by: user?.id,
-            });
-
-          if (fileRecordError) throw fileRecordError;
-        }
-      }
+      if (itemsError) throw itemsError;
 
       toast({
         title: 'Success',
-        description: 'Order created successfully',
+        description: 'Draft invoice sent to accountant for review',
       });
 
       // Reset form and close dialog
       e.currentTarget.reset();
       setPhoneNumber('');
       setExistingCustomer(null);
-      setOrderItems([{ description: '', quantity: 1, unit_price: 0 }]);
-      setOrderFormOpen(false);
+      setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }]);
+      setInvoiceFormOpen(false);
       await fetchDashboardData();
     } catch (error: any) {
       toast({
@@ -529,61 +459,17 @@ const SalesDashboard = () => {
         variant: 'destructive',
       });
     } finally {
-      setUploadingFiles(false);
+      setCreatingInvoice(false);
     }
   };
 
-  const handleEditOrder = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!editingOrder) return;
-
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    
-    const orderData = {
-      job_title: formData.get('job_title') as string,
-      description: formData.get('description') as string,
-      order_value: parseFloat(formData.get('order_value') as string),
-      designer_id: (formData.get('designer_id') as string) || null,
-      delivery_date: formData.get('delivery_date') as string || null,
-    };
-
-    try {
-      const { error } = await supabase
-        .from('orders')
-        .update(orderData)
-        .eq('id', editingOrder.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Success',
-        description: 'Order updated successfully',
-      });
-
-      // Reset form and close dialog in correct order
-      form.reset();
-      setEditingOrder(null);
-      setIsEditDialogOpen(false);
-      fetchDashboardData();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string, isDraft: boolean) => {
+    if (isDraft) return 'bg-warning';
     const colors: Record<string, string> = {
-      pending_accounting_review: 'bg-warning',
-      designing: 'bg-info',
-      awaiting_accounting_approval: 'bg-info',
-      ready_for_print: 'bg-success',
-      printing: 'bg-primary',
-      printed: 'bg-success',
-      delivered: 'bg-success',
+      draft: 'bg-warning',
+      sent: 'bg-info',
+      paid: 'bg-success',
+      overdue: 'bg-destructive',
     };
     return colors[status] || 'bg-secondary';
   };
@@ -596,11 +482,11 @@ const SalesDashboard = () => {
         .eq('id', user?.id)
         .single();
 
-      const activities = orderHistory.map(h => ({
-        time: format(new Date(h.created_at), 'HH:mm'),
-        action: h.action,
-        details: `${h.orders?.job_title || 'N/A'} - ${h.orders?.customers?.name || 'N/A'}`,
-        status: h.details?.new_status || h.details?.old_status || 'N/A'
+      const activities = invoices.map(inv => ({
+        time: format(new Date(inv.created_at), 'HH:mm'),
+        action: inv.is_draft ? 'Draft Invoice Created' : 'Invoice Created',
+        details: `${inv.invoice_number} - ${inv.customers?.name || 'N/A'}`,
+        status: inv.status
       }));
 
       generateDailyActivityPDF({
@@ -611,8 +497,8 @@ const SalesDashboard = () => {
         stats: [
           { label: 'Total Sales', value: `$${stats.totalSales.toLocaleString()}` },
           { label: 'Total Commission', value: `$${stats.totalCommission.toLocaleString()}` },
-          { label: 'Active Jobs', value: stats.activeJobs },
-          { label: 'Completed Jobs', value: stats.completedJobs },
+          { label: 'Draft Invoices', value: stats.draftInvoices },
+          { label: 'Paid Invoices', value: stats.completedInvoices },
         ]
       });
 
@@ -639,22 +525,22 @@ const SalesDashboard = () => {
   };
 
   // Prepare chart data
-  const monthlyData = orders.reduce((acc, order) => {
-    const month = new Date(order.created_at).toLocaleDateString('en-US', { month: 'short' });
+  const monthlyData = invoices.reduce((acc, invoice) => {
+    const month = new Date(invoice.created_at).toLocaleDateString('en-US', { month: 'short' });
     const existingMonth = acc.find(item => item.month === month);
     
     if (existingMonth) {
-      existingMonth.sales += Number(order.order_value || 0);
+      existingMonth.sales += Number(invoice.total_amount || 0);
     } else {
-      acc.push({ month, sales: Number(order.order_value || 0) });
+      acc.push({ month, sales: Number(invoice.total_amount || 0) });
     }
     
     return acc;
   }, [] as { month: string; sales: number }[]);
 
   const statusData = [
-    { name: 'Active', value: stats.activeJobs, color: '#fbbf24' },
-    { name: 'Completed', value: stats.completedJobs, color: '#10b981' },
+    { name: 'Draft', value: stats.draftInvoices, color: '#fbbf24' },
+    { name: 'Paid', value: stats.completedInvoices, color: '#10b981' },
   ];
 
   const topCustomers = [...myCustomers]
@@ -666,7 +552,7 @@ const SalesDashboard = () => {
       title: 'Total Sales Value',
       value: `$${stats.totalSales.toFixed(2)}`,
       icon: DollarSign,
-      description: 'All confirmed jobs',
+      description: 'All invoices',
       color: 'text-success',
     },
     {
@@ -684,17 +570,17 @@ const SalesDashboard = () => {
       color: 'text-info',
     },
     {
-      title: 'Active Jobs',
-      value: stats.activeJobs,
+      title: 'Draft Invoices',
+      value: stats.draftInvoices,
       icon: Clock,
-      description: 'In progress',
+      description: 'Pending accountant review',
       color: 'text-warning',
     },
     {
-      title: 'Completed Jobs',
-      value: stats.completedJobs,
+      title: 'Paid Invoices',
+      value: stats.completedInvoices,
       icon: CheckCircle,
-      description: 'Delivered orders',
+      description: 'Completed',
       color: 'text-success',
     },
   ];
@@ -763,55 +649,6 @@ const SalesDashboard = () => {
           </div>
         </div>
 
-        {/* Today's Activity */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Activity className="h-5 w-5" />
-              Today's Activity ({orderHistory.length} actions)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {orderHistory.length === 0 ? (
-                <p className="text-center text-muted-foreground py-4">No activity recorded today</p>
-              ) : (
-                orderHistory
-                  .filter((history) => history.action === 'Order Created')
-                  .slice(0, 10)
-                  .map((history) => {
-                    const orderStatus = history.orders?.status || 'pending';
-                    const statusText = orderStatus === 'completed' 
-                      ? 'Completed' 
-                      : orderStatus === 'printing' 
-                      ? 'In Print' 
-                      : orderStatus === 'designing'
-                      ? 'In Design'
-                      : orderStatus === 'ready_for_print'
-                      ? 'Ready for Print'
-                      : 'Pending';
-                    
-                    return (
-                      <div key={history.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                        <div className="text-xs text-muted-foreground min-w-[50px]">
-                          {format(new Date(history.created_at), 'HH:mm')}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">
-                            {history.orders?.job_title || 'N/A'} - {history.orders?.customers?.name || 'N/A'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Status: {statusText}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Stats Cards */}
         <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           {statCards.map((card) => {
@@ -856,7 +693,7 @@ const SalesDashboard = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle>Job Status Distribution</CardTitle>
+              <CardTitle>Invoice Status Distribution</CardTitle>
             </CardHeader>
             <CardContent className="flex items-center justify-center">
               <ResponsiveContainer width="100%" height={200}>
@@ -893,7 +730,7 @@ const SalesDashboard = () => {
                 <TableRow>
                   <TableHead className="min-w-[150px]">Customer</TableHead>
                   <TableHead className="min-w-[150px]">Company</TableHead>
-                  <TableHead className="min-w-[100px]">Total Orders</TableHead>
+                  <TableHead className="min-w-[100px]">Total Invoices</TableHead>
                   <TableHead className="text-right min-w-[120px]">Total Spent</TableHead>
                 </TableRow>
               </TableHeader>
@@ -902,7 +739,7 @@ const SalesDashboard = () => {
                   <TableRow key={customer.id}>
                     <TableCell className="font-medium">{customer.name}</TableCell>
                     <TableCell>{customer.company_name || '-'}</TableCell>
-                    <TableCell>{customer.total_orders || 0}</TableCell>
+                    <TableCell>{customer.total_invoices || 0}</TableCell>
                     <TableCell className="text-right font-bold">
                       ${(customer.total_spent || 0).toFixed(2)}
                     </TableCell>
@@ -916,18 +753,18 @@ const SalesDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Tabs for Customers, Orders, and Commissions */}
-        <Tabs defaultValue="orders" className="space-y-4">
+        {/* Tabs for Invoices, Customers, and Commissions */}
+        <Tabs defaultValue="invoices" className="space-y-4">
           <TabsList className="grid grid-cols-3 w-full sm:inline-flex sm:w-auto">
-            <TabsTrigger value="orders" className="text-xs sm:text-sm">My Orders</TabsTrigger>
+            <TabsTrigger value="invoices" className="text-xs sm:text-sm">My Invoices</TabsTrigger>
             <TabsTrigger value="customers" className="text-xs sm:text-sm">My Customers</TabsTrigger>
             <TabsTrigger value="commissions" className="text-xs sm:text-sm">Commission</TabsTrigger>
           </TabsList>
 
-          {/* Orders Tab */}
-          <TabsContent value="orders" className="space-y-4">
+          {/* Invoices Tab */}
+          <TabsContent value="invoices" className="space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl sm:text-2xl font-bold">My Orders / Jobs</h2>
+              <h2 className="text-xl sm:text-2xl font-bold">My Invoices</h2>
               
               {/* Phone Check Dialog */}
               <Dialog open={phoneCheckOpen} onOpenChange={(open) => {
@@ -940,7 +777,7 @@ const SalesDashboard = () => {
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="mr-2 h-4 w-4" />
-                    New Job Request
+                    New Invoice
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -969,32 +806,28 @@ const SalesDashboard = () => {
                 </DialogContent>
               </Dialog>
 
-              {/* Order Form Dialog */}
-              <Dialog open={orderFormOpen} onOpenChange={(open) => {
-                setOrderFormOpen(open);
+              {/* Invoice Form Dialog */}
+              <Dialog open={invoiceFormOpen} onOpenChange={(open) => {
+                setInvoiceFormOpen(open);
                 if (!open) {
                   setPhoneNumber('');
                   setExistingCustomer(null);
-                  setOrderItems([{ description: '', quantity: 1, unit_price: 0 }]);
+                  setInvoiceItems([{ product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }]);
                 }
               }}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white">
-                  <form onSubmit={handleAddOrder} className="space-y-6 p-2">
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-background">
+                  <form onSubmit={handleCreateDraftInvoice} className="space-y-6 p-2">
                     {/* Header with Logo and Company Info */}
                     <div className="mb-6">
                       <img src={logo} alt="GAF Media" className="h-16 mb-4" />
-                      <div className="text-muted-foreground text-sm">
-                        <p>Shanemo Shatrale Baidoa Somalia</p>
-                        <p>Phone: 0619130707</p>
-                        <p>Email: gafmedia02@gmail.com</p>
+                      <div className="flex items-center gap-2 text-warning">
+                        <FileText className="h-5 w-5" />
+                        <span className="font-semibold">Draft Invoice - Pending Accountant Approval</span>
                       </div>
                     </div>
 
-                    {/* Form Title */}
-                    <h1 className="text-4xl font-bold text-primary mb-6">JOB REQUEST FORM</h1>
-
                     {/* Customer Information */}
-                    <div className="border-y border-border py-6">
+                    <div className="border-b border-border pb-6">
                       <h3 className="font-semibold text-lg mb-4">Customer Information</h3>
                       
                       <div className="grid grid-cols-2 gap-6">
@@ -1043,64 +876,32 @@ const SalesDashboard = () => {
                       </div>
                     </div>
 
-                    {/* Job Details */}
+                    {/* Invoice Details */}
                     <div className="border-b border-border pb-6">
-                      <h3 className="font-semibold text-lg mb-4">Job Details</h3>
+                      <h3 className="font-semibold text-lg mb-4">Invoice Details</h3>
                       
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label htmlFor="job_title" className="font-semibold">Job Title *</Label>
-                            <Input 
-                              id="job_title" 
-                              name="job_title" 
-                              placeholder="e.g., Business Cards - John Doe"
-                              required 
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <Label htmlFor="print_type" className="font-semibold">Print Type *</Label>
-                            <Select name="print_type" required>
-                              <SelectTrigger className="bg-background">
-                                <SelectValue placeholder="Select print type" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-background z-50">
-                                <SelectItem value="business_card">Business Card</SelectItem>
-                                <SelectItem value="flyer">Flyer</SelectItem>
-                                <SelectItem value="banner">Banner</SelectItem>
-                                <SelectItem value="brochure">Brochure</SelectItem>
-                                <SelectItem value="poster">Poster</SelectItem>
-                                <SelectItem value="t_shirt">T-Shirt</SelectItem>
-                                <SelectItem value="mug">Mug</SelectItem>
-                                <SelectItem value="sticker">Sticker</SelectItem>
-                                <SelectItem value="other">Other</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-
+                      <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="delivery_date" className="font-semibold">Delivery Date *</Label>
+                          <Label htmlFor="due_date" className="font-semibold">Due Date</Label>
                           <Input 
-                            id="delivery_date" 
-                            name="delivery_date" 
+                            id="due_date" 
+                            name="due_date" 
                             type="date"
                             min={new Date().toISOString().split('T')[0]}
-                            required 
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Order Items */}
+                    {/* Invoice Items */}
                     <div className="border-b border-border pb-6">
                       <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-lg">Order Items</h3>
+                        <h3 className="font-semibold text-lg">Invoice Items</h3>
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          onClick={() => setOrderItems([...orderItems, { description: '', quantity: 1, unit_price: 0 }])}
+                          onClick={() => setInvoiceItems([...invoiceItems, { product_id: null, description: '', quantity: 1, unit_price: 0, retail_unit: 'piece', cost_per_unit: 0 }])}
                         >
                           <Plus className="h-4 w-4 mr-2" />
                           Add Item
@@ -1111,27 +912,49 @@ const SalesDashboard = () => {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[40%]">Description</TableHead>
-                              <TableHead className="w-[20%]">Quantity</TableHead>
-                              <TableHead className="w-[20%]">Unit Price ($)</TableHead>
-                              <TableHead className="w-[15%]">Total</TableHead>
+                              <TableHead className="w-[30%]">Product</TableHead>
+                              <TableHead className="w-[25%]">Description</TableHead>
+                              <TableHead className="w-[10%]">Unit</TableHead>
+                              <TableHead className="w-[10%]">Qty</TableHead>
+                              <TableHead className="w-[10%]">Price ($)</TableHead>
+                              <TableHead className="w-[10%]">Total</TableHead>
                               <TableHead className="w-[5%]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {orderItems.map((item, index) => (
+                            {invoiceItems.map((item, index) => (
                               <TableRow key={index}>
+                                <TableCell>
+                                  <Select
+                                    value={item.product_id || ''}
+                                    onValueChange={(value) => handleProductSelect(index, value)}
+                                  >
+                                    <SelectTrigger className="bg-background">
+                                      <SelectValue placeholder="Select product" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-background z-50">
+                                      {products.map((product) => (
+                                        <SelectItem key={product.id} value={product.id}>
+                                          {product.name} (${product.selling_price})
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
                                 <TableCell>
                                   <Input
                                     value={item.description}
                                     onChange={(e) => {
-                                      const newItems = [...orderItems];
+                                      const newItems = [...invoiceItems];
                                       newItems[index].description = e.target.value;
-                                      setOrderItems(newItems);
+                                      setInvoiceItems(newItems);
                                     }}
-                                    placeholder="Item description"
+                                    placeholder="Description"
                                     required
                                   />
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-sm text-muted-foreground">{item.retail_unit}</span>
                                 </TableCell>
                                 <TableCell>
                                   <Input
@@ -1139,9 +962,9 @@ const SalesDashboard = () => {
                                     min="1"
                                     value={item.quantity}
                                     onChange={(e) => {
-                                      const newItems = [...orderItems];
+                                      const newItems = [...invoiceItems];
                                       newItems[index].quantity = parseInt(e.target.value) || 1;
-                                      setOrderItems(newItems);
+                                      setInvoiceItems(newItems);
                                     }}
                                     required
                                   />
@@ -1153,9 +976,9 @@ const SalesDashboard = () => {
                                     min="0"
                                     value={item.unit_price}
                                     onChange={(e) => {
-                                      const newItems = [...orderItems];
+                                      const newItems = [...invoiceItems];
                                       newItems[index].unit_price = parseFloat(e.target.value) || 0;
-                                      setOrderItems(newItems);
+                                      setInvoiceItems(newItems);
                                     }}
                                     required
                                   />
@@ -1164,14 +987,14 @@ const SalesDashboard = () => {
                                   ${(item.quantity * item.unit_price).toFixed(2)}
                                 </TableCell>
                                 <TableCell>
-                                  {orderItems.length > 1 && (
+                                  {invoiceItems.length > 1 && (
                                     <Button
                                       type="button"
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => {
-                                        const newItems = orderItems.filter((_, i) => i !== index);
-                                        setOrderItems(newItems);
+                                        const newItems = invoiceItems.filter((_, i) => i !== index);
+                                        setInvoiceItems(newItems);
                                       }}
                                     >
                                       ×
@@ -1185,183 +1008,96 @@ const SalesDashboard = () => {
 
                         <div className="flex justify-end pt-4 border-t">
                           <div className="text-right">
-                            <p className="text-sm text-muted-foreground mb-1">Total Quantity: {orderItems.reduce((sum, item) => sum + item.quantity, 0)}</p>
+                            <p className="text-sm text-muted-foreground mb-1">Total Items: {invoiceItems.reduce((sum, item) => sum + item.quantity, 0)}</p>
                             <p className="text-xl font-bold">
-                              Total: ${orderItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                              Total: ${invoiceItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
                             </p>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Additional Information */}
+                    {/* Notes */}
                     <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="reference_files" className="font-semibold">Upload Reference Files</Label>
-                        <Input 
-                          id="reference_files" 
-                          name="reference_files" 
-                          type="file"
-                          multiple
-                          accept=".pdf,.jpg,.jpeg,.png,.zip,.doc,.docx"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Upload PDF, images, or ZIP files (max 20MB per file)
-                        </p>
-                      </div>
-
                       <div className="space-y-2">
                         <Label htmlFor="notes" className="font-semibold">Notes (Optional)</Label>
                         <Textarea 
                           id="notes" 
                           name="notes" 
                           rows={2}
-                          placeholder="Any special instructions or notes..."
+                          placeholder="Any special instructions or notes for the accountant..."
                         />
                       </div>
                     </div>
 
-                    <Button type="submit" className="w-full" disabled={uploadingFiles}>
-                      {uploadingFiles ? 'Creating Job & Uploading Files...' : 'Create Job & Send to Accountant'}
+                    <div className="bg-warning/10 border border-warning rounded-lg p-4">
+                      <p className="text-sm text-warning-foreground">
+                        <strong>Note:</strong> This will create a draft invoice without an invoice number. 
+                        The accountant will review and assign a proper invoice number.
+                      </p>
+                    </div>
+
+                    <Button type="submit" className="w-full" disabled={creatingInvoice}>
+                      {creatingInvoice ? 'Creating Draft Invoice...' : 'Send to Accountant for Review'}
                     </Button>
                   </form>
                 </DialogContent>
               </Dialog>
             </div>
 
-            {/* Edit Order Dialog */}
-            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
-              setIsEditDialogOpen(open);
-              if (!open) setEditingOrder(null);
-            }}>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Edit Order</DialogTitle>
-                </DialogHeader>
-                {editingOrder && (
-                  <form onSubmit={handleEditOrder} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_job_title">Job Title *</Label>
-                      <Input 
-                        id="edit_job_title" 
-                        name="job_title" 
-                        defaultValue={editingOrder.job_title}
-                        required 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_description">Description / Notes</Label>
-                      <Textarea 
-                        id="edit_description" 
-                        name="description" 
-                        defaultValue={editingOrder.description || ''}
-                        rows={3} 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_order_value">Order Value *</Label>
-                      <Input 
-                        id="edit_order_value" 
-                        name="order_value" 
-                        type="number" 
-                        step="0.01"
-                        defaultValue={editingOrder.order_value}
-                        required 
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit_delivery_date">Delivery Date</Label>
-                      <Input 
-                        id="edit_delivery_date" 
-                        name="delivery_date" 
-                        type="date"
-                        defaultValue={editingOrder.delivery_date || ''}
-                      />
-                    </div>
-                    <Button type="submit" className="w-full">Update Order</Button>
-                  </form>
-                )}
-              </DialogContent>
-            </Dialog>
-
             <Card>
               <CardContent className="p-0 overflow-x-auto custom-scrollbar">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="min-w-[100px]">Order ID</TableHead>
+                      <TableHead className="min-w-[120px]">Invoice #</TableHead>
                       <TableHead className="min-w-[150px]">Customer</TableHead>
-                      <TableHead className="min-w-[150px]">Job Title</TableHead>
-                      <TableHead className="min-w-[150px]">Designer</TableHead>
+                      <TableHead className="min-w-[100px]">Date</TableHead>
                       <TableHead className="min-w-[120px]">Status</TableHead>
-                      <TableHead className="min-w-[100px]">Payment</TableHead>
-                      <TableHead className="text-right min-w-[100px]">Value</TableHead>
-                      <TableHead className="text-center min-w-[100px]">Actions</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Amount</TableHead>
+                      <TableHead className="text-right min-w-[100px]">Paid</TableHead>
+                      <TableHead className="text-center min-w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.map((order) => (
-                      <TableRow key={order.id}>
-                        <TableCell className="font-mono text-xs">
-                          {order.id.slice(0, 8)}
+                    {invoices.map((invoice) => (
+                      <TableRow key={invoice.id}>
+                        <TableCell className="font-mono text-sm">
+                          {invoice.invoice_number}
                         </TableCell>
-                        <TableCell>{order.customers?.name || '-'}</TableCell>
-                        <TableCell className="font-medium">{order.job_title}</TableCell>
+                        <TableCell>{invoice.customers?.name || '-'}</TableCell>
+                        <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
                         <TableCell>
-                          {order.designer_name ? (
-                            <Badge variant="outline" className="bg-primary/10">
-                              {order.designer_name}
-                            </Badge>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">Not assigned</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={getPaymentColor(order.payment_status)}>
-                            {order.payment_status}
+                          <Badge className={getStatusColor(invoice.status, invoice.is_draft)}>
+                            {invoice.is_draft ? 'Draft - Pending Review' : invoice.status}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-bold">
-                          ${Number(order.order_value || 0).toFixed(2)}
+                          ${Number(invoice.total_amount || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${Number(invoice.amount_paid || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-center">
-                          {order.status === 'delivered' && userRole !== 'admin' ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/orders/${order.id}`);
-                              }}
-                              title="View Only"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingOrder(order);
-                                setIsEditDialogOpen(true);
-                              }}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              toast({
+                                title: 'Invoice Details',
+                                description: `Invoice ${invoice.invoice_number} - ${invoice.is_draft ? 'Waiting for accountant approval' : invoice.status}`,
+                              });
+                            }}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
-                {orders.length === 0 && (
-                  <p className="text-center text-muted-foreground py-8">No orders yet</p>
+                {invoices.length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">No invoices yet</p>
                 )}
               </CardContent>
             </Card>
@@ -1398,45 +1134,14 @@ const SalesDashboard = () => {
                         name="phone" 
                         type="tel"
                         value={phoneNumber}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          setPhoneNumber(value);
-                          setShowOrderFields(value.replace(/\D/g, '').length >= 9);
-                        }}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="company_name">Company Name</Label>
                       <Input id="company_name" name="company_name" />
                     </div>
-
-                    {showOrderFields && (
-                      <>
-                        <div className="pt-4 border-t">
-                          <h3 className="font-semibold mb-4">Create Order (Optional)</h3>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="job_title">Job Title</Label>
-                          <Input id="job_title" name="job_title" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="description">Description / Notes</Label>
-                          <Textarea id="description" name="description" rows={3} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="order_value">Order Value</Label>
-                          <Input id="order_value" name="order_value" type="number" step="0.01" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="delivery_date">Delivery Date</Label>
-                          <Input id="delivery_date" name="delivery_date" type="date" />
-                        </div>
-                      </>
-                    )}
-
-                    <Button type="submit" className="w-full">
-                      {showOrderFields ? 'Add Customer & Order' : 'Add Customer'}
-                    </Button>
+                    <Button type="submit" className="w-full">Add Customer</Button>
                   </form>
                 </DialogContent>
               </Dialog>
@@ -1449,9 +1154,9 @@ const SalesDashboard = () => {
                     <TableRow>
                       <TableHead className="min-w-[150px]">Customer Name</TableHead>
                       <TableHead className="min-w-[150px]">Contact</TableHead>
-                      <TableHead className="text-center min-w-[120px]">Total Orders</TableHead>
+                      <TableHead className="text-center min-w-[120px]">Total Invoices</TableHead>
                       <TableHead className="text-right min-w-[120px]">Total Spent</TableHead>
-                      <TableHead className="min-w-[120px]">Last Order</TableHead>
+                      <TableHead className="min-w-[120px]">Last Invoice</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1471,13 +1176,13 @@ const SalesDashboard = () => {
                             {customer.phone && <p className="text-muted-foreground">{customer.phone}</p>}
                           </div>
                         </TableCell>
-                        <TableCell className="text-center">{customer.total_orders || 0}</TableCell>
+                        <TableCell className="text-center">{customer.total_invoices || 0}</TableCell>
                         <TableCell className="text-right font-bold">
                           ${(customer.total_spent || 0).toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          {customer.last_order_date 
-                            ? new Date(customer.last_order_date).toLocaleDateString()
+                          {customer.last_invoice_date 
+                            ? new Date(customer.last_invoice_date).toLocaleDateString()
                             : '-'
                           }
                         </TableCell>
