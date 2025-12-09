@@ -626,10 +626,10 @@ const AccountantDashboard = () => {
     }
 
     try {
-      // Check if invoice exists for this order
+      // Check if invoice exists for this order AND has a proper invoice number assigned
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
-        .select('id')
+        .select('id, invoice_number')
         .eq('order_id', selectedOrderForAssignment)
         .limit(1);
 
@@ -639,6 +639,17 @@ const AccountantDashboard = () => {
         toast({
           title: 'Invoice Required',
           description: 'Please create an invoice for this order before assigning a designer',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Check if invoice has a proper number (not PENDING or draft placeholder)
+      const invoice = invoiceData[0];
+      if (!invoice.invoice_number || invoice.invoice_number === 'PENDING' || invoice.invoice_number.startsWith('DRAFT-')) {
+        toast({
+          title: 'Invoice Number Required',
+          description: 'Please assign an invoice number before assigning a designer. Edit the invoice to set the number.',
           variant: 'destructive',
         });
         return;
