@@ -29,6 +29,8 @@ interface InvoiceTemplateProps {
   status: "PAID" | "UNPAID" | "PARTIAL";
   amountPaid?: number;
   totalAmount?: number;
+  discountAmount?: number;
+  discountReason?: string;
 }
 
 export const InvoiceTemplate = ({
@@ -44,10 +46,12 @@ export const InvoiceTemplate = ({
   status,
   amountPaid = 0,
   totalAmount,
+  discountAmount = 0,
+  discountReason,
 }: InvoiceTemplateProps) => {
   const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const total = totalAmount ?? subtotal;
-  const amountDue = total - amountPaid;
+  const amountDue = total - amountPaid - discountAmount;
 
   return (
     <div className="bg-white p-6 max-w-4xl mx-auto text-sm" id="invoice-template">
@@ -237,6 +241,20 @@ export const InvoiceTemplate = ({
             </span>
             <span>${amountPaid.toFixed(2)}</span>
           </div>
+          {discountAmount > 0 && (
+            <div className="flex justify-between py-1 border-b border-gray-200">
+              <span>
+                <span className="font-semibold text-green-600">Dhimis</span>
+                <span className="text-gray-500 ml-1">(Discount):</span>
+              </span>
+              <span className="text-green-600">-${discountAmount.toFixed(2)}</span>
+            </div>
+          )}
+          {discountReason && (
+            <div className="flex justify-between py-1 border-b border-gray-200 text-xs">
+              <span className="text-gray-500 italic">{discountReason}</span>
+            </div>
+          )}
           <div className="flex justify-between py-1 font-bold text-base">
             <span>
               <span className="font-semibold">Haraa</span>

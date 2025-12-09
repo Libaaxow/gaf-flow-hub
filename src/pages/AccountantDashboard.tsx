@@ -399,6 +399,13 @@ const AccountantDashboard = () => {
             area_m2,
             rate_per_m2,
             product:products(id, name)
+          ),
+          payments(
+            id,
+            amount,
+            discount_amount,
+            discount_type,
+            discount_reason
           )
         `)
         .order('created_at', { ascending: false });

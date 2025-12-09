@@ -90,6 +90,10 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
   // Calculate totals
   const totalAmount = Number(order.total_amount || order.order_value || order.subtotal) || 0;
   const amountPaid = Number(order.amount_paid) || 0;
+  
+  // Get discount info from payments
+  const discountAmount = order.payments?.reduce((sum: number, p: any) => sum + (Number(p.discount_amount) || 0), 0) || 0;
+  const discountReason = order.payments?.find((p: any) => p.discount_reason)?.discount_reason || "";
 
   const status = (
     order.status === "paid" || order.payment_status === "paid"
@@ -163,6 +167,8 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
           status={status}
           amountPaid={amountPaid}
           totalAmount={totalAmount}
+          discountAmount={discountAmount}
+          discountReason={discountReason}
         />
 
         <DialogFooter>
