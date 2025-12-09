@@ -9,11 +9,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Eye, ClipboardList, CheckCircle, XCircle, Truck, Send, Pencil } from 'lucide-react';
+import { Plus, Search, Eye, ClipboardList, CheckCircle, XCircle, Truck, Send, Pencil, Download, MessageSquare } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { downloadPurchaseOrderPDF, getPurchaseOrderPDFBlob } from '@/utils/generatePurchaseOrderPDF';
 
 interface PurchaseOrder {
   id: string;
@@ -35,6 +36,10 @@ interface PurchaseOrder {
 interface Vendor {
   id: string;
   name: string;
+  contact_person?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
 }
 
 interface Product {
@@ -141,7 +146,7 @@ const PurchaseOrders = () => {
   const fetchVendors = async () => {
     const { data } = await supabase
       .from('vendors')
-      .select('id, name')
+      .select('id, name, contact_person, email, phone, address')
       .eq('status', 'active')
       .order('name');
     setVendors(data || []);
@@ -435,6 +440,77 @@ const PurchaseOrders = () => {
       cancelled: 'destructive',
     };
     return <Badge variant={variants[status] || 'secondary'}>{status}</Badge>;
+  };
+
+  const getPODataForPDF = (po: PurchaseOrder, items: POItem[]) => {
+    const vendor = vendors.find(v => v.id === po.vendor_id);
+    return {
+      poNumber: po.po_number,
+      orderDate: format(new Date(po.order_date), 'MMM d, yyyy'),
+      expectedDeliveryDate: po.expected_delivery_date ? format(new Date(po.expected_delivery_date), 'MMM d, yyyy') : undefined,
+      vendorName: vendor?.name || po.vendor?.name || 'Unknown Vendor',
+      vendorContact: vendor?.contact_person || vendor?.phone,
+      vendorEmail: vendor?.email,
+      vendorAddress: vendor?.address,
+      items: items.map(item => ({
+        productName: item.product?.name || 'Unknown Product',
+        productCode: item.product?.product_code || '',
+        purchaseUnit: item.product?.purchase_unit || 'units',
+        quantity: item.quantity,
+        unitCost: item.unit_cost,
+        amount: item.amount,
+      })),
+      subtotal: po.subtotal,
+      vatEnabled: po.vat_enabled,
+      vatPercentage: po.vat_percentage,
+      vatAmount: po.vat_amount,
+      totalAmount: po.total_amount,
+      notes: po.notes || undefined,
+      status: po.status,
+    };
+  };
+
+  const handleDownloadPDF = () => {
+    if (!selectedPO) return;
+    const poData = getPODataForPDF(selectedPO, selectedPOItems);
+    downloadPurchaseOrderPDF(selectedPO.po_number, poData);
+    toast({ title: 'Success', description: 'PDF downloaded successfully' });
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!selectedPO) return;
+    const poData = getPODataForPDF(selectedPO, selectedPOItems);
+    const vendor = vendors.find(v => v.id === selectedPO.vendor_id);
+    
+    // Create PDF blob and share via WhatsApp Web
+    const pdfBlob = getPurchaseOrderPDFBlob(selectedPO.po_number, poData);
+    
+    // Create a downloadable link and trigger download, then open WhatsApp
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `PO-${selectedPO.po_number}.pdf`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    // Compose WhatsApp message
+    const message = encodeURIComponent(
+      `Hi ${vendor?.name || 'Vendor'},\n\n` +
+      `Please find attached Purchase Order: ${selectedPO.po_number}\n` +
+      `Order Date: ${format(new Date(selectedPO.order_date), 'MMM d, yyyy')}\n` +
+      `Total Amount: $${selectedPO.total_amount.toLocaleString()}\n\n` +
+      `Please confirm receipt of this order.\n\n` +
+      `Best regards,\nGAF Media`
+    );
+    
+    // Open WhatsApp with message (vendor phone if available)
+    const phone = vendor?.phone?.replace(/[^0-9+]/g, '') || '';
+    const whatsappUrl = phone 
+      ? `https://wa.me/${phone}?text=${message}`
+      : `https://wa.me/?text=${message}`;
+    
+    window.open(whatsappUrl, '_blank');
+    toast({ title: 'Info', description: 'PDF downloaded. Please attach it in WhatsApp.' });
   };
 
   const filteredPOs = purchaseOrders.filter(po => {
@@ -766,6 +842,17 @@ const PurchaseOrders = () => {
                 {selectedPO.notes && (
                   <div><Label className="text-muted-foreground">Notes</Label><p>{selectedPO.notes}</p></div>
                 )}
+
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button onClick={handleDownloadPDF} variant="outline" className="flex-1">
+                    <Download className="mr-2 h-4 w-4" />
+                    Download PDF
+                  </Button>
+                  <Button onClick={handleShareWhatsApp} variant="default" className="flex-1">
+                    <MessageSquare className="mr-2 h-4 w-4" />
+                    Share via WhatsApp
+                  </Button>
+                </div>
               </div>
             )}
           </DialogContent>
