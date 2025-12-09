@@ -4145,142 +4145,146 @@ const AccountantDashboard = () => {
 
       {/* Invoice Payment Recording Dialog */}
       <Dialog open={invoicePaymentDialogOpen} onOpenChange={setInvoicePaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Record Invoice Payment</DialogTitle>
             <DialogDescription>
               Record a payment received for invoice {selectedInvoiceForPayment?.invoice_number}
             </DialogDescription>
           </DialogHeader>
-          {selectedInvoiceForPayment && (() => {
-            const invoiceBalance = selectedInvoiceForPayment.total_amount - selectedInvoiceForPayment.amount_paid;
-            const discountValue = parseFloat(invoicePaymentDiscountValue) || 0;
-            const discountAmount = invoicePaymentDiscountType === 'percentage' 
-              ? (invoiceBalance * discountValue) / 100 
-              : discountValue;
-            const payableAmount = Math.max(0, invoiceBalance - discountAmount);
-            
-            return (
-              <div className="space-y-4">
-                <div className="bg-muted p-3 rounded-md space-y-1">
-                  <p className="text-sm"><strong>Invoice:</strong> {selectedInvoiceForPayment.invoice_number}</p>
-                  <p className="text-sm"><strong>Customer:</strong> {selectedInvoiceForPayment.customer?.name}</p>
-                  <p className="text-sm"><strong>Total Amount:</strong> ${selectedInvoiceForPayment.total_amount.toFixed(2)}</p>
-                  <p className="text-sm"><strong>Amount Paid:</strong> ${selectedInvoiceForPayment.amount_paid.toFixed(2)}</p>
-                  <p className="text-sm font-medium text-destructive">
-                    <strong>Outstanding Balance:</strong> ${invoiceBalance.toFixed(2)}
-                  </p>
-                </div>
+          <div className="flex-1 overflow-auto">
+            <ScrollArea className="h-full">
+              {selectedInvoiceForPayment && (() => {
+                const invoiceBalance = selectedInvoiceForPayment.total_amount - selectedInvoiceForPayment.amount_paid;
+                const discountValue = parseFloat(invoicePaymentDiscountValue) || 0;
+                const discountAmount = invoicePaymentDiscountType === 'percentage' 
+                  ? (invoiceBalance * discountValue) / 100 
+                  : discountValue;
+                const payableAmount = Math.max(0, invoiceBalance - discountAmount);
                 
-                {/* Discount Section */}
-                <div className="border rounded-lg p-3 space-y-3 bg-orange-50 dark:bg-orange-950/20">
-                  <Label className="text-sm font-medium">Payment Discount (Optional)</Label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Discount Type</Label>
-                      <Select 
-                        value={invoicePaymentDiscountType} 
-                        onValueChange={(v) => setInvoicePaymentDiscountType(v as 'fixed' | 'percentage')}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
+                return (
+                  <div className="space-y-4 pr-4">
+                    <div className="bg-muted p-3 rounded-md space-y-1">
+                      <p className="text-sm"><strong>Invoice:</strong> {selectedInvoiceForPayment.invoice_number}</p>
+                      <p className="text-sm"><strong>Customer:</strong> {selectedInvoiceForPayment.customer?.name}</p>
+                      <p className="text-sm"><strong>Total Amount:</strong> ${selectedInvoiceForPayment.total_amount.toFixed(2)}</p>
+                      <p className="text-sm"><strong>Amount Paid:</strong> ${selectedInvoiceForPayment.amount_paid.toFixed(2)}</p>
+                      <p className="text-sm font-medium text-destructive">
+                        <strong>Outstanding Balance:</strong> ${invoiceBalance.toFixed(2)}
+                      </p>
+                    </div>
+                    
+                    {/* Discount Section */}
+                    <div className="border rounded-lg p-3 space-y-3 bg-orange-50 dark:bg-orange-950/20">
+                      <Label className="text-sm font-medium">Payment Discount (Optional)</Label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Discount Type</Label>
+                          <Select 
+                            value={invoicePaymentDiscountType} 
+                            onValueChange={(v) => setInvoicePaymentDiscountType(v as 'fixed' | 'percentage')}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                              <SelectItem value="percentage">Percentage (%)</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">
+                            {invoicePaymentDiscountType === 'percentage' ? 'Percentage' : 'Amount'}
+                          </Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={invoicePaymentDiscountType === 'percentage' ? 100 : invoiceBalance}
+                            value={invoicePaymentDiscountValue}
+                            onChange={(e) => setInvoicePaymentDiscountValue(e.target.value)}
+                            placeholder={invoicePaymentDiscountType === 'percentage' ? '0%' : '0.00'}
+                          />
+                        </div>
+                      </div>
+                      {discountAmount > 0 && (
+                        <>
+                          <p className="text-sm text-orange-700 dark:text-orange-300">
+                            Discount: <strong>${discountAmount.toFixed(2)}</strong>
+                          </p>
+                          <div className="space-y-1">
+                            <Label className="text-xs text-muted-foreground">Discount Reason (Optional)</Label>
+                            <Input
+                              value={invoicePaymentDiscountReason}
+                              onChange={(e) => setInvoicePaymentDiscountReason(e.target.value)}
+                              placeholder="e.g., Early payment, Loyalty discount"
+                            />
+                          </div>
+                        </>
+                      )}
+                      <p className="text-sm font-medium text-success">
+                        Payable After Discount: <strong>${payableAmount.toFixed(2)}</strong>
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="invoice-payment-amount">Amount Received *</Label>
+                      <Input
+                        id="invoice-payment-amount"
+                        type="number"
+                        step="0.01"
+                        value={invoicePaymentAmount}
+                        onChange={(e) => setInvoicePaymentAmount(e.target.value)}
+                        placeholder="0.00"
+                        max={payableAmount}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Max payable: ${payableAmount.toFixed(2)}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="invoice-payment-method">Payment Method *</Label>
+                      <Select value={invoicePaymentMethod} onValueChange={setInvoicePaymentMethod}>
+                        <SelectTrigger id="invoice-payment-method">
+                          <SelectValue placeholder="Select method" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
-                          <SelectItem value="percentage">Percentage (%)</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">
-                        {invoicePaymentDiscountType === 'percentage' ? 'Percentage' : 'Amount'}
-                      </Label>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="invoice-payment-reference">Receipt/Reference Number *</Label>
                       <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={invoicePaymentDiscountType === 'percentage' ? 100 : invoiceBalance}
-                        value={invoicePaymentDiscountValue}
-                        onChange={(e) => setInvoicePaymentDiscountValue(e.target.value)}
-                        placeholder={invoicePaymentDiscountType === 'percentage' ? '0%' : '0.00'}
+                        id="invoice-payment-reference"
+                        value={invoicePaymentReference}
+                        onChange={(e) => setInvoicePaymentReference(e.target.value)}
+                        placeholder="Enter receipt or reference number"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="invoice-payment-notes">Notes (Optional)</Label>
+                      <Textarea
+                        id="invoice-payment-notes"
+                        value={invoicePaymentNotes}
+                        onChange={(e) => setInvoicePaymentNotes(e.target.value)}
+                        placeholder="Additional notes about this payment"
                       />
                     </div>
                   </div>
-                  {discountAmount > 0 && (
-                    <>
-                      <p className="text-sm text-orange-700 dark:text-orange-300">
-                        Discount: <strong>${discountAmount.toFixed(2)}</strong>
-                      </p>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Discount Reason (Optional)</Label>
-                        <Input
-                          value={invoicePaymentDiscountReason}
-                          onChange={(e) => setInvoicePaymentDiscountReason(e.target.value)}
-                          placeholder="e.g., Early payment, Loyalty discount"
-                        />
-                      </div>
-                    </>
-                  )}
-                  <p className="text-sm font-medium text-success">
-                    Payable After Discount: <strong>${payableAmount.toFixed(2)}</strong>
-                  </p>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="invoice-payment-amount">Amount Received *</Label>
-                  <Input
-                    id="invoice-payment-amount"
-                    type="number"
-                    step="0.01"
-                    value={invoicePaymentAmount}
-                    onChange={(e) => setInvoicePaymentAmount(e.target.value)}
-                    placeholder="0.00"
-                    max={payableAmount}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Max payable: ${payableAmount.toFixed(2)}
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoice-payment-method">Payment Method *</Label>
-                  <Select value={invoicePaymentMethod} onValueChange={setInvoicePaymentMethod}>
-                    <SelectTrigger id="invoice-payment-method">
-                      <SelectValue placeholder="Select method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="mobile_money">Mobile Money</SelectItem>
-                      <SelectItem value="cheque">Cheque</SelectItem>
-                      <SelectItem value="card">Card</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoice-payment-reference">Receipt/Reference Number *</Label>
-                  <Input
-                    id="invoice-payment-reference"
-                    value={invoicePaymentReference}
-                    onChange={(e) => setInvoicePaymentReference(e.target.value)}
-                    placeholder="Enter receipt or reference number"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="invoice-payment-notes">Notes (Optional)</Label>
-                  <Textarea
-                    id="invoice-payment-notes"
-                    value={invoicePaymentNotes}
-                    onChange={(e) => setInvoicePaymentNotes(e.target.value)}
-                    placeholder="Additional notes about this payment"
-                  />
-                </div>
-              </div>
-            );
-          })()}
-          <DialogFooter>
+                );
+              })()}
+            </ScrollArea>
+          </div>
+          <DialogFooter className="mt-2 flex-shrink-0">
             <Button variant="outline" onClick={() => {
               setInvoicePaymentDialogOpen(false);
               setInvoicePaymentDiscountType('fixed');
