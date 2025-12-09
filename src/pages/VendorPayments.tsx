@@ -166,14 +166,18 @@ const VendorPayments = () => {
 
     try {
       const { data: paymentNumber } = await supabase.rpc('generate_vendor_payment_number');
+      const vendorName = vendors.find(v => v.id === selectedVendor)?.name || 'Vendor';
+      const selectedBillInfo = bills.find(b => b.id === selectedBill);
+      const paymentAmount = parseFloat(amount);
 
-      const { error } = await supabase
+      // Create vendor payment
+      const { error: paymentError } = await supabase
         .from('vendor_payments')
         .insert([{
           payment_number: paymentNumber,
           vendor_id: selectedVendor,
           vendor_bill_id: selectedBill || null,
-          amount: parseFloat(amount),
+          amount: paymentAmount,
           payment_date: paymentDate,
           payment_method: paymentMethod,
           reference_number: referenceNumber || null,
@@ -181,7 +185,34 @@ const VendorPayments = () => {
           recorded_by: user?.id,
         }]);
 
-      if (error) throw error;
+      if (paymentError) throw paymentError;
+
+      // Also create an expense record so it reflects in financial reports
+      const expenseDescription = selectedBillInfo 
+        ? `Vendor Payment to ${vendorName} - Bill ${selectedBillInfo.bill_number}`
+        : `Vendor Payment to ${vendorName}`;
+
+      // Map payment method to expense payment method enum
+      const expensePaymentMethod = paymentMethod === 'bank_transfer' ? 'bank_transfer' 
+        : paymentMethod === 'cash' ? 'cash' 
+        : 'mobile_money'; // evc, zaad, sahal, other -> mobile_money
+
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .insert([{
+          expense_date: paymentDate,
+          amount: paymentAmount,
+          category: 'Vendor Payment',
+          description: expenseDescription,
+          payment_method: expensePaymentMethod,
+          vendor_id: selectedVendor,
+          supplier_name: vendorName,
+          notes: notes || null,
+          recorded_by: user?.id,
+          approval_status: 'approved',
+        }]);
+
+      if (expenseError) throw expenseError;
 
       toast({ title: 'Success', description: 'Payment recorded successfully' });
       resetForm();
