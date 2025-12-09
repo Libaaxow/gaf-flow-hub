@@ -386,7 +386,14 @@ const AccountantDashboard = () => {
             description,
             quantity,
             unit_price,
-            amount
+            amount,
+            product_id,
+            sale_type,
+            width_m,
+            height_m,
+            area_m2,
+            rate_per_m2,
+            product:products(id, name)
           )
         `)
         .order('created_at', { ascending: false });
