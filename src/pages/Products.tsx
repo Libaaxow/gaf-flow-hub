@@ -225,7 +225,10 @@ const Products = () => {
     const totalRollArea = (rollWidth && rollLength) ? rollWidth * rollLength : null;
     const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
     
-    const productData = {
+    const stockQuantityInput = formData.get('stock_quantity');
+    const stockQuantity = stockQuantityInput !== null ? parseFloat(stockQuantityInput as string) : null;
+    
+    const productData: Record<string, any> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
@@ -244,6 +247,11 @@ const Products = () => {
       cost_per_m2: saleType === 'area' ? costPerM2 : null,
       selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
+    
+    // Only include stock_quantity if admin is making adjustment
+    if (isAdmin && stockQuantity !== null && !isNaN(stockQuantity)) {
+      productData.stock_quantity = stockQuantity;
+    }
 
     try {
       const { error } = await supabase
@@ -881,9 +889,26 @@ const Products = () => {
                     />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
-                  <Input id="edit-reorder_level" name="reorder_level" type="number" defaultValue={selectedProduct.reorder_level} />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
+                    <Input id="edit-reorder_level" name="reorder_level" type="number" defaultValue={selectedProduct.reorder_level} />
+                  </div>
+                  {isAdmin && (
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-stock_quantity" className="flex items-center gap-2">
+                        Stock Quantity <Badge variant="outline" className="text-xs">Admin</Badge>
+                      </Label>
+                      <Input 
+                        id="edit-stock_quantity" 
+                        name="stock_quantity" 
+                        type="number" 
+                        step="0.01"
+                        defaultValue={selectedProduct.stock_quantity} 
+                      />
+                      <p className="text-xs text-muted-foreground">Manual adjustment for corrections</p>
+                    </div>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="edit-preferred_vendor_id">Preferred Vendor</Label>
