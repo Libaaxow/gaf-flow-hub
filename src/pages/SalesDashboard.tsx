@@ -408,14 +408,12 @@ const SalesDashboard = () => {
         sum + (item.quantity * item.unit_price), 0
       );
 
-      // Generate draft invoice number
-      const { data: draftNumber } = await supabase.rpc('generate_draft_invoice_number');
-
       // First create an order with pending_accounting_review status
       // This ensures the draft invoice appears in accountant's workflow
+      // Note: Invoice number left blank for accountant to assign manually
       const orderData = {
         customer_id: customerId,
-        job_title: formData.get('notes') as string || `Invoice ${draftNumber || 'Draft'}`,
+        job_title: formData.get('notes') as string || 'Draft Invoice',
         description: invoiceItems.map(item => item.description).filter(Boolean).join(', ') || null,
         order_value: subtotal,
         amount_paid: 0,
@@ -433,10 +431,11 @@ const SalesDashboard = () => {
       if (orderError) throw orderError;
 
       // Create draft invoice linked to the order
+      // Invoice number is PENDING - accountant will assign the actual number manually
       const invoiceData = {
         customer_id: customerId,
         order_id: newOrder.id,
-        invoice_number: draftNumber || `DRAFT-${Date.now()}`,
+        invoice_number: 'PENDING', // Placeholder - accountant assigns real number
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: formData.get('due_date') as string || null,
         subtotal: subtotal,
@@ -1098,7 +1097,9 @@ const SalesDashboard = () => {
                     {invoices.map((invoice) => (
                       <TableRow key={invoice.id}>
                         <TableCell className="font-mono text-sm">
-                          {invoice.invoice_number}
+                          {invoice.invoice_number === 'PENDING' ? (
+                            <Badge variant="outline" className="text-muted-foreground">Awaiting Number</Badge>
+                          ) : invoice.invoice_number}
                         </TableCell>
                         <TableCell>{invoice.customers?.name || '-'}</TableCell>
                         <TableCell>{new Date(invoice.invoice_date).toLocaleDateString()}</TableCell>
