@@ -164,8 +164,8 @@ export const InvoiceTemplate = ({
                   <td className="py-2 px-3 text-center">
                     {isAreaBased ? (
                       <div className="text-xs">
-                        <div>{item.widthM?.toFixed(2) || 0} × {item.heightM?.toFixed(2) || 0} m</div>
-                        <div className="font-semibold">{item.areaM2?.toFixed(2) || 0} m²</div>
+                        <div className="font-semibold">{item.quantity || 1} × {item.widthM?.toFixed(2) || 0} × {item.heightM?.toFixed(2) || 0} m</div>
+                        <div className="text-muted-foreground">{((item.areaM2 || 0) * (item.quantity || 1)).toFixed(2)} m² total</div>
                       </div>
                     ) : (
                       item.quantity
