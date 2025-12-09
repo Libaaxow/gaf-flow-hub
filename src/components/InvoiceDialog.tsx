@@ -34,8 +34,11 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     ? order.invoice_items.map((item: any) => {
         console.log("Parsing invoice item:", item);
         const isAreaBased = item.sale_type === 'area' || (item.area_m2 && item.area_m2 > 0);
+        // Get product name from nested product relation or use description
+        const productName = item.product?.name || item.products?.name || null;
         return {
           description: item.description || "Item",
+          productName: productName,
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unit_price) || Number(item.rate_per_m2) || 0,
           amount: Number(item.amount) || 0,
@@ -52,6 +55,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         console.log("Parsing order item:", item);
         return {
           description: item.description || item.item_name || "Item",
+          productName: item.product?.name || item.products?.name || null,
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unit_price) || 0,
           amount: (Number(item.quantity) || 1) * (Number(item.unit_price) || 0),
@@ -60,6 +64,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
       })
     : [{
         description: order.job_title || order.description || "Service",
+        productName: null,
         quantity: Number(order.quantity) || 1,
         unitPrice: Number(order.order_value || order.total_amount || order.subtotal) || 0,
         amount: Number(order.order_value || order.total_amount || order.subtotal) || 0,

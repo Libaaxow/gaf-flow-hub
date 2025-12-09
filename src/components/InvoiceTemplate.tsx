@@ -4,6 +4,7 @@ import qrCode from "@/assets/qr-code-gaf.png";
 
 interface InvoiceItem {
   description: string;
+  productName?: string;
   quantity: number;
   unitPrice: number;
   amount: number;
@@ -151,9 +152,15 @@ export const InvoiceTemplate = ({
           {items && items.length > 0 ? (
             items.map((item, index) => {
               const isAreaBased = item.saleType === 'area' || (item.areaM2 && item.areaM2 > 0);
+              const displayName = item.productName || item.description;
               return (
                 <tr key={index} className="border-b border-gray-200">
-                  <td className="py-2 px-3 text-[#dc2626]">{item.description}</td>
+                  <td className="py-2 px-3">
+                    <div className="font-semibold text-[#1e40af]">{displayName}</div>
+                    {item.productName && item.description && item.description !== item.productName && (
+                      <div className="text-[#dc2626] text-xs mt-0.5">{item.description}</div>
+                    )}
+                  </td>
                   <td className="py-2 px-3 text-center">
                     {isAreaBased ? (
                       <div className="text-xs">

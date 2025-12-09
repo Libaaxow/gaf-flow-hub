@@ -14,6 +14,7 @@ interface InvoiceData {
   paymentMethod?: string;
   items: Array<{
     description: string;
+    productName?: string;
     quantity: number;
     unitPrice: number;
     amount: number;
@@ -122,6 +123,13 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     const tableData = data.items.map(item => {
       const isAreaBased = item.saleType === 'area' || (item.areaM2 && item.areaM2 > 0);
       
+      // Format description with product name as label
+      const displayName = item.productName || item.description;
+      const hasWorkDescription = item.productName && item.description && item.description !== item.productName;
+      const descriptionText = hasWorkDescription 
+        ? `${displayName}\n${item.description}`
+        : displayName;
+      
       // Format quantity/size column
       const qtySize = isAreaBased 
         ? `${(item.widthM || 0).toFixed(2)} × ${(item.heightM || 0).toFixed(2)} m\n${(item.areaM2 || 0).toFixed(2)} m²`
@@ -133,7 +141,7 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
         : `$${item.unitPrice.toFixed(2)}`;
       
       return [
-        item.description,
+        descriptionText,
         qtySize,
         rate,
         `$${item.amount.toFixed(2)}`
