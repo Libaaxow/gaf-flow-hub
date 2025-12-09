@@ -407,7 +407,8 @@ const SalesDashboard = () => {
       const subtotal = invoiceItems.reduce((sum, item) => {
         if (item.sale_type === 'area') {
           const area = (item.width_m || 0) * (item.height_m || 0);
-          return sum + (area * item.unit_price);
+          const totalArea = area * item.quantity;
+          return sum + (totalArea * item.unit_price);
         }
         return sum + (item.quantity * item.unit_price);
       }, 0);
@@ -464,29 +465,30 @@ const SalesDashboard = () => {
       // Don't set product_id for draft invoices to avoid inventory reduction
       const itemsToInsert = invoiceItems.map(item => {
         const isAreaBased = item.sale_type === 'area';
-        const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const singleArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const totalArea = isAreaBased ? (singleArea || 0) * item.quantity : null;
         const amount = isAreaBased 
-          ? (area || 0) * item.unit_price 
+          ? (totalArea || 0) * item.unit_price 
           : item.quantity * item.unit_price;
         
         return {
           invoice_id: newInvoice.id,
           description: item.description,
-          quantity: isAreaBased ? 1 : item.quantity, // For area-based, quantity is 1 (the item)
+          quantity: item.quantity,
           unit_price: item.unit_price,
           amount: amount,
           retail_unit: item.retail_unit,
           sale_type: item.sale_type,
           height_m: isAreaBased ? item.height_m : null,
           width_m: isAreaBased ? item.width_m : null,
-          area_m2: area,
+          area_m2: totalArea,
           rate_per_m2: isAreaBased ? item.unit_price : null,
           cost_per_unit: item.cost_per_unit || 0,
           line_cost: isAreaBased 
-            ? (area || 0) * (item.cost_per_unit || 0) 
+            ? (totalArea || 0) * (item.cost_per_unit || 0) 
             : item.quantity * (item.cost_per_unit || 0),
           line_profit: isAreaBased
-            ? (area || 0) * (item.unit_price - (item.cost_per_unit || 0))
+            ? (totalArea || 0) * (item.unit_price - (item.cost_per_unit || 0))
             : item.quantity * (item.unit_price - (item.cost_per_unit || 0)),
           // Don't set product_id for draft invoices to avoid inventory reduction
           // Accountant will link products when finalizing
@@ -971,11 +973,12 @@ const SalesDashboard = () => {
                       <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[25%]">Product</TableHead>
-                              <TableHead className="w-[20%]">Description</TableHead>
-                              <TableHead className="w-[10%]">Unit</TableHead>
-                              <TableHead className="w-[15%]">Qty / Size</TableHead>
-                              <TableHead className="w-[12%]">Rate</TableHead>
+                              <TableHead className="w-[20%]">Product</TableHead>
+                              <TableHead className="w-[15%]">Description</TableHead>
+                              <TableHead className="w-[8%]">Unit</TableHead>
+                              <TableHead className="w-[8%]">Qty</TableHead>
+                              <TableHead className="w-[15%]">Size</TableHead>
+                              <TableHead className="w-[10%]">Rate</TableHead>
                               <TableHead className="w-[12%]">Total</TableHead>
                               <TableHead className="w-[6%]"></TableHead>
                             </TableRow>
@@ -984,8 +987,9 @@ const SalesDashboard = () => {
                             {invoiceItems.map((item, index) => {
                               const isAreaBased = item.sale_type === 'area';
                               const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                              const totalArea = isAreaBased ? calculatedArea * item.quantity : 0;
                               const lineTotal = isAreaBased 
-                                ? calculatedArea * item.unit_price 
+                                ? totalArea * item.unit_price 
                                 : item.quantity * item.unit_price;
                               
                               return (
@@ -1023,6 +1027,20 @@ const SalesDashboard = () => {
                                     <span className="text-sm text-muted-foreground">{item.retail_unit}</span>
                                   </TableCell>
                                   <TableCell>
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(e) => {
+                                        const newItems = [...invoiceItems];
+                                        newItems[index].quantity = parseInt(e.target.value) || 1;
+                                        setInvoiceItems(newItems);
+                                      }}
+                                      className="w-16"
+                                      required
+                                    />
+                                  </TableCell>
+                                  <TableCell>
                                     {isAreaBased ? (
                                       <div className="flex flex-col gap-1">
                                         <div className="flex items-center gap-1">
@@ -1039,7 +1057,7 @@ const SalesDashboard = () => {
                                               setInvoiceItems(newItems);
                                             }}
                                             placeholder="W"
-                                            className="w-16 text-xs"
+                                            className="w-14 text-xs"
                                             required
                                           />
                                           <span className="text-xs text-muted-foreground">×</span>
@@ -1056,27 +1074,17 @@ const SalesDashboard = () => {
                                               setInvoiceItems(newItems);
                                             }}
                                             placeholder="H"
-                                            className="w-16 text-xs"
+                                            className="w-14 text-xs"
                                             required
                                           />
                                           <span className="text-xs text-muted-foreground">m</span>
                                         </div>
                                         <span className="text-xs text-primary font-medium">
-                                          = {calculatedArea.toFixed(2)} m²
+                                          = {totalArea.toFixed(2)} m² ({item.quantity} × {calculatedArea.toFixed(2)})
                                         </span>
                                       </div>
                                     ) : (
-                                      <Input
-                                        type="number"
-                                        min="1"
-                                        value={item.quantity}
-                                        onChange={(e) => {
-                                          const newItems = [...invoiceItems];
-                                          newItems[index].quantity = parseInt(e.target.value) || 1;
-                                          setInvoiceItems(newItems);
-                                        }}
-                                        required
-                                      />
+                                      <span className="text-sm text-muted-foreground">-</span>
                                     )}
                                   </TableCell>
                                   <TableCell>
@@ -1125,18 +1133,14 @@ const SalesDashboard = () => {
                         <div className="flex justify-end pt-4 border-t">
                           <div className="text-right">
                             <p className="text-sm text-muted-foreground mb-1">
-                              Total Items: {invoiceItems.reduce((sum, item) => {
-                                if (item.sale_type === 'area') {
-                                  return sum + 1;
-                                }
-                                return sum + item.quantity;
-                              }, 0)}
+                              Total Items: {invoiceItems.reduce((sum, item) => sum + item.quantity, 0)}
                             </p>
                             <p className="text-xl font-bold">
                               Total: ${invoiceItems.reduce((sum, item) => {
                                 if (item.sale_type === 'area') {
                                   const area = (item.width_m || 0) * (item.height_m || 0);
-                                  return sum + (area * item.unit_price);
+                                  const totalArea = area * item.quantity;
+                                  return sum + (totalArea * item.unit_price);
                                 }
                                 return sum + (item.quantity * item.unit_price);
                               }, 0).toFixed(2)}
