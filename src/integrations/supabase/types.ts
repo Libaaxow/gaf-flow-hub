@@ -237,6 +237,9 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer_id: string
+          discount_amount: number | null
+          discount_type: string | null
+          discount_value: number | null
           draft_by_sales: string | null
           due_date: string | null
           id: string
@@ -257,6 +260,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           draft_by_sales?: string | null
           due_date?: string | null
           id?: string
@@ -277,6 +283,9 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer_id?: string
+          discount_amount?: number | null
+          discount_type?: string | null
+          discount_value?: number | null
           draft_by_sales?: string | null
           due_date?: string | null
           id?: string
@@ -554,6 +563,10 @@ export type Database = {
         Row: {
           amount: number
           created_at: string | null
+          discount_amount: number | null
+          discount_reason: string | null
+          discount_type: string | null
+          discount_value: number | null
           id: string
           invoice_id: string | null
           notes: string | null
@@ -568,6 +581,10 @@ export type Database = {
         Insert: {
           amount: number
           created_at?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           invoice_id?: string | null
           notes?: string | null
@@ -582,6 +599,10 @@ export type Database = {
         Update: {
           amount?: number
           created_at?: string | null
+          discount_amount?: number | null
+          discount_reason?: string | null
+          discount_type?: string | null
+          discount_value?: number | null
           id?: string
           invoice_id?: string | null
           notes?: string | null
