@@ -1361,17 +1361,19 @@ const AccountantDashboard = () => {
     const isAreaBased = item.sale_type === 'area';
     
     if (isAreaBased) {
-      // Auto-calculate area, amount and profit for area-based items
-      if (field === 'width_m' || field === 'height_m' || field === 'unit_price') {
+      // Auto-calculate area, amount and profit for area-based items (quantity × width × height × rate)
+      if (field === 'width_m' || field === 'height_m' || field === 'unit_price' || field === 'quantity') {
         const width = field === 'width_m' ? Number(value) || 0 : item.width_m || 0;
         const height = field === 'height_m' ? Number(value) || 0 : item.height_m || 0;
+        const quantity = field === 'quantity' ? Number(value) || 1 : item.quantity || 1;
         const area = width * height;
+        const totalArea = area * quantity;
         const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
         const costPerUnit = item.cost_per_unit || 0;
         
         newItems[index].area_m2 = area;
-        newItems[index].amount = area * unitPrice;
-        newItems[index].line_cost = area * costPerUnit;
+        newItems[index].amount = totalArea * unitPrice;
+        newItems[index].line_cost = totalArea * costPerUnit;
         newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
       }
     } else {
@@ -1394,7 +1396,8 @@ const AccountantDashboard = () => {
     return invoiceItems.reduce((sum, item) => {
       if (item.sale_type === 'area') {
         const area = (item.width_m || 0) * (item.height_m || 0);
-        return sum + (area * item.unit_price);
+        const quantity = item.quantity || 1;
+        return sum + (area * quantity * item.unit_price);
       }
       return sum + (item.quantity * item.unit_price);
     }, 0);
@@ -1404,7 +1407,9 @@ const AccountantDashboard = () => {
     return invoiceItems.reduce((sum, item) => {
       if (item.sale_type === 'area') {
         const area = (item.width_m || 0) * (item.height_m || 0);
-        const lineProfit = (area * item.unit_price) - (area * (item.cost_per_unit || 0));
+        const quantity = item.quantity || 1;
+        const totalArea = area * quantity;
+        const lineProfit = (totalArea * item.unit_price) - (totalArea * (item.cost_per_unit || 0));
         return sum + lineProfit;
       }
       return sum + (item.line_profit || 0);
@@ -2282,19 +2287,21 @@ const AccountantDashboard = () => {
                                             <TableRow>
                                               <TableHead className="w-[25%]">Product</TableHead>
                                               <TableHead className="w-[20%]">Description</TableHead>
-                                              <TableHead className="w-[10%]">Unit</TableHead>
-                                              <TableHead className="w-[15%]">Qty / Size</TableHead>
-                                              <TableHead className="w-[12%]">Rate</TableHead>
+                                              <TableHead className="w-[8%]">Unit</TableHead>
+                                              <TableHead className="w-[6%]">Qty</TableHead>
+                                              <TableHead className="w-[14%]">Size</TableHead>
+                                              <TableHead className="w-[10%]">Rate</TableHead>
                                               <TableHead className="w-[12%]">Total</TableHead>
-                                              <TableHead className="w-[6%]"></TableHead>
+                                              <TableHead className="w-[5%]"></TableHead>
                                             </TableRow>
                                           </TableHeader>
                                           <TableBody>
                                             {invoiceItems.map((item, index) => {
                                               const isAreaBased = item.sale_type === 'area';
                                               const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                                              const quantity = item.quantity || 1;
                                               const lineTotal = isAreaBased 
-                                                ? calculatedArea * item.unit_price 
+                                                ? calculatedArea * quantity * item.unit_price 
                                                 : item.quantity * item.unit_price;
                                               
                                               return (
@@ -2327,6 +2334,18 @@ const AccountantDashboard = () => {
                                                   <TableCell>
                                                     <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
                                                   </TableCell>
+                                                  {/* Quantity column - always visible */}
+                                                  <TableCell>
+                                                    <Input
+                                                      type="number"
+                                                      min="1"
+                                                      value={item.quantity}
+                                                      onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                                      className="w-16"
+                                                      required
+                                                    />
+                                                  </TableCell>
+                                                  {/* Size column - only for area-based products */}
                                                   <TableCell>
                                                     {isAreaBased ? (
                                                       <div className="flex flex-col gap-1">
@@ -2355,17 +2374,11 @@ const AccountantDashboard = () => {
                                                           <span className="text-xs text-muted-foreground">m</span>
                                                         </div>
                                                         <span className="text-xs text-primary font-medium">
-                                                          = {calculatedArea.toFixed(2)} m²
+                                                          = {calculatedArea.toFixed(2)} m² × {quantity} = {(calculatedArea * quantity).toFixed(2)} m²
                                                         </span>
                                                       </div>
                                                     ) : (
-                                                      <Input
-                                                        type="number"
-                                                        min="1"
-                                                        value={item.quantity}
-                                                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                                                        required
-                                                      />
+                                                      <span className="text-xs text-muted-foreground">-</span>
                                                     )}
                                                   </TableCell>
                                                   <TableCell>
@@ -2849,21 +2862,23 @@ const AccountantDashboard = () => {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="w-[25%]">Product</TableHead>
-                                <TableHead className="w-[20%]">Description</TableHead>
-                                <TableHead className="w-[10%]">Unit</TableHead>
-                                <TableHead className="w-[15%]">Qty / Size</TableHead>
-                                <TableHead className="w-[12%]">Rate</TableHead>
+                                <TableHead className="w-[22%]">Product</TableHead>
+                                <TableHead className="w-[18%]">Description</TableHead>
+                                <TableHead className="w-[8%]">Unit</TableHead>
+                                <TableHead className="w-[6%]">Qty</TableHead>
+                                <TableHead className="w-[14%]">Size</TableHead>
+                                <TableHead className="w-[10%]">Rate</TableHead>
                                 <TableHead className="w-[12%]">Total</TableHead>
-                                <TableHead className="w-[6%]"></TableHead>
+                                <TableHead className="w-[5%]"></TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {invoiceItems.map((item, index) => {
                                 const isAreaBased = item.sale_type === 'area';
                                 const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                                const quantity = item.quantity || 1;
                                 const lineTotal = isAreaBased 
-                                  ? calculatedArea * item.unit_price 
+                                  ? calculatedArea * quantity * item.unit_price 
                                   : item.quantity * item.unit_price;
                                 
                                 return (
@@ -2896,6 +2911,18 @@ const AccountantDashboard = () => {
                                     <TableCell>
                                       <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
                                     </TableCell>
+                                    {/* Quantity column - always visible */}
+                                    <TableCell>
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                        className="w-16"
+                                        required
+                                      />
+                                    </TableCell>
+                                    {/* Size column - only for area-based products */}
                                     <TableCell>
                                       {isAreaBased ? (
                                         <div className="flex flex-col gap-1">
@@ -2907,7 +2934,7 @@ const AccountantDashboard = () => {
                                               value={item.width_m || ''}
                                               onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
                                               placeholder="W"
-                                              className="w-16 text-xs"
+                                              className="w-14 text-xs"
                                               required
                                             />
                                             <span className="text-xs text-muted-foreground">×</span>
@@ -2918,23 +2945,17 @@ const AccountantDashboard = () => {
                                               value={item.height_m || ''}
                                               onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
                                               placeholder="H"
-                                              className="w-16 text-xs"
+                                              className="w-14 text-xs"
                                               required
                                             />
                                             <span className="text-xs text-muted-foreground">m</span>
                                           </div>
                                           <span className="text-xs text-primary font-medium">
-                                            = {calculatedArea.toFixed(2)} m²
+                                            = {calculatedArea.toFixed(2)} m² × {quantity} = {(calculatedArea * quantity).toFixed(2)} m²
                                           </span>
                                         </div>
                                       ) : (
-                                        <Input
-                                          type="number"
-                                          min="1"
-                                          value={item.quantity}
-                                          onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
-                                          required
-                                        />
+                                        <span className="text-xs text-muted-foreground">-</span>
                                       )}
                                     </TableCell>
                                     <TableCell>

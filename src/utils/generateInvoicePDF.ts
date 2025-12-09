@@ -131,8 +131,9 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
         : displayName;
       
       // Format quantity/size column
+      const quantity = item.quantity || 1;
       const qtySize = isAreaBased 
-        ? `${(item.widthM || 0).toFixed(2)} × ${(item.heightM || 0).toFixed(2)} m\n${(item.areaM2 || 0).toFixed(2)} m²`
+        ? `${quantity} × ${(item.widthM || 0).toFixed(2)} × ${(item.heightM || 0).toFixed(2)} m\n${((item.areaM2 || 0) * quantity).toFixed(2)} m² total`
         : item.quantity.toString();
       
       // Format rate column
