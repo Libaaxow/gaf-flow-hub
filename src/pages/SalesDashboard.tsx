@@ -403,10 +403,14 @@ const SalesDashboard = () => {
         customerId = newCustomer.id;
       }
 
-      // Calculate totals
-      const subtotal = invoiceItems.reduce((sum, item) => 
-        sum + (item.quantity * item.unit_price), 0
-      );
+      // Calculate totals - handle both area-based and unit-based items
+      const subtotal = invoiceItems.reduce((sum, item) => {
+        if (item.sale_type === 'area') {
+          const area = (item.width_m || 0) * (item.height_m || 0);
+          return sum + (area * item.unit_price);
+        }
+        return sum + (item.quantity * item.unit_price);
+      }, 0);
 
       // First create an order with pending_accounting_review status
       // This ensures the draft invoice appears in accountant's workflow
@@ -456,17 +460,38 @@ const SalesDashboard = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Create invoice items (without product_id to avoid inventory reduction for drafts)
-      const itemsToInsert = invoiceItems.map(item => ({
-        invoice_id: newInvoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.quantity * item.unit_price,
-        retail_unit: item.retail_unit,
-        // Don't set product_id for draft invoices to avoid inventory reduction
-        // Accountant will link products when finalizing
-      }));
+      // Create invoice items with area-based fields for roll products
+      // Don't set product_id for draft invoices to avoid inventory reduction
+      const itemsToInsert = invoiceItems.map(item => {
+        const isAreaBased = item.sale_type === 'area';
+        const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const amount = isAreaBased 
+          ? (area || 0) * item.unit_price 
+          : item.quantity * item.unit_price;
+        
+        return {
+          invoice_id: newInvoice.id,
+          description: item.description,
+          quantity: isAreaBased ? 1 : item.quantity, // For area-based, quantity is 1 (the item)
+          unit_price: item.unit_price,
+          amount: amount,
+          retail_unit: item.retail_unit,
+          sale_type: item.sale_type,
+          height_m: isAreaBased ? item.height_m : null,
+          width_m: isAreaBased ? item.width_m : null,
+          area_m2: area,
+          rate_per_m2: isAreaBased ? item.unit_price : null,
+          cost_per_unit: item.cost_per_unit || 0,
+          line_cost: isAreaBased 
+            ? (area || 0) * (item.cost_per_unit || 0) 
+            : item.quantity * (item.cost_per_unit || 0),
+          line_profit: isAreaBased
+            ? (area || 0) * (item.unit_price - (item.cost_per_unit || 0))
+            : item.quantity * (item.unit_price - (item.cost_per_unit || 0)),
+          // Don't set product_id for draft invoices to avoid inventory reduction
+          // Accountant will link products when finalizing
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('invoice_items')
@@ -943,108 +968,178 @@ const SalesDashboard = () => {
                       </div>
 
                       <div className="space-y-4">
-                        <Table>
+                      <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead className="w-[30%]">Product</TableHead>
-                              <TableHead className="w-[25%]">Description</TableHead>
+                              <TableHead className="w-[25%]">Product</TableHead>
+                              <TableHead className="w-[20%]">Description</TableHead>
                               <TableHead className="w-[10%]">Unit</TableHead>
-                              <TableHead className="w-[10%]">Qty</TableHead>
-                              <TableHead className="w-[10%]">Price ($)</TableHead>
-                              <TableHead className="w-[10%]">Total</TableHead>
-                              <TableHead className="w-[5%]"></TableHead>
+                              <TableHead className="w-[15%]">Qty / Size</TableHead>
+                              <TableHead className="w-[12%]">Rate</TableHead>
+                              <TableHead className="w-[12%]">Total</TableHead>
+                              <TableHead className="w-[6%]"></TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {invoiceItems.map((item, index) => (
-                              <TableRow key={index}>
-                                <TableCell>
-                                  <Select
-                                    value={item.product_id || ''}
-                                    onValueChange={(value) => handleProductSelect(index, value)}
-                                  >
-                                    <SelectTrigger className="bg-background">
-                                      <SelectValue placeholder="Select product" />
-                                    </SelectTrigger>
-                                    <SelectContent className="bg-background z-50">
-                                      {products.map((product) => (
-                                        <SelectItem key={product.id} value={product.id}>
-                                          {product.name} (${product.selling_price})
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    value={item.description}
-                                    onChange={(e) => {
-                                      const newItems = [...invoiceItems];
-                                      newItems[index].description = e.target.value;
-                                      setInvoiceItems(newItems);
-                                    }}
-                                    placeholder="Description"
-                                    required
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-sm text-muted-foreground">{item.retail_unit}</span>
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={item.quantity}
-                                    onChange={(e) => {
-                                      const newItems = [...invoiceItems];
-                                      newItems[index].quantity = parseInt(e.target.value) || 1;
-                                      setInvoiceItems(newItems);
-                                    }}
-                                    required
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    value={item.unit_price}
-                                    onChange={(e) => {
-                                      const newItems = [...invoiceItems];
-                                      newItems[index].unit_price = parseFloat(e.target.value) || 0;
-                                      setInvoiceItems(newItems);
-                                    }}
-                                    required
-                                  />
-                                </TableCell>
-                                <TableCell className="font-semibold">
-                                  ${(item.quantity * item.unit_price).toFixed(2)}
-                                </TableCell>
-                                <TableCell>
-                                  {invoiceItems.length > 1 && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => {
-                                        const newItems = invoiceItems.filter((_, i) => i !== index);
+                            {invoiceItems.map((item, index) => {
+                              const isAreaBased = item.sale_type === 'area';
+                              const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                              const lineTotal = isAreaBased 
+                                ? calculatedArea * item.unit_price 
+                                : item.quantity * item.unit_price;
+                              
+                              return (
+                                <TableRow key={index}>
+                                  <TableCell>
+                                    <Select
+                                      value={item.product_id || ''}
+                                      onValueChange={(value) => handleProductSelect(index, value)}
+                                    >
+                                      <SelectTrigger className="bg-background">
+                                        <SelectValue placeholder="Select product" />
+                                      </SelectTrigger>
+                                      <SelectContent className="bg-background z-50">
+                                        {products.map((product) => (
+                                          <SelectItem key={product.id} value={product.id}>
+                                            {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      value={item.description}
+                                      onChange={(e) => {
+                                        const newItems = [...invoiceItems];
+                                        newItems[index].description = e.target.value;
                                         setInvoiceItems(newItems);
                                       }}
-                                    >
-                                      ×
-                                    </Button>
-                                  )}
-                                </TableCell>
-                              </TableRow>
-                            ))}
+                                      placeholder="Description"
+                                      required
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-sm text-muted-foreground">{item.retail_unit}</span>
+                                  </TableCell>
+                                  <TableCell>
+                                    {isAreaBased ? (
+                                      <div className="flex flex-col gap-1">
+                                        <div className="flex items-center gap-1">
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            min="0.01"
+                                            value={item.width_m || ''}
+                                            onChange={(e) => {
+                                              const newItems = [...invoiceItems];
+                                              const width = parseFloat(e.target.value) || 0;
+                                              newItems[index].width_m = width;
+                                              newItems[index].area_m2 = width * (newItems[index].height_m || 0);
+                                              setInvoiceItems(newItems);
+                                            }}
+                                            placeholder="W"
+                                            className="w-16 text-xs"
+                                            required
+                                          />
+                                          <span className="text-xs text-muted-foreground">×</span>
+                                          <Input
+                                            type="number"
+                                            step="0.01"
+                                            min="0.01"
+                                            value={item.height_m || ''}
+                                            onChange={(e) => {
+                                              const newItems = [...invoiceItems];
+                                              const height = parseFloat(e.target.value) || 0;
+                                              newItems[index].height_m = height;
+                                              newItems[index].area_m2 = (newItems[index].width_m || 0) * height;
+                                              setInvoiceItems(newItems);
+                                            }}
+                                            placeholder="H"
+                                            className="w-16 text-xs"
+                                            required
+                                          />
+                                          <span className="text-xs text-muted-foreground">m</span>
+                                        </div>
+                                        <span className="text-xs text-primary font-medium">
+                                          = {calculatedArea.toFixed(2)} m²
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <Input
+                                        type="number"
+                                        min="1"
+                                        value={item.quantity}
+                                        onChange={(e) => {
+                                          const newItems = [...invoiceItems];
+                                          newItems[index].quantity = parseInt(e.target.value) || 1;
+                                          setInvoiceItems(newItems);
+                                        }}
+                                        required
+                                      />
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <div className="flex flex-col">
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={item.unit_price}
+                                        onChange={(e) => {
+                                          const newItems = [...invoiceItems];
+                                          newItems[index].unit_price = parseFloat(e.target.value) || 0;
+                                          setInvoiceItems(newItems);
+                                        }}
+                                        required
+                                      />
+                                      {isAreaBased && (
+                                        <span className="text-xs text-muted-foreground">/m²</span>
+                                      )}
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="font-semibold">
+                                    ${lineTotal.toFixed(2)}
+                                  </TableCell>
+                                  <TableCell>
+                                    {invoiceItems.length > 1 && (
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newItems = invoiceItems.filter((_, i) => i !== index);
+                                          setInvoiceItems(newItems);
+                                        }}
+                                      >
+                                        ×
+                                      </Button>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
 
                         <div className="flex justify-end pt-4 border-t">
                           <div className="text-right">
-                            <p className="text-sm text-muted-foreground mb-1">Total Items: {invoiceItems.reduce((sum, item) => sum + item.quantity, 0)}</p>
+                            <p className="text-sm text-muted-foreground mb-1">
+                              Total Items: {invoiceItems.reduce((sum, item) => {
+                                if (item.sale_type === 'area') {
+                                  return sum + 1;
+                                }
+                                return sum + item.quantity;
+                              }, 0)}
+                            </p>
                             <p className="text-xl font-bold">
-                              Total: ${invoiceItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0).toFixed(2)}
+                              Total: ${invoiceItems.reduce((sum, item) => {
+                                if (item.sale_type === 'area') {
+                                  const area = (item.width_m || 0) * (item.height_m || 0);
+                                  return sum + (area * item.unit_price);
+                                }
+                                return sum + (item.quantity * item.unit_price);
+                              }, 0).toFixed(2)}
                             </p>
                           </div>
                         </div>

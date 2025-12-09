@@ -17,6 +17,12 @@ interface InvoiceData {
     quantity: number;
     unitPrice: number;
     amount: number;
+    // Area-based fields
+    saleType?: string;
+    widthM?: number;
+    heightM?: number;
+    areaM2?: number;
+    ratePerM2?: number;
   }>;
   status: "PAID" | "UNPAID" | "PARTIAL";
   amountPaid?: number;
@@ -111,27 +117,41 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     addRightRow("Xarunta", "Branch", "Baidoa");
     addRightRow("Nooca Bixinta", "Payment Method", data.paymentMethod || "Cash");
 
-    // Items Table
+    // Items Table with dimension support
     const tableStartY = 100;
-    const tableData = data.items.map(item => [
-      item.description,
-      item.quantity.toString(),
-      item.unitPrice.toFixed(2),
-      `$${item.amount.toFixed(2)}`
-    ]);
+    const tableData = data.items.map(item => {
+      const isAreaBased = item.saleType === 'area' || (item.areaM2 && item.areaM2 > 0);
+      
+      // Format quantity/size column
+      const qtySize = isAreaBased 
+        ? `${(item.widthM || 0).toFixed(2)} × ${(item.heightM || 0).toFixed(2)} m\n${(item.areaM2 || 0).toFixed(2)} m²`
+        : item.quantity.toString();
+      
+      // Format rate column
+      const rate = isAreaBased
+        ? `$${item.unitPrice.toFixed(2)}/m²`
+        : `$${item.unitPrice.toFixed(2)}`;
+      
+      return [
+        item.description,
+        qtySize,
+        rate,
+        `$${item.amount.toFixed(2)}`
+      ];
+    });
 
     autoTable(pdf, {
       startY: tableStartY,
       head: [[
         { content: 'Faah faahin (Description)', styles: { halign: 'left' } },
-        { content: 'Tirada (Quantity)', styles: { halign: 'center' } },
-        { content: 'Qiimaha (Unit Price)', styles: { halign: 'right' } },
+        { content: 'Tirada/Cabir (Qty/Size)', styles: { halign: 'center' } },
+        { content: 'Qiimaha (Rate)', styles: { halign: 'right' } },
         { content: 'Wadarta (Amount)', styles: { halign: 'right' } }
       ]],
       body: tableData,
       theme: 'plain',
       styles: {
-        fontSize: 9,
+        fontSize: 8,
         cellPadding: 3,
         textColor: [51, 51, 51],
         lineColor: [200, 200, 200],
@@ -141,15 +161,15 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
         fillColor: [30, 64, 175],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 8,
+        fontSize: 7,
         cellPadding: 4,
       },
       bodyStyles: {
         textColor: [220, 38, 38],
       },
       columnStyles: {
-        0: { cellWidth: 80, textColor: [220, 38, 38] },
-        1: { cellWidth: 25, halign: 'center', textColor: [51, 51, 51] },
+        0: { cellWidth: 70, textColor: [220, 38, 38] },
+        1: { cellWidth: 35, halign: 'center', textColor: [51, 51, 51] },
         2: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
         3: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
       },
