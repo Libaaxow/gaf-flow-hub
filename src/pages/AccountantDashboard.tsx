@@ -196,13 +196,13 @@ const AccountantDashboard = () => {
     cost_per_unit?: number;
     line_cost?: number;
     line_profit?: number;
-    sale_type?: string;
-    width_m?: number;
-    height_m?: number;
-    area_m2?: number;
+    sale_type: string;
+    width_m: number | null;
+    height_m: number | null;
+    area_m2: number | null;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
+    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }
   ]);
   const [products, setProducts] = useState<Product[]>([]);
 
@@ -1220,7 +1220,16 @@ const AccountantDashboard = () => {
   };
 
   const addInvoiceItem = () => {
-    setInvoiceItems([...invoiceItems, { description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+    setInvoiceItems([...invoiceItems, { 
+      description: '', 
+      quantity: 1, 
+      unit_price: 0, 
+      amount: 0, 
+      sale_type: 'unit',
+      width_m: null,
+      height_m: null,
+      area_m2: null
+    }]);
   };
 
   const removeInvoiceItem = (index: number) => {
@@ -1234,50 +1243,118 @@ const AccountantDashboard = () => {
     if (!product) return;
 
     const newItems = [...invoiceItems];
-    const quantity = newItems[index].quantity || 1;
-    const costPerUnit = product.cost_per_retail_unit || 0;
-    const lineCost = costPerUnit * quantity;
-    const lineAmount = product.selling_price * quantity;
-    const lineProfit = lineAmount - lineCost;
+    const isAreaBased = product.sale_type === 'area';
+    
+    if (isAreaBased) {
+      // Area-based product - set up with default 1x1 dimensions
+      const defaultWidth = 1;
+      const defaultHeight = 1;
+      const area = defaultWidth * defaultHeight;
+      const unitPrice = Number(product.selling_price_per_m2 || 0);
+      const costPerUnit = Number(product.cost_per_m2 || 0);
+      const lineAmount = area * unitPrice;
+      const lineCost = area * costPerUnit;
+      const lineProfit = lineAmount - lineCost;
 
-    newItems[index] = {
-      ...newItems[index],
-      product_id: productId,
-      description: product.name,
-      unit_price: product.selling_price,
-      retail_unit: product.retail_unit,
-      cost_per_unit: costPerUnit,
-      line_cost: lineCost,
-      line_profit: lineProfit,
-      amount: lineAmount,
-    };
+      newItems[index] = {
+        ...newItems[index],
+        product_id: productId,
+        description: product.name,
+        unit_price: unitPrice,
+        retail_unit: 'm²',
+        cost_per_unit: costPerUnit,
+        line_cost: lineCost,
+        line_profit: lineProfit,
+        amount: lineAmount,
+        sale_type: 'area',
+        width_m: defaultWidth,
+        height_m: defaultHeight,
+        area_m2: area,
+        quantity: 1, // For area-based, quantity is always 1
+      };
+    } else {
+      // Unit-based product
+      const quantity = newItems[index].quantity || 1;
+      const costPerUnit = Number(product.cost_per_retail_unit || 0);
+      const lineCost = costPerUnit * quantity;
+      const lineAmount = product.selling_price * quantity;
+      const lineProfit = lineAmount - lineCost;
+
+      newItems[index] = {
+        ...newItems[index],
+        product_id: productId,
+        description: product.name,
+        unit_price: product.selling_price,
+        retail_unit: product.retail_unit,
+        cost_per_unit: costPerUnit,
+        line_cost: lineCost,
+        line_profit: lineProfit,
+        amount: lineAmount,
+        sale_type: 'unit',
+        width_m: null,
+        height_m: null,
+        area_m2: null,
+      };
+    }
     setInvoiceItems(newItems);
   };
 
-  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number | null) => {
     const newItems = [...invoiceItems];
     newItems[index] = { ...newItems[index], [field]: value };
     
-    // Auto-calculate amount and profit
-    if (field === 'quantity' || field === 'unit_price') {
-      const quantity = field === 'quantity' ? Number(value) : newItems[index].quantity;
-      const unitPrice = field === 'unit_price' ? Number(value) : newItems[index].unit_price;
-      const costPerUnit = newItems[index].cost_per_unit || 0;
-      
-      newItems[index].amount = quantity * unitPrice;
-      newItems[index].line_cost = quantity * costPerUnit;
-      newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
+    const item = newItems[index];
+    const isAreaBased = item.sale_type === 'area';
+    
+    if (isAreaBased) {
+      // Auto-calculate area, amount and profit for area-based items
+      if (field === 'width_m' || field === 'height_m' || field === 'unit_price') {
+        const width = field === 'width_m' ? Number(value) || 0 : item.width_m || 0;
+        const height = field === 'height_m' ? Number(value) || 0 : item.height_m || 0;
+        const area = width * height;
+        const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+        const costPerUnit = item.cost_per_unit || 0;
+        
+        newItems[index].area_m2 = area;
+        newItems[index].amount = area * unitPrice;
+        newItems[index].line_cost = area * costPerUnit;
+        newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
+      }
+    } else {
+      // Auto-calculate amount and profit for unit-based items
+      if (field === 'quantity' || field === 'unit_price') {
+        const quantity = field === 'quantity' ? Number(value) : item.quantity;
+        const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+        const costPerUnit = item.cost_per_unit || 0;
+        
+        newItems[index].amount = quantity * unitPrice;
+        newItems[index].line_cost = quantity * costPerUnit;
+        newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
+      }
     }
     
     setInvoiceItems(newItems);
   };
 
   const calculateInvoiceSubtotal = () => {
-    return invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+    return invoiceItems.reduce((sum, item) => {
+      if (item.sale_type === 'area') {
+        const area = (item.width_m || 0) * (item.height_m || 0);
+        return sum + (area * item.unit_price);
+      }
+      return sum + (item.quantity * item.unit_price);
+    }, 0);
   };
 
   const calculateTotalProfit = () => {
-    return invoiceItems.reduce((sum, item) => sum + (item.line_profit || 0), 0);
+    return invoiceItems.reduce((sum, item) => {
+      if (item.sale_type === 'area') {
+        const area = (item.width_m || 0) * (item.height_m || 0);
+        const lineProfit = (area * item.unit_price) - (area * (item.cost_per_unit || 0));
+        return sum + lineProfit;
+      }
+      return sum + (item.line_profit || 0);
+    }, 0);
   };
 
   const handleCreateInvoice = async () => {
@@ -1344,19 +1421,36 @@ const AccountantDashboard = () => {
 
       if (invoiceError) throw invoiceError;
 
-      // Insert invoice items with product info and cost/profit data
-      const itemsToInsert = invoiceItems.map(item => ({
-        invoice_id: invoiceData.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
-        product_id: item.product_id || null,
-        retail_unit: item.retail_unit || 'piece',
-        cost_per_unit: item.cost_per_unit || 0,
-        line_cost: item.line_cost || 0,
-        line_profit: item.line_profit || 0,
-      }));
+      // Insert invoice items with product info, cost/profit data, and area-based fields
+      const itemsToInsert = invoiceItems.map(item => {
+        const isAreaBased = item.sale_type === 'area';
+        const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const lineAmount = isAreaBased 
+          ? (area || 0) * item.unit_price 
+          : item.quantity * item.unit_price;
+        const lineCost = isAreaBased 
+          ? (area || 0) * (item.cost_per_unit || 0) 
+          : item.quantity * (item.cost_per_unit || 0);
+        const lineProfit = lineAmount - lineCost;
+        
+        return {
+          invoice_id: invoiceData.id,
+          description: item.description,
+          quantity: isAreaBased ? 1 : item.quantity,
+          unit_price: item.unit_price,
+          amount: lineAmount,
+          product_id: item.product_id || null,
+          retail_unit: item.retail_unit || 'piece',
+          cost_per_unit: item.cost_per_unit || 0,
+          line_cost: lineCost,
+          line_profit: lineProfit,
+          sale_type: item.sale_type || 'unit',
+          height_m: isAreaBased ? item.height_m : null,
+          width_m: isAreaBased ? item.width_m : null,
+          area_m2: area,
+          rate_per_m2: isAreaBased ? item.unit_price : null,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('invoice_items')
@@ -1376,7 +1470,7 @@ const AccountantDashboard = () => {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceTerms('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       
       fetchInvoices();
       fetchActualStats();
@@ -1411,9 +1505,13 @@ const AccountantDashboard = () => {
         cost_per_unit: item.cost_per_unit || 0,
         line_cost: item.line_cost || 0,
         line_profit: item.line_profit || 0,
+        sale_type: item.sale_type || 'unit',
+        width_m: item.width_m || null,
+        height_m: item.height_m || null,
+        area_m2: item.area_m2 || null,
       })));
     } else {
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
     }
     
     setEditInvoiceDialogOpen(true);
@@ -1484,19 +1582,36 @@ const AccountantDashboard = () => {
 
       if (deleteError) throw deleteError;
 
-      // Insert new invoice items with product info
-      const itemsToInsert = invoiceItems.map(item => ({
-        invoice_id: editingInvoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
-        product_id: item.product_id || null,
-        retail_unit: item.retail_unit || 'piece',
-        cost_per_unit: item.cost_per_unit || 0,
-        line_cost: item.line_cost || 0,
-        line_profit: item.line_profit || 0,
-      }));
+      // Insert new invoice items with product info and area-based fields
+      const itemsToInsert = invoiceItems.map(item => {
+        const isAreaBased = item.sale_type === 'area';
+        const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const lineAmount = isAreaBased 
+          ? (area || 0) * item.unit_price 
+          : item.quantity * item.unit_price;
+        const lineCost = isAreaBased 
+          ? (area || 0) * (item.cost_per_unit || 0) 
+          : item.quantity * (item.cost_per_unit || 0);
+        const lineProfit = lineAmount - lineCost;
+        
+        return {
+          invoice_id: editingInvoice.id,
+          description: item.description,
+          quantity: isAreaBased ? 1 : item.quantity,
+          unit_price: item.unit_price,
+          amount: lineAmount,
+          product_id: item.product_id || null,
+          retail_unit: item.retail_unit || 'piece',
+          cost_per_unit: item.cost_per_unit || 0,
+          line_cost: lineCost,
+          line_profit: lineProfit,
+          sale_type: item.sale_type || 'unit',
+          height_m: isAreaBased ? item.height_m : null,
+          width_m: isAreaBased ? item.width_m : null,
+          area_m2: area,
+          rate_per_m2: isAreaBased ? item.unit_price : null,
+        };
+      });
 
       const { error: itemsError } = await supabase
         .from('invoice_items')
@@ -1517,7 +1632,7 @@ const AccountantDashboard = () => {
       setInvoiceDueDate('');
       setInvoiceTax('');
       setInvoiceNotes('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       
       fetchInvoices();
       fetchActualStats();
@@ -1898,7 +2013,11 @@ const AccountantDashboard = () => {
                                             description: order.job_title || 'Order Item', 
                                             quantity: 1, 
                                             unit_price: order.order_value, 
-                                            amount: order.order_value 
+                                            amount: order.order_value,
+                                            sale_type: 'unit',
+                                            width_m: null,
+                                            height_m: null,
+                                            area_m2: null
                                           }]);
                                         }
                                       }}
@@ -1938,7 +2057,7 @@ const AccountantDashboard = () => {
                                         </Select>
                                       </div>
                                       
-                                      {/* Invoice Items */}
+                                      {/* Invoice Items - Table Layout */}
                                       <div className="space-y-4">
                                         <div className="flex justify-between items-center">
                                           <Label>Invoice Items</Label>
@@ -1948,60 +2067,132 @@ const AccountantDashboard = () => {
                                           </Button>
                                         </div>
                                         
-                                        {invoiceItems.map((item, index) => (
-                                          <Card key={index} className="p-4">
-                                            <div className="grid gap-3">
-                                              <div className="grid gap-2">
-                                                <Label>Description *</Label>
-                                                <Input
-                                                  value={item.description}
-                                                  onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
-                                                  placeholder="Item description"
-                                                />
-                                              </div>
-                                              <div className="grid grid-cols-3 gap-2">
-                                                <div className="grid gap-2">
-                                                  <Label>Quantity</Label>
-                                                  <Input
-                                                    type="number"
-                                                    min="1"
-                                                    value={item.quantity}
-                                                    onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                                                  />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                  <Label>Unit Price</Label>
-                                                  <Input
-                                                    type="number"
-                                                    min="0"
-                                                    step="0.01"
-                                                    value={item.unit_price}
-                                                    onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                                                  />
-                                                </div>
-                                                <div className="grid gap-2">
-                                                  <Label>Amount</Label>
-                                                  <Input
-                                                    type="number"
-                                                    value={item.amount.toFixed(2)}
-                                                    disabled
-                                                    className="bg-muted"
-                                                  />
-                                                </div>
-                                              </div>
-                                              {invoiceItems.length > 1 && (
-                                                <Button
-                                                  type="button"
-                                                  variant="destructive"
-                                                  size="sm"
-                                                  onClick={() => removeInvoiceItem(index)}
-                                                >
-                                                  Remove Item
-                                                </Button>
-                                              )}
-                                            </div>
-                                          </Card>
-                                        ))}
+                                        <Table>
+                                          <TableHeader>
+                                            <TableRow>
+                                              <TableHead className="w-[25%]">Product</TableHead>
+                                              <TableHead className="w-[20%]">Description</TableHead>
+                                              <TableHead className="w-[10%]">Unit</TableHead>
+                                              <TableHead className="w-[15%]">Qty / Size</TableHead>
+                                              <TableHead className="w-[12%]">Rate</TableHead>
+                                              <TableHead className="w-[12%]">Total</TableHead>
+                                              <TableHead className="w-[6%]"></TableHead>
+                                            </TableRow>
+                                          </TableHeader>
+                                          <TableBody>
+                                            {invoiceItems.map((item, index) => {
+                                              const isAreaBased = item.sale_type === 'area';
+                                              const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                                              const lineTotal = isAreaBased 
+                                                ? calculatedArea * item.unit_price 
+                                                : item.quantity * item.unit_price;
+                                              
+                                              return (
+                                                <TableRow key={index}>
+                                                  <TableCell>
+                                                    <Select
+                                                      value={item.product_id || ''}
+                                                      onValueChange={(value) => handleProductSelect(index, value)}
+                                                    >
+                                                      <SelectTrigger className="bg-background">
+                                                        <SelectValue placeholder="Select" />
+                                                      </SelectTrigger>
+                                                      <SelectContent className="bg-background z-50">
+                                                        {products.map((product) => (
+                                                          <SelectItem key={product.id} value={product.id}>
+                                                            {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                                          </SelectItem>
+                                                        ))}
+                                                      </SelectContent>
+                                                    </Select>
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    <Input
+                                                      value={item.description}
+                                                      onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                                                      placeholder="Description"
+                                                      required
+                                                    />
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    {isAreaBased ? (
+                                                      <div className="flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1">
+                                                          <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            value={item.width_m || ''}
+                                                            onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
+                                                            placeholder="W"
+                                                            className="w-14 text-xs"
+                                                            required
+                                                          />
+                                                          <span className="text-xs text-muted-foreground">×</span>
+                                                          <Input
+                                                            type="number"
+                                                            step="0.01"
+                                                            min="0.01"
+                                                            value={item.height_m || ''}
+                                                            onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
+                                                            placeholder="H"
+                                                            className="w-14 text-xs"
+                                                            required
+                                                          />
+                                                          <span className="text-xs text-muted-foreground">m</span>
+                                                        </div>
+                                                        <span className="text-xs text-primary font-medium">
+                                                          = {calculatedArea.toFixed(2)} m²
+                                                        </span>
+                                                      </div>
+                                                    ) : (
+                                                      <Input
+                                                        type="number"
+                                                        min="1"
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                                        required
+                                                      />
+                                                    )}
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    <div className="flex flex-col">
+                                                      <Input
+                                                        type="number"
+                                                        step="0.01"
+                                                        min="0"
+                                                        value={item.unit_price}
+                                                        onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                                        required
+                                                      />
+                                                      {isAreaBased && (
+                                                        <span className="text-xs text-muted-foreground">/m²</span>
+                                                      )}
+                                                    </div>
+                                                  </TableCell>
+                                                  <TableCell className="font-semibold">
+                                                    ${lineTotal.toFixed(2)}
+                                                  </TableCell>
+                                                  <TableCell>
+                                                    {invoiceItems.length > 1 && (
+                                                      <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeInvoiceItem(index)}
+                                                      >
+                                                        ×
+                                                      </Button>
+                                                    )}
+                                                  </TableCell>
+                                                </TableRow>
+                                              );
+                                            })}
+                                          </TableBody>
+                                        </Table>
 
                                         <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                                           <span className="font-semibold">Subtotal:</span>
@@ -2435,115 +2626,153 @@ const AccountantDashboard = () => {
                           </Select>
                         </div>
                         
-                        {/* Invoice Items */}
+                        {/* Invoice Items - Table Layout */}
                         <div className="space-y-4">
                           <div className="flex justify-between items-center">
-                            <Label>Invoice Items (Retail Units Only)</Label>
+                            <Label>Invoice Items</Label>
                             <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
                               <Plus className="h-4 w-4 mr-1" />
                               Add Item
                             </Button>
                           </div>
                           
-                          {invoiceItems.map((item, index) => (
-                            <Card key={index} className="p-4">
-                              <div className="grid gap-3">
-                                <div className="grid gap-2">
-                                  <Label>Product (Optional)</Label>
-                                  <Select 
-                                    value={item.product_id || ''} 
-                                    onValueChange={(value) => handleProductSelect(index, value)}
-                                  >
-                                    <SelectTrigger>
-                                      <SelectValue placeholder="Select product or type manually" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {products.map((product) => (
-                                        <SelectItem key={product.id} value={product.id}>
-                                          {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} (Stock: {product.stock_quantity})
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label>Description *</Label>
-                                  <Input
-                                    value={item.description}
-                                    onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
-                                    placeholder="Item description"
-                                  />
-                                </div>
-                                <div className="grid grid-cols-4 gap-2">
-                                  <div className="grid gap-2">
-                                    <Label>Qty ({item.retail_unit || 'unit'})</Label>
-                                    <Input
-                                      type="number"
-                                      min="1"
-                                      value={item.quantity}
-                                      onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label>Unit Price</Label>
-                                    <Input
-                                      type="number"
-                                      min="0"
-                                      step="0.01"
-                                      value={item.unit_price}
-                                      onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                                      disabled={!!item.product_id}
-                                      className={item.product_id ? 'bg-muted' : ''}
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label>Amount</Label>
-                                    <Input
-                                      type="number"
-                                      value={item.amount.toFixed(2)}
-                                      disabled
-                                      className="bg-muted"
-                                    />
-                                  </div>
-                                  <div className="grid gap-2">
-                                    <Label>Profit</Label>
-                                    <Input
-                                      type="number"
-                                      value={(item.line_profit || 0).toFixed(2)}
-                                      disabled
-                                      className="bg-muted text-success"
-                                    />
-                                  </div>
-                                </div>
-                                {item.product_id && (
-                                  <div className="text-xs text-muted-foreground">
-                                    Cost: ${(item.cost_per_unit || 0).toFixed(2)}/{item.retail_unit} | 
-                                    Line Cost: ${(item.line_cost || 0).toFixed(2)} | 
-                                    Profit: ${(item.line_profit || 0).toFixed(2)}
-                                  </div>
-                                )}
-                                {invoiceItems.length > 1 && (
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => removeInvoiceItem(index)}
-                                  >
-                                    Remove Item
-                                  </Button>
-                                )}
-                              </div>
-                            </Card>
-                          ))}
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[25%]">Product</TableHead>
+                                <TableHead className="w-[20%]">Description</TableHead>
+                                <TableHead className="w-[10%]">Unit</TableHead>
+                                <TableHead className="w-[15%]">Qty / Size</TableHead>
+                                <TableHead className="w-[12%]">Rate</TableHead>
+                                <TableHead className="w-[12%]">Total</TableHead>
+                                <TableHead className="w-[6%]"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {invoiceItems.map((item, index) => {
+                                const isAreaBased = item.sale_type === 'area';
+                                const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                                const lineTotal = isAreaBased 
+                                  ? calculatedArea * item.unit_price 
+                                  : item.quantity * item.unit_price;
+                                
+                                return (
+                                  <TableRow key={index}>
+                                    <TableCell>
+                                      <Select
+                                        value={item.product_id || ''}
+                                        onValueChange={(value) => handleProductSelect(index, value)}
+                                      >
+                                        <SelectTrigger className="bg-background">
+                                          <SelectValue placeholder="Select product" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-background z-50">
+                                          {products.map((product) => (
+                                            <SelectItem key={product.id} value={product.id}>
+                                              {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Input
+                                        value={item.description}
+                                        onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                                        placeholder="Description"
+                                        required
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
+                                    </TableCell>
+                                    <TableCell>
+                                      {isAreaBased ? (
+                                        <div className="flex flex-col gap-1">
+                                          <div className="flex items-center gap-1">
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              min="0.01"
+                                              value={item.width_m || ''}
+                                              onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
+                                              placeholder="W"
+                                              className="w-16 text-xs"
+                                              required
+                                            />
+                                            <span className="text-xs text-muted-foreground">×</span>
+                                            <Input
+                                              type="number"
+                                              step="0.01"
+                                              min="0.01"
+                                              value={item.height_m || ''}
+                                              onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
+                                              placeholder="H"
+                                              className="w-16 text-xs"
+                                              required
+                                            />
+                                            <span className="text-xs text-muted-foreground">m</span>
+                                          </div>
+                                          <span className="text-xs text-primary font-medium">
+                                            = {calculatedArea.toFixed(2)} m²
+                                          </span>
+                                        </div>
+                                      ) : (
+                                        <Input
+                                          type="number"
+                                          min="1"
+                                          value={item.quantity}
+                                          onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                                          required
+                                        />
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-col">
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={item.unit_price}
+                                          onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                          required
+                                        />
+                                        {isAreaBased && (
+                                          <span className="text-xs text-muted-foreground">/m²</span>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="font-semibold">
+                                      ${lineTotal.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell>
+                                      {invoiceItems.length > 1 && (
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => removeInvoiceItem(index)}
+                                        >
+                                          ×
+                                        </Button>
+                                      )}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
 
-                          <div className="space-y-2">
-                            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                              <span className="font-semibold">Subtotal:</span>
-                              <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
-                            </div>
-                            <div className="flex justify-between items-center p-2 bg-success/10 rounded-lg">
-                              <span className="text-sm text-success font-medium">Est. Profit (internal):</span>
-                              <span className="text-success font-bold">${calculateTotalProfit().toFixed(2)}</span>
+                          <div className="flex justify-end pt-4 border-t">
+                            <div className="text-right space-y-2">
+                              <div className="flex justify-between items-center gap-4">
+                                <span className="font-semibold">Subtotal:</span>
+                                <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                              </div>
+                              <div className="flex justify-between items-center gap-4 text-success">
+                                <span className="text-sm font-medium">Est. Profit:</span>
+                                <span className="font-bold">${calculateTotalProfit().toFixed(2)}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
