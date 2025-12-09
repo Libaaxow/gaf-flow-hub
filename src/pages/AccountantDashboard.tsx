@@ -222,6 +222,8 @@ const AccountantDashboard = () => {
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
+  const [activatingDraftInvoice, setActivatingDraftInvoice] = useState<any>(null);
+  const [assignNumberDialogOpen, setAssignNumberDialogOpen] = useState(false);
 
   // Invoice payment form states
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
@@ -581,7 +583,33 @@ const AccountantDashboard = () => {
         .select(`
           *,
           customers (name, email, phone),
-          invoices:invoices!order_id (id)
+          invoices:invoices!order_id (
+            id,
+            invoice_number,
+            is_draft,
+            subtotal,
+            tax_amount,
+            total_amount,
+            due_date,
+            notes,
+            terms,
+            invoice_items (
+              id,
+              description,
+              quantity,
+              unit_price,
+              amount,
+              product_id,
+              retail_unit,
+              sale_type,
+              width_m,
+              height_m,
+              area_m2,
+              rate_per_m2,
+              cost_per_unit,
+              product:products(id, name, sale_type, selling_price, selling_price_per_m2, cost_per_retail_unit, cost_per_m2, retail_unit)
+            )
+          )
         `)
         .in('status', ['pending_accounting_review', 'awaiting_accounting_approval', 'ready_for_collection'])
         .order('created_at', { ascending: false });
@@ -611,8 +639,16 @@ const AccountantDashboard = () => {
             designer = data;
           }
 
-          const invoice_count = Array.isArray((order as any).invoices) ? (order as any).invoices.length : 0;
-          return { ...order, salesperson, designer, invoice_count };
+          const invoices = Array.isArray((order as any).invoices) ? (order as any).invoices : [];
+          const invoice_count = invoices.length;
+          // Check for draft invoice
+          const draft_invoice = invoices.find((inv: any) => inv.is_draft === true);
+          const has_draft_invoice = !!draft_invoice;
+          // Check if there's an active (non-draft) invoice with proper number
+          const active_invoice = invoices.find((inv: any) => !inv.is_draft && inv.invoice_number && !inv.invoice_number.startsWith('DRAFT-') && inv.invoice_number !== 'PENDING');
+          const has_active_invoice = !!active_invoice;
+          
+          return { ...order, salesperson, designer, invoice_count, draft_invoice, has_draft_invoice, has_active_invoice };
         })
       );
 
@@ -1502,6 +1538,151 @@ const AccountantDashboard = () => {
     }
   };
 
+  // Load draft invoice into form for activation
+  const loadDraftInvoiceForActivation = (order: any) => {
+    const draft = order.draft_invoice;
+    if (!draft) return;
+    
+    setActivatingDraftInvoice(draft);
+    setInvoiceOrder(order.id);
+    setInvoiceCustomer(order.customer_id);
+    setInvoiceNumber(''); // Accountant will assign the number
+    setInvoiceDueDate(draft.due_date || '');
+    setInvoiceTax(draft.tax_amount?.toString() || '');
+    setInvoiceNotes(draft.notes || '');
+    setInvoiceTerms(draft.terms || '');
+    
+    // Load invoice items
+    if (draft.invoice_items && draft.invoice_items.length > 0) {
+      setInvoiceItems(draft.invoice_items.map((item: any) => ({
+        description: item.description,
+        quantity: item.quantity || 1,
+        unit_price: item.unit_price || item.rate_per_m2 || 0,
+        amount: item.amount || 0,
+        product_id: item.product_id || null,
+        retail_unit: item.retail_unit || item.product?.retail_unit || 'piece',
+        cost_per_unit: item.cost_per_unit || item.product?.cost_per_retail_unit || item.product?.cost_per_m2 || 0,
+        sale_type: item.sale_type || 'unit',
+        width_m: item.width_m || null,
+        height_m: item.height_m || null,
+        area_m2: item.area_m2 || null,
+      })));
+    } else {
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+    }
+    
+    setAssignNumberDialogOpen(true);
+  };
+
+  // Activate draft invoice by assigning a number
+  const handleActivateDraftInvoice = async () => {
+    if (!activatingDraftInvoice || !invoiceNumber.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please enter an invoice number',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const subtotal = calculateInvoiceSubtotal();
+      const tax = invoiceTax ? parseFloat(invoiceTax) : 0;
+      const total = subtotal + tax;
+
+      // Update the draft invoice to activate it
+      const { error: updateError } = await supabase
+        .from('invoices')
+        .update({
+          invoice_number: invoiceNumber,
+          is_draft: false,
+          subtotal: subtotal,
+          tax_amount: tax,
+          total_amount: total,
+          due_date: invoiceDueDate || null,
+          notes: invoiceNotes || null,
+          terms: invoiceTerms || null,
+          status: 'draft', // Keep as draft until paid
+        })
+        .eq('id', activatingDraftInvoice.id);
+
+      if (updateError) throw updateError;
+
+      // Delete existing items and re-insert with updated values
+      const { error: deleteError } = await supabase
+        .from('invoice_items')
+        .delete()
+        .eq('invoice_id', activatingDraftInvoice.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated invoice items
+      const itemsToInsert = invoiceItems.map(item => {
+        const isAreaBased = item.sale_type === 'area';
+        const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const lineAmount = isAreaBased 
+          ? (area || 0) * item.unit_price 
+          : item.quantity * item.unit_price;
+        const lineCost = isAreaBased 
+          ? (area || 0) * (item.cost_per_unit || 0) 
+          : item.quantity * (item.cost_per_unit || 0);
+        const lineProfit = lineAmount - lineCost;
+        
+        return {
+          invoice_id: activatingDraftInvoice.id,
+          description: item.description,
+          quantity: isAreaBased ? 1 : item.quantity,
+          unit_price: item.unit_price,
+          amount: lineAmount,
+          product_id: item.product_id || null,
+          retail_unit: item.retail_unit || 'piece',
+          cost_per_unit: item.cost_per_unit || 0,
+          line_cost: lineCost,
+          line_profit: lineProfit,
+          sale_type: item.sale_type || 'unit',
+          height_m: isAreaBased ? item.height_m : null,
+          width_m: isAreaBased ? item.width_m : null,
+          area_m2: area,
+          rate_per_m2: isAreaBased ? item.unit_price : null,
+        };
+      });
+
+      const { error: itemsError } = await supabase
+        .from('invoice_items')
+        .insert(itemsToInsert);
+
+      if (itemsError) throw itemsError;
+
+      toast({
+        title: 'Success',
+        description: `Invoice ${invoiceNumber} activated successfully`,
+      });
+
+      // Reset form
+      setActivatingDraftInvoice(null);
+      setAssignNumberDialogOpen(false);
+      setInvoiceNumber('');
+      setInvoiceCustomer('');
+      setInvoiceOrder('');
+      setInvoiceDueDate('');
+      setInvoiceTax('');
+      setInvoiceNotes('');
+      setInvoiceTerms('');
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+      
+      fetchInvoices();
+      fetchWorkflowOrders();
+      fetchActualStats();
+      fetchProducts();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleEditInvoice = (invoice: any) => {
     setEditingInvoice(invoice);
     setInvoiceNumber(invoice.invoice_number);
@@ -1998,23 +2179,34 @@ const AccountantDashboard = () => {
                           <TableCell>{order.salesperson?.full_name || '-'}</TableCell>
                           <TableCell>${order.order_value?.toFixed(2)}</TableCell>
                           <TableCell>
-                            {order.invoice_count > 0 ? (
-                              <Badge variant="default">Invoice Created</Badge>
+                            {order.has_active_invoice ? (
+                              <Badge variant="default">Invoice Active</Badge>
+                            ) : order.has_draft_invoice ? (
+                              <Badge variant="secondary">Draft - Needs Number</Badge>
                             ) : (
-                              <Badge variant="secondary">No Invoice</Badge>
+                              <Badge variant="outline">No Invoice</Badge>
                             )}
                           </TableCell>
                           <TableCell>{format(new Date(order.created_at), 'PP')}</TableCell>
                           <TableCell>
                             <div className="flex gap-2">
-                              {order.invoice_count > 0 ? (
+                              {order.has_active_invoice ? (
                                 <Button 
                                   size="sm" 
                                   variant="secondary"
                                   disabled
                                 >
                                   <FileText className="mr-2 h-4 w-4" />
-                                  Invoice Created
+                                  Invoice Active
+                                </Button>
+                              ) : order.has_draft_invoice ? (
+                                <Button 
+                                  size="sm" 
+                                  variant="default"
+                                  onClick={() => loadDraftInvoiceForActivation(order)}
+                                >
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Assign Number
                                 </Button>
                               ) : (
                                 <Dialog>
@@ -4232,6 +4424,113 @@ const AccountantDashboard = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Invoice Number Dialog for Draft Invoices */}
+      <Dialog open={assignNumberDialogOpen} onOpenChange={setAssignNumberDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>Assign Invoice Number</DialogTitle>
+            <DialogDescription>
+              Review the draft invoice and assign an official invoice number to activate it
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4 overflow-y-auto max-h-[60vh]">
+            <div className="grid gap-2">
+              <Label htmlFor="assign-invoice-number">Invoice Number *</Label>
+              <Input
+                id="assign-invoice-number"
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                placeholder="INV-00001"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the official invoice number to activate this draft
+              </p>
+            </div>
+
+            {/* Invoice Items Preview */}
+            <div className="space-y-4">
+              <Label>Invoice Items</Label>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-center">Qty/Size</TableHead>
+                    <TableHead className="text-right">Rate</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoiceItems.map((item, index) => {
+                    const isAreaBased = item.sale_type === 'area';
+                    const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                    const lineTotal = isAreaBased ? area * item.unit_price : item.quantity * item.unit_price;
+                    
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-center">
+                          {isAreaBased ? (
+                            <div className="text-xs">
+                              <div>{(item.width_m || 0).toFixed(2)} × {(item.height_m || 0).toFixed(2)} m</div>
+                              <div className="font-semibold">{area.toFixed(2)} m²</div>
+                            </div>
+                          ) : (
+                            `${item.quantity} ${item.retail_unit || 'unit'}`
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${item.unit_price.toFixed(2)}{isAreaBased ? '/m²' : ''}
+                        </TableCell>
+                        <TableCell className="text-right font-medium">
+                          ${lineTotal.toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <span className="font-semibold">Subtotal:</span>
+                <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="assign-due-date">Due Date</Label>
+              <Input
+                id="assign-due-date"
+                type="date"
+                value={invoiceDueDate}
+                onChange={(e) => setInvoiceDueDate(e.target.value)}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="assign-notes">Notes</Label>
+              <Textarea
+                id="assign-notes"
+                value={invoiceNotes}
+                onChange={(e) => setInvoiceNotes(e.target.value)}
+                placeholder="Additional notes"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setAssignNumberDialogOpen(false);
+              setActivatingDraftInvoice(null);
+            }}>
+              Cancel
+            </Button>
+            <Button onClick={handleActivateDraftInvoice}>
+              Activate Invoice
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
