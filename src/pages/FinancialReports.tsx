@@ -22,6 +22,9 @@ interface Payment {
   payment_date: string;
   reference_number?: string;
   notes?: string;
+  discount_amount?: number;
+  discount_type?: string;
+  discount_reason?: string;
   order: {
     job_title: string;
     customer: {
@@ -95,6 +98,9 @@ const FinancialReports = () => {
           payment_date,
           reference_number,
           notes,
+          discount_amount,
+          discount_type,
+          discount_reason,
           order:orders(
             job_title,
             customer:customers(name)
@@ -281,6 +287,7 @@ const FinancialReports = () => {
   };
 
   const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalDiscounts = payments.reduce((sum, p) => sum + Number(p.discount_amount || 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const netIncome = totalPayments - totalExpenses;
 
@@ -295,7 +302,7 @@ const FinancialReports = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
@@ -304,6 +311,17 @@ const FinancialReports = () => {
             <CardContent>
               <div className="text-2xl font-bold text-success">${totalPayments.toFixed(2)}</div>
               <p className="text-xs text-muted-foreground">{payments.length} transactions</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Discounts</CardTitle>
+              <TrendingDown className="h-4 w-4 text-orange-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-orange-500">${totalDiscounts.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground">Payment discounts given</p>
             </CardContent>
           </Card>
 
@@ -448,9 +466,10 @@ const FinancialReports = () => {
                         <tr className="border-b">
                           <th className="text-left py-3 px-2">Date</th>
                           <th className="text-left py-3 px-2">Customer</th>
-                          <th className="text-left py-3 px-2">Order</th>
+                          <th className="text-left py-3 px-2">Order/Invoice</th>
                           <th className="text-left py-3 px-2">Method</th>
                           <th className="text-right py-3 px-2">Amount</th>
+                          <th className="text-right py-3 px-2">Discount</th>
                           <th className="text-left py-3 px-2">Reference</th>
                         </tr>
                       </thead>
@@ -466,6 +485,11 @@ const FinancialReports = () => {
                             </td>
                             <td className="py-3 px-2 capitalize">{payment.payment_method.replace('_', ' ')}</td>
                             <td className="py-3 px-2 text-right font-semibold text-success">${payment.amount.toFixed(2)}</td>
+                            <td className="py-3 px-2 text-right text-orange-500">
+                              {payment.discount_amount && payment.discount_amount > 0 
+                                ? `$${payment.discount_amount.toFixed(2)}` 
+                                : '-'}
+                            </td>
                             <td className="py-3 px-2">{payment.reference_number || '-'}</td>
                           </tr>
                         ))}
@@ -474,6 +498,7 @@ const FinancialReports = () => {
                         <tr className="border-t font-bold">
                           <td colSpan={4} className="py-3 px-2 text-right">Total:</td>
                           <td className="py-3 px-2 text-right text-success">${totalPayments.toFixed(2)}</td>
+                          <td className="py-3 px-2 text-right text-orange-500">${totalDiscounts.toFixed(2)}</td>
                           <td></td>
                         </tr>
                       </tfoot>

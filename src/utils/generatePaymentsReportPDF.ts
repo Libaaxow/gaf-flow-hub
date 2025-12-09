@@ -9,8 +9,17 @@ interface Payment {
   payment_date: string;
   reference_number?: string;
   notes?: string;
+  discount_amount?: number;
+  discount_type?: string;
+  discount_reason?: string;
   order: {
     job_title: string;
+    customer: {
+      name: string;
+    };
+  } | null;
+  invoice?: {
+    invoice_number: string;
     customer: {
       name: string;
     };
@@ -67,12 +76,13 @@ export const generatePaymentsReportPDF = (
 
     // Calculate totals
     const totalAmount = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalDiscounts = payments.reduce((sum, p) => sum + Number(p.discount_amount || 0), 0);
     const totalTransactions = payments.length;
 
     // Summary Section
     let yPos = 65;
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20, yPos, 170, 25, 2, 2, "F");
+    pdf.roundedRect(20, yPos, 170, 30, 2, 2, "F");
 
     pdf.setFontSize(12);
     pdf.setFont(undefined, "bold");
@@ -82,10 +92,14 @@ export const generatePaymentsReportPDF = (
     pdf.setFontSize(10);
     pdf.setTextColor(51, 51, 51);
     pdf.text(`Total Transactions: ${totalTransactions}`, 25, yPos + 15);
-    pdf.text(`Total Amount: $${totalAmount.toFixed(2)}`, 120, yPos + 15);
+    pdf.text(`Total Amount Received: $${totalAmount.toFixed(2)}`, 25, yPos + 22);
+    pdf.setTextColor(218, 34, 39);
+    pdf.text(`Total Discounts Given: $${totalDiscounts.toFixed(2)}`, 120, yPos + 15);
+    pdf.setTextColor(34, 197, 94);
+    pdf.text(`Net Revenue: $${(totalAmount).toFixed(2)}`, 120, yPos + 22);
 
     // Filter Information
-    yPos = 97;
+    yPos = 102;
     if (filters.dateFrom || filters.dateTo || (filters.paymentMethod && filters.paymentMethod !== 'all')) {
       pdf.setFontSize(9);
       pdf.setFont(undefined, "bold");
@@ -114,21 +128,22 @@ export const generatePaymentsReportPDF = (
 
     const paymentsData = payments.map((payment) => [
       format(new Date(payment.payment_date), "MMM dd, yyyy"),
-      payment.order?.customer?.name || "N/A",
-      payment.order?.job_title || "N/A",
+      payment.order?.customer?.name || payment.invoice?.customer?.name || "N/A",
+      payment.order?.job_title || payment.invoice?.invoice_number || "N/A",
       payment.payment_method.replace('_', ' ').toUpperCase(),
       `$${payment.amount.toFixed(2)}`,
+      payment.discount_amount && payment.discount_amount > 0 ? `$${payment.discount_amount.toFixed(2)}` : '-',
       payment.reference_number || '-',
     ]);
 
     autoTable(pdf, {
       startY: yPos,
-      head: [["Date", "Customer", "Order", "Method", "Amount", "Reference"]],
+      head: [["Date", "Customer", "Order/Invoice", "Method", "Amount", "Discount", "Reference"]],
       body: paymentsData,
       theme: "plain",
       styles: {
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 7,
+        cellPadding: 2,
         textColor: [51, 51, 51],
         lineColor: [230, 230, 230],
         lineWidth: 0.1,
@@ -137,19 +152,20 @@ export const generatePaymentsReportPDF = (
         fillColor: [41, 98, 255],
         textColor: [255, 255, 255],
         fontStyle: "bold",
-        fontSize: 9,
-        cellPadding: 4,
+        fontSize: 8,
+        cellPadding: 3,
       },
       alternateRowStyles: {
         fillColor: [252, 252, 253],
       },
       columnStyles: {
-        0: { cellWidth: 28 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 25 },
-        4: { cellWidth: 25, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
-        5: { cellWidth: 25 },
+        0: { cellWidth: 24 },
+        1: { cellWidth: 30 },
+        2: { cellWidth: 35 },
+        3: { cellWidth: 22 },
+        4: { cellWidth: 22, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
+        5: { cellWidth: 20, halign: "right", textColor: [218, 34, 39] },
+        6: { cellWidth: 22 },
       },
       margin: { left: 20, right: 20 },
     });
@@ -164,19 +180,23 @@ export const generatePaymentsReportPDF = (
     }
     
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(120, finalY, 70, 20, 2, 2, "F");
+    pdf.roundedRect(100, finalY, 90, 30, 2, 2, "F");
 
     pdf.setFontSize(9);
     pdf.setFont(undefined, "normal");
     pdf.setTextColor(102, 102, 102);
-    pdf.text("Total Transactions:", 125, finalY + 7);
+    pdf.text("Total Transactions:", 105, finalY + 7);
     pdf.text(totalTransactions.toString(), 185, finalY + 7, { align: "right" });
+
+    pdf.setTextColor(218, 34, 39);
+    pdf.text("Total Discounts:", 105, finalY + 14);
+    pdf.text(`$${totalDiscounts.toFixed(2)}`, 185, finalY + 14, { align: "right" });
 
     pdf.setFontSize(11);
     pdf.setFont(undefined, "bold");
     pdf.setTextColor(34, 197, 94);
-    pdf.text("Total Amount:", 125, finalY + 15);
-    pdf.text(`$${totalAmount.toFixed(2)}`, 185, finalY + 15, { align: "right" });
+    pdf.text("Total Received:", 105, finalY + 23);
+    pdf.text(`$${totalAmount.toFixed(2)}`, 185, finalY + 23, { align: "right" });
 
     // Footer
     const footerY = 270;
