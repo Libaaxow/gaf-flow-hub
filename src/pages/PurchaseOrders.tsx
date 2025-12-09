@@ -792,7 +792,7 @@ const PurchaseOrders = () => {
 
         {/* View PO Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Purchase Order Details</DialogTitle>
             </DialogHeader>
