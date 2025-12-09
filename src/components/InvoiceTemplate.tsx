@@ -7,6 +7,12 @@ interface InvoiceItem {
   quantity: number;
   unitPrice: number;
   amount: number;
+  // Area-based fields
+  saleType?: string;
+  widthM?: number;
+  heightM?: number;
+  areaM2?: number;
+  ratePerM2?: number;
 }
 
 interface InvoiceTemplateProps {
@@ -127,13 +133,13 @@ export const InvoiceTemplate = ({
               <span className="text-white">Faah faahin</span>
               <span className="text-yellow-300 ml-1">(Description)</span>
             </th>
-            <th className="text-center py-2 px-3 font-semibold w-24">
-              <span className="text-white">Tirada</span>
-              <span className="text-yellow-300 ml-1">(Quantity)</span>
+            <th className="text-center py-2 px-3 font-semibold w-28">
+              <span className="text-white">Tirada/Cabir</span>
+              <span className="text-yellow-300 ml-1">(Qty/Size)</span>
             </th>
             <th className="text-right py-2 px-3 font-semibold w-28">
               <span className="text-white">Qiimaha</span>
-              <span className="text-yellow-300 ml-1">(Unit Price)</span>
+              <span className="text-yellow-300 ml-1">(Rate)</span>
             </th>
             <th className="text-right py-2 px-3 font-semibold w-28">
               <span className="text-white">Wadarta</span>
@@ -143,14 +149,35 @@ export const InvoiceTemplate = ({
         </thead>
         <tbody>
           {items && items.length > 0 ? (
-            items.map((item, index) => (
-              <tr key={index} className="border-b border-gray-200">
-                <td className="py-2 px-3 text-[#dc2626]">{item.description}</td>
-                <td className="py-2 px-3 text-center">{item.quantity}</td>
-                <td className="py-2 px-3 text-right">{Number(item.unitPrice).toFixed(2)}</td>
-                <td className="py-2 px-3 text-right font-medium">${Number(item.amount).toFixed(2)}</td>
-              </tr>
-            ))
+            items.map((item, index) => {
+              const isAreaBased = item.saleType === 'area' || (item.areaM2 && item.areaM2 > 0);
+              return (
+                <tr key={index} className="border-b border-gray-200">
+                  <td className="py-2 px-3 text-[#dc2626]">{item.description}</td>
+                  <td className="py-2 px-3 text-center">
+                    {isAreaBased ? (
+                      <div className="text-xs">
+                        <div>{item.widthM?.toFixed(2) || 0} × {item.heightM?.toFixed(2) || 0} m</div>
+                        <div className="font-semibold">{item.areaM2?.toFixed(2) || 0} m²</div>
+                      </div>
+                    ) : (
+                      item.quantity
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-right">
+                    {isAreaBased ? (
+                      <div className="text-xs">
+                        <div>${Number(item.unitPrice).toFixed(2)}</div>
+                        <div className="text-muted-foreground">/m²</div>
+                      </div>
+                    ) : (
+                      Number(item.unitPrice).toFixed(2)
+                    )}
+                  </td>
+                  <td className="py-2 px-3 text-right font-medium">${Number(item.amount).toFixed(2)}</td>
+                </tr>
+              );
+            })
           ) : (
             <tr>
               <td colSpan={4} className="py-4 px-3 text-center text-gray-500">

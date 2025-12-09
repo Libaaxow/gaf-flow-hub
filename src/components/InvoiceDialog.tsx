@@ -25,7 +25,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
 
   if (!order) return null;
 
-  // Parse order items - handle both orders and invoices
+  // Parse order items - handle both orders and invoices with area-based support
   console.log("Invoice Dialog - Full Order Data:", order);
   console.log("Invoice items raw:", order.invoice_items);
   console.log("Order items raw:", order.order_items);
@@ -33,11 +33,18 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
   const items = order.invoice_items && Array.isArray(order.invoice_items) && order.invoice_items.length > 0
     ? order.invoice_items.map((item: any) => {
         console.log("Parsing invoice item:", item);
+        const isAreaBased = item.sale_type === 'area' || (item.area_m2 && item.area_m2 > 0);
         return {
           description: item.description || "Item",
           quantity: Number(item.quantity) || 1,
-          unitPrice: Number(item.unit_price) || 0,
+          unitPrice: Number(item.unit_price) || Number(item.rate_per_m2) || 0,
           amount: Number(item.amount) || 0,
+          // Area-based fields
+          saleType: item.sale_type || 'unit',
+          widthM: isAreaBased ? Number(item.width_m) || 0 : undefined,
+          heightM: isAreaBased ? Number(item.height_m) || 0 : undefined,
+          areaM2: isAreaBased ? Number(item.area_m2) || 0 : undefined,
+          ratePerM2: isAreaBased ? Number(item.rate_per_m2) || Number(item.unit_price) || 0 : undefined,
         };
       })
     : order.order_items && Array.isArray(order.order_items) && order.order_items.length > 0
@@ -48,6 +55,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
           quantity: Number(item.quantity) || 1,
           unitPrice: Number(item.unit_price) || 0,
           amount: (Number(item.quantity) || 1) * (Number(item.unit_price) || 0),
+          saleType: 'unit',
         };
       })
     : [{
@@ -55,6 +63,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         quantity: Number(order.quantity) || 1,
         unitPrice: Number(order.order_value || order.total_amount || order.subtotal) || 0,
         amount: Number(order.order_value || order.total_amount || order.subtotal) || 0,
+        saleType: 'unit',
       }];
 
   console.log("Invoice Dialog - Parsed Items:", items);

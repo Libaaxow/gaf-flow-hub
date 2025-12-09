@@ -77,6 +77,10 @@ interface Product {
   selling_price: number;
   cost_per_retail_unit: number | null;
   stock_quantity: number;
+  sale_type: string;
+  selling_price_per_m2: number | null;
+  cost_per_m2: number | null;
+  total_roll_area: number | null;
 }
 
 interface Invoice {
@@ -181,7 +185,7 @@ const AccountantDashboard = () => {
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceTerms, setInvoiceTerms] = useState('');
 
-  // Invoice items state
+  // Invoice items state with area-based support
   interface InvoiceItem {
     description: string;
     quantity: number;
@@ -192,9 +196,13 @@ const AccountantDashboard = () => {
     cost_per_unit?: number;
     line_cost?: number;
     line_profit?: number;
+    sale_type?: string;
+    width_m?: number;
+    height_m?: number;
+    area_m2?: number;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, unit_price: 0, amount: 0 }
+    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
   ]);
   const [products, setProducts] = useState<Product[]>([]);
 
@@ -279,7 +287,7 @@ const AccountantDashboard = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('id, name, product_code, retail_unit, selling_price, cost_per_retail_unit, stock_quantity')
+        .select('id, name, product_code, retail_unit, selling_price, cost_per_retail_unit, stock_quantity, sale_type, selling_price_per_m2, cost_per_m2, total_roll_area')
         .eq('status', 'active')
         .order('name');
 
