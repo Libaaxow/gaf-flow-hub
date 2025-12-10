@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Order {
   id: string;
@@ -1909,11 +1910,12 @@ export default function AdminDashboard() {
 
     {/* Edit Invoice Dialog */}
     <Dialog open={editInvoiceDialogOpen} onOpenChange={setEditInvoiceDialogOpen}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[95vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Edit Invoice</DialogTitle>
           <DialogDescription>Update invoice details</DialogDescription>
         </DialogHeader>
+        <ScrollArea className="flex-1 pr-4">
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="edit-invoice-number">Invoice Number *</Label>
@@ -2061,7 +2063,8 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
-        <DialogFooter>
+        </ScrollArea>
+        <DialogFooter className="flex-shrink-0 pt-4 border-t">
           <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
         </DialogFooter>
