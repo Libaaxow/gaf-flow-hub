@@ -1057,7 +1057,7 @@ const SalesDashboard = () => {
                                               setInvoiceItems(newItems);
                                             }}
                                             placeholder="W"
-                                            className="w-14 text-xs"
+                                            className="w-16"
                                             required
                                           />
                                           <span className="text-xs text-muted-foreground">×</span>
@@ -1074,7 +1074,7 @@ const SalesDashboard = () => {
                                               setInvoiceItems(newItems);
                                             }}
                                             placeholder="H"
-                                            className="w-14 text-xs"
+                                            className="w-16"
                                             required
                                           />
                                           <span className="text-xs text-muted-foreground">m</span>
@@ -1093,6 +1093,7 @@ const SalesDashboard = () => {
                                         type="number"
                                         step="0.01"
                                         min="0"
+                                        className="min-w-[80px]"
                                         value={item.unit_price}
                                         onChange={(e) => {
                                           const newItems = [...invoiceItems];

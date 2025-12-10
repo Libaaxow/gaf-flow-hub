@@ -2472,7 +2472,7 @@ const AccountantDashboard = () => {
                                                             value={item.width_m || ''}
                                                             onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
                                                             placeholder="W"
-                                                            className="w-14 text-xs"
+                                                            className="w-16"
                                                             required
                                                           />
                                                           <span className="text-xs text-muted-foreground">×</span>
@@ -2483,7 +2483,7 @@ const AccountantDashboard = () => {
                                                             value={item.height_m || ''}
                                                             onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
                                                             placeholder="H"
-                                                            className="w-14 text-xs"
+                                                            className="w-16"
                                                             required
                                                           />
                                                           <span className="text-xs text-muted-foreground">m</span>
@@ -2502,6 +2502,7 @@ const AccountantDashboard = () => {
                                                         type="number"
                                                         step="0.01"
                                                         min="0"
+                                                        className="min-w-[80px]"
                                                         value={item.unit_price}
                                                         onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                                                         required
@@ -3051,7 +3052,7 @@ const AccountantDashboard = () => {
                                               value={item.width_m || ''}
                                               onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
                                               placeholder="W"
-                                              className="w-14 text-xs"
+                                              className="w-16"
                                               required
                                             />
                                             <span className="text-xs text-muted-foreground">×</span>
@@ -3062,7 +3063,7 @@ const AccountantDashboard = () => {
                                               value={item.height_m || ''}
                                               onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
                                               placeholder="H"
-                                              className="w-14 text-xs"
+                                              className="w-16"
                                               required
                                             />
                                             <span className="text-xs text-muted-foreground">m</span>
@@ -3081,6 +3082,7 @@ const AccountantDashboard = () => {
                                           type="number"
                                           step="0.01"
                                           min="0"
+                                          className="min-w-[80px]"
                                           value={item.unit_price}
                                           onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                                           required
