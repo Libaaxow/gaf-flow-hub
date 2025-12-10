@@ -158,7 +158,14 @@ const AccountantDashboard = () => {
   const [paymentInvoice, setPaymentInvoice] = useState('');
   const [paymentDiscount, setPaymentDiscount] = useState('');
   const [customerInvoices, setCustomerInvoices] = useState<any[]>([]);
-  const [paymentAllocation, setPaymentAllocation] = useState<{invoiceId: string, amount: number, selected: boolean}[]>([]);
+  const [paymentAllocation, setPaymentAllocation] = useState<{
+    invoiceId: string, 
+    amount: number, 
+    selected: boolean,
+    discountType: 'fixed' | 'percentage',
+    discountValue: number,
+    discountReason: string
+  }[]>([]);
   
   // Expense form states
   const [expenseDate, setExpenseDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -932,7 +939,10 @@ const AccountantDashboard = () => {
       setPaymentAllocation((outstandingInvoices || []).map(inv => ({
         invoiceId: inv.id,
         amount: 0,
-        selected: false
+        selected: false,
+        discountType: 'fixed' as const,
+        discountValue: 0,
+        discountReason: ''
       })));
     } catch (error: any) {
       toast({
@@ -948,9 +958,55 @@ const AccountantDashboard = () => {
   const handleToggleInvoiceSelection = (invoiceId: string) => {
     setPaymentAllocation(prev => prev.map(alloc => 
       alloc.invoiceId === invoiceId 
-        ? { ...alloc, selected: !alloc.selected, amount: !alloc.selected ? (customerInvoices.find(inv => inv.id === invoiceId)?.total_amount - customerInvoices.find(inv => inv.id === invoiceId)?.amount_paid || 0) : 0 }
+        ? { 
+            ...alloc, 
+            selected: !alloc.selected, 
+            amount: !alloc.selected ? (customerInvoices.find(inv => inv.id === invoiceId)?.total_amount - customerInvoices.find(inv => inv.id === invoiceId)?.amount_paid || 0) : 0,
+            discountType: 'fixed' as const,
+            discountValue: 0,
+            discountReason: ''
+          }
         : alloc
     ));
+  };
+
+  const handleInvoiceDiscountTypeChange = (invoiceId: string, type: 'fixed' | 'percentage') => {
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, discountType: type, discountValue: 0 }
+        : alloc
+    ));
+  };
+
+  const handleInvoiceDiscountValueChange = (invoiceId: string, value: string) => {
+    const numValue = parseFloat(value) || 0;
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, discountValue: numValue }
+        : alloc
+    ));
+  };
+
+  const handleInvoiceDiscountReasonChange = (invoiceId: string, reason: string) => {
+    setPaymentAllocation(prev => prev.map(alloc => 
+      alloc.invoiceId === invoiceId 
+        ? { ...alloc, discountReason: reason }
+        : alloc
+    ));
+  };
+
+  const calculateDiscountAmount = (allocation: typeof paymentAllocation[0], invoice: any) => {
+    const outstanding = invoice.total_amount - invoice.amount_paid;
+    if (allocation.discountType === 'percentage') {
+      return (outstanding * allocation.discountValue) / 100;
+    }
+    return allocation.discountValue;
+  };
+
+  const calculatePayableAfterDiscount = (allocation: typeof paymentAllocation[0], invoice: any) => {
+    const outstanding = invoice.total_amount - invoice.amount_paid;
+    const discountAmount = calculateDiscountAmount(allocation, invoice);
+    return Math.max(0, outstanding - discountAmount);
   };
 
   const handleInvoicePaymentAmountChange = (invoiceId: string, value: string) => {
@@ -992,14 +1048,23 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const totalAmount = selectedAllocations.reduce((sum, alloc) => sum + alloc.amount, 0);
+      const totalDiscount = selectedAllocations.reduce((sum, alloc) => {
+        const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
+        if (!invoice) return sum;
+        return sum + calculateDiscountAmount(alloc, invoice);
+      }, 0);
 
       // Allocate payment across selected invoices
       for (const alloc of selectedAllocations) {
         const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
         if (!invoice) continue;
 
-        // Update invoice amount_paid and status
-        const newAmountPaid = invoice.amount_paid + alloc.amount;
+        // Calculate discount amount for this invoice
+        const discountAmount = calculateDiscountAmount(alloc, invoice);
+        const totalCredited = alloc.amount + discountAmount;
+
+        // Update invoice amount_paid and status (include discount as credit)
+        const newAmountPaid = invoice.amount_paid + totalCredited;
         const invoiceStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partial';
 
         const { error: invoiceError } = await supabase
@@ -1012,7 +1077,7 @@ const AccountantDashboard = () => {
 
         if (invoiceError) throw invoiceError;
 
-        // Create payment record for this invoice allocation
+        // Create payment record for this invoice allocation with discount
         const { error: paymentError } = await supabase
           .from('payments')
           .insert([{
@@ -1023,6 +1088,10 @@ const AccountantDashboard = () => {
             reference_number: paymentReference || null,
             notes: paymentNotes || null,
             recorded_by: user?.id,
+            discount_type: alloc.discountType,
+            discount_value: alloc.discountValue,
+            discount_amount: discountAmount,
+            discount_reason: alloc.discountReason || null,
           }]);
 
         if (paymentError) throw paymentError;
@@ -1030,7 +1099,7 @@ const AccountantDashboard = () => {
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${totalAmount.toFixed(2)} allocated across ${selectedAllocations.length} invoice(s)`,
+        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)`,
       });
 
       setPaymentDialogOpen(false);
@@ -3498,25 +3567,87 @@ const AccountantDashboard = () => {
                                 <p className="text-sm font-medium">${outstanding.toFixed(2)} outstanding</p>
                               </label>
                               
-                              {isSelected && (
-                                <div className="space-y-1">
-                                  <Label htmlFor={`amount-${invoice.id}`} className="text-sm">Payment Amount</Label>
-                                  <Input
-                                    id={`amount-${invoice.id}`}
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    max={outstanding}
-                                    value={allocation?.amount || ''}
-                                    onChange={(e) => handleInvoicePaymentAmountChange(invoice.id, e.target.value)}
-                                    placeholder={`Max: ${outstanding.toFixed(2)}`}
-                                    className="h-9"
-                                  />
-                                  {allocation && allocation.amount > 0 && (
-                                    <p className="text-xs text-muted-foreground">
-                                      Will be marked as: {allocation.amount >= outstanding ? 'Paid' : 'Partial'}
+                              {isSelected && allocation && (
+                                <div className="space-y-3 pt-2">
+                                  {/* Discount Section */}
+                                  <div className="border rounded-lg p-3 space-y-2 bg-orange-50 dark:bg-orange-950/20">
+                                    <Label className="text-xs font-medium">Payment Discount (Optional)</Label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">Discount Type</Label>
+                                        <Select 
+                                          value={allocation.discountType} 
+                                          onValueChange={(v) => handleInvoiceDiscountTypeChange(invoice.id, v as 'fixed' | 'percentage')}
+                                        >
+                                          <SelectTrigger className="h-8">
+                                            <SelectValue />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
+                                            <SelectItem value="percentage">Percentage (%)</SelectItem>
+                                          </SelectContent>
+                                        </Select>
+                                      </div>
+                                      <div className="space-y-1">
+                                        <Label className="text-xs text-muted-foreground">
+                                          {allocation.discountType === 'percentage' ? 'Percentage' : 'Amount'}
+                                        </Label>
+                                        <Input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          max={allocation.discountType === 'percentage' ? 100 : outstanding}
+                                          value={allocation.discountValue || ''}
+                                          onChange={(e) => handleInvoiceDiscountValueChange(invoice.id, e.target.value)}
+                                          placeholder={allocation.discountType === 'percentage' ? '0%' : '0.00'}
+                                          className="h-8"
+                                        />
+                                      </div>
+                                    </div>
+                                    {allocation.discountValue > 0 && (
+                                      <>
+                                        <p className="text-xs text-orange-700 dark:text-orange-300">
+                                          Discount: <strong>${calculateDiscountAmount(allocation, invoice).toFixed(2)}</strong>
+                                        </p>
+                                        <div className="space-y-1">
+                                          <Label className="text-xs text-muted-foreground">Discount Reason (Optional)</Label>
+                                          <Input
+                                            value={allocation.discountReason}
+                                            onChange={(e) => handleInvoiceDiscountReasonChange(invoice.id, e.target.value)}
+                                            placeholder="e.g., Early payment, Loyalty discount"
+                                            className="h-8"
+                                          />
+                                        </div>
+                                      </>
+                                    )}
+                                    <p className="text-xs font-medium text-success">
+                                      Payable After Discount: <strong>${calculatePayableAfterDiscount(allocation, invoice).toFixed(2)}</strong>
                                     </p>
-                                  )}
+                                  </div>
+
+                                  {/* Payment Amount */}
+                                  <div className="space-y-1">
+                                    <Label htmlFor={`amount-${invoice.id}`} className="text-sm">Amount Received *</Label>
+                                    <Input
+                                      id={`amount-${invoice.id}`}
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      max={calculatePayableAfterDiscount(allocation, invoice)}
+                                      value={allocation.amount || ''}
+                                      onChange={(e) => handleInvoicePaymentAmountChange(invoice.id, e.target.value)}
+                                      placeholder="0.00"
+                                      className="h-9"
+                                    />
+                                    <p className="text-xs text-muted-foreground">
+                                      Max payable: ${calculatePayableAfterDiscount(allocation, invoice).toFixed(2)}
+                                    </p>
+                                    {allocation.amount > 0 && (
+                                      <p className="text-xs text-muted-foreground">
+                                        Will be marked as: {(allocation.amount + calculateDiscountAmount(allocation, invoice)) >= outstanding ? 'Paid' : 'Partial'}
+                                      </p>
+                                    )}
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -3526,10 +3657,32 @@ const AccountantDashboard = () => {
                     })}
                     
                     {paymentAllocation.filter(a => a.selected && a.amount > 0).length > 0 && (
-                      <div className="pt-2 border-t border-border">
-                        <div className="flex justify-between font-bold">
+                      <div className="pt-2 border-t border-border space-y-1">
+                        <div className="flex justify-between text-sm">
                           <span>Total Payment:</span>
-                          <span>${paymentAllocation.filter(a => a.selected).reduce((sum, alloc) => sum + alloc.amount, 0).toFixed(2)}</span>
+                          <span className="font-medium">${paymentAllocation.filter(a => a.selected).reduce((sum, alloc) => sum + alloc.amount, 0).toFixed(2)}</span>
+                        </div>
+                        {paymentAllocation.filter(a => a.selected && a.discountValue > 0).length > 0 && (
+                          <div className="flex justify-between text-sm text-orange-600">
+                            <span>Total Discount:</span>
+                            <span className="font-medium">
+                              ${paymentAllocation.filter(a => a.selected).reduce((sum, alloc) => {
+                                const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
+                                if (!invoice) return sum;
+                                return sum + calculateDiscountAmount(alloc, invoice);
+                              }, 0).toFixed(2)}
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex justify-between font-bold pt-1 border-t">
+                          <span>Total Credited:</span>
+                          <span>
+                            ${paymentAllocation.filter(a => a.selected).reduce((sum, alloc) => {
+                              const invoice = customerInvoices.find(inv => inv.id === alloc.invoiceId);
+                              if (!invoice) return sum + alloc.amount;
+                              return sum + alloc.amount + calculateDiscountAmount(alloc, invoice);
+                            }, 0).toFixed(2)}
+                          </span>
                         </div>
                       </div>
                     )}
