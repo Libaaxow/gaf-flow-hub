@@ -2360,7 +2360,7 @@ const AccountantDashboard = () => {
                                       <DialogTitle>Create Invoice</DialogTitle>
                                       <DialogDescription>Create a new invoice for this order</DialogDescription>
                                     </DialogHeader>
-                                    <ScrollArea className="flex-1 pr-4">
+                                    <div className="flex-1 overflow-y-auto pr-4">
                                     <div className="grid gap-4 py-4">
                                       <div className="grid gap-2">
                                         <Label htmlFor="workflow-invoice-number">Invoice Number *</Label>
@@ -2588,7 +2588,7 @@ const AccountantDashboard = () => {
                                         />
                                       </div>
                                     </div>
-                                    </ScrollArea>
+                                    </div>
                                     <DialogFooter className="flex-shrink-0 pt-4 border-t">
                                       <Button onClick={handleCreateInvoice}>Create Invoice</Button>
                                     </DialogFooter>
@@ -2927,7 +2927,7 @@ const AccountantDashboard = () => {
                         <DialogTitle>Create Invoice</DialogTitle>
                         <DialogDescription>Create a new invoice for a customer</DialogDescription>
                       </DialogHeader>
-                      <ScrollArea className="flex-1 pr-4">
+                      <div className="flex-1 overflow-y-auto pr-4">
                       <div className="grid gap-4 py-4">
                         <div className="grid gap-2">
                           <Label htmlFor="invoice-number">Invoice Number *</Label>
@@ -3178,7 +3178,7 @@ const AccountantDashboard = () => {
                           />
                         </div>
                       </div>
-                      </ScrollArea>
+                      </div>
                       <DialogFooter className="flex-shrink-0 pt-4 border-t">
                         <Button onClick={handleCreateInvoice}>Create Invoice</Button>
                       </DialogFooter>
@@ -4549,7 +4549,7 @@ const AccountantDashboard = () => {
             <DialogTitle>Edit Invoice</DialogTitle>
             <DialogDescription>Update invoice details and items</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-y-auto pr-4">
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
               <Label htmlFor="edit-invoice-number">Invoice Number *</Label>
@@ -4726,7 +4726,7 @@ const AccountantDashboard = () => {
               />
             </div>
           </div>
-          </ScrollArea>
+          </div>
           <DialogFooter className="flex-shrink-0 pt-4 border-t">
             <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
