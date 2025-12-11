@@ -970,7 +970,8 @@ const SalesDashboard = () => {
                       </div>
 
                       <div className="space-y-4">
-                      <Table>
+                      <div className="overflow-x-auto">
+                      <Table className="min-w-[800px]">
                           <TableHeader>
                             <TableRow>
                               <TableHead className="w-[20%]">Product</TableHead>
@@ -1130,6 +1131,7 @@ const SalesDashboard = () => {
                             })}
                           </TableBody>
                         </Table>
+                        </div>
 
                         <div className="flex justify-end pt-4 border-t">
                           <div className="text-right">
