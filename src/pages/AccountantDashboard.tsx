@@ -2397,7 +2397,8 @@ const AccountantDashboard = () => {
                                           </Button>
                                         </div>
                                         
-                                        <Table>
+                                        <div className="overflow-x-auto">
+                                        <Table className="min-w-[800px]">
                                           <TableHeader>
                                             <TableRow>
                                               <TableHead className="w-[25%]">Product</TableHead>
@@ -2532,6 +2533,7 @@ const AccountantDashboard = () => {
                                             })}
                                           </TableBody>
                                         </Table>
+                                        </div>
 
                                         <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
                                           <span className="font-semibold">Subtotal:</span>
@@ -2977,7 +2979,8 @@ const AccountantDashboard = () => {
                             </Button>
                           </div>
                           
-                          <Table>
+                          <div className="overflow-x-auto">
+                          <Table className="min-w-[800px]">
                             <TableHeader>
                               <TableRow>
                                 <TableHead className="w-[22%]">Product</TableHead>
@@ -3112,6 +3115,7 @@ const AccountantDashboard = () => {
                               })}
                             </TableBody>
                           </Table>
+                          </div>
 
                           <div className="flex justify-end pt-4 border-t">
                             <div className="text-right space-y-2">
