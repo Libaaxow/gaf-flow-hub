@@ -1915,7 +1915,7 @@ export default function AdminDashboard() {
           <DialogTitle>Edit Invoice</DialogTitle>
           <DialogDescription>Update invoice details</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 pr-4">
+        <div className="flex-1 overflow-y-auto pr-4">
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
             <Label htmlFor="edit-invoice-number">Invoice Number *</Label>
@@ -2063,7 +2063,7 @@ export default function AdminDashboard() {
             />
           </div>
         </div>
-        </ScrollArea>
+        </div>
         <DialogFooter className="flex-shrink-0 pt-4 border-t">
           <Button variant="outline" onClick={() => setEditInvoiceDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleUpdateInvoice}>Update Invoice</Button>
