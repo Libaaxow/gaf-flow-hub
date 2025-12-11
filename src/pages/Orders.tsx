@@ -44,8 +44,11 @@ const Orders = () => {
   const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
   const [orderFormOpen, setOrderFormOpen] = useState(false);
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [customerSearchName, setCustomerSearchName] = useState('');
+  const [searchType, setSearchType] = useState<'phone' | 'name'>('phone');
   const [existingCustomer, setExistingCustomer] = useState<any>(null);
   const [checkingPhone, setCheckingPhone] = useState(false);
+  const [matchingCustomers, setMatchingCustomers] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -121,33 +124,69 @@ const Orders = () => {
     setCustomers(data || []);
   };
 
-  const handlePhoneCheck = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleCustomerSearch = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setCheckingPhone(true);
+    setMatchingCustomers([]);
     
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', phoneNumber)
-        .maybeSingle();
+      if (searchType === 'phone') {
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .eq('phone', phoneNumber)
+          .maybeSingle();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      setExistingCustomer(data);
-      setPhoneCheckOpen(false);
-      setOrderFormOpen(true);
+        setExistingCustomer(data);
+        setPhoneCheckOpen(false);
+        setOrderFormOpen(true);
 
-      if (data) {
-        toast({
-          title: 'Customer Found',
-          description: `Proceeding with existing customer: ${data.name}`,
-        });
+        if (data) {
+          toast({
+            title: 'Customer Found',
+            description: `Proceeding with existing customer: ${data.name}`,
+          });
+        } else {
+          toast({
+            title: 'New Customer',
+            description: 'Please provide customer details',
+          });
+        }
       } else {
-        toast({
-          title: 'New Customer',
-          description: 'Please provide customer details',
-        });
+        // Search by name
+        const { data, error } = await supabase
+          .from('customers')
+          .select('*')
+          .ilike('name', `%${customerSearchName}%`)
+          .limit(10);
+
+        if (error) throw error;
+
+        if (data && data.length === 1) {
+          // Single match - proceed directly
+          setExistingCustomer(data[0]);
+          setPhoneNumber(data[0].phone || '');
+          setPhoneCheckOpen(false);
+          setOrderFormOpen(true);
+          toast({
+            title: 'Customer Found',
+            description: `Proceeding with existing customer: ${data[0].name}`,
+          });
+        } else if (data && data.length > 1) {
+          // Multiple matches - show selection
+          setMatchingCustomers(data);
+        } else {
+          // No match - proceed to create new customer
+          setExistingCustomer(null);
+          setPhoneCheckOpen(false);
+          setOrderFormOpen(true);
+          toast({
+            title: 'No Customer Found',
+            description: 'Please provide customer details',
+          });
+        }
       }
     } catch (error: any) {
       toast({
@@ -158,6 +197,18 @@ const Orders = () => {
     } finally {
       setCheckingPhone(false);
     }
+  };
+
+  const handleSelectCustomer = (customer: any) => {
+    setExistingCustomer(customer);
+    setPhoneNumber(customer.phone || '');
+    setPhoneCheckOpen(false);
+    setOrderFormOpen(true);
+    setMatchingCustomers([]);
+    toast({
+      title: 'Customer Selected',
+      description: `Proceeding with: ${customer.name}`,
+    });
   };
 
   const handleAddOrder = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -220,7 +271,10 @@ const Orders = () => {
       form.reset();
       setOrderFormOpen(false);
       setPhoneNumber('');
+      setCustomerSearchName('');
       setExistingCustomer(null);
+      setMatchingCustomers([]);
+      setSearchType('phone');
       fetchOrders();
     } catch (error: any) {
       toast({
@@ -280,7 +334,10 @@ const Orders = () => {
             setPhoneCheckOpen(open);
             if (!open) {
               setPhoneNumber('');
+              setCustomerSearchName('');
               setExistingCustomer(null);
+              setMatchingCustomers([]);
+              setSearchType('phone');
             }
           }}>
             <DialogTrigger asChild>
@@ -291,25 +348,78 @@ const Orders = () => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Enter Customer Phone Number</DialogTitle>
+                <DialogTitle>Find Customer</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handlePhoneCheck} className="space-y-4">
+              <form onSubmit={handleCustomerSearch} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="phone_check">Phone Number *</Label>
-                  <Input 
-                    id="phone_check" 
-                    type="tel" 
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="Enter phone number"
-                    required 
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    We'll check if this customer already exists
-                  </p>
+                  <Label>Search By</Label>
+                  <Select value={searchType} onValueChange={(value: 'phone' | 'name') => {
+                    setSearchType(value);
+                    setMatchingCustomers([]);
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="phone">Phone Number</SelectItem>
+                      <SelectItem value="name">Customer Name</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+                
+                {searchType === 'phone' ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="phone_check">Phone Number *</Label>
+                    <Input 
+                      id="phone_check" 
+                      type="tel" 
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      placeholder="Enter phone number"
+                      required 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      We'll check if this customer already exists
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="name_check">Customer Name *</Label>
+                    <Input 
+                      id="name_check" 
+                      type="text" 
+                      value={customerSearchName}
+                      onChange={(e) => setCustomerSearchName(e.target.value)}
+                      placeholder="Enter customer name"
+                      required 
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Search for existing customers by name
+                    </p>
+                  </div>
+                )}
+
+                {matchingCustomers.length > 0 && (
+                  <div className="space-y-2">
+                    <Label>Select Customer</Label>
+                    <div className="max-h-48 overflow-y-auto space-y-2 border rounded-lg p-2">
+                      {matchingCustomers.map((customer) => (
+                        <div 
+                          key={customer.id}
+                          className="p-2 rounded-md hover:bg-muted cursor-pointer border"
+                          onClick={() => handleSelectCustomer(customer)}
+                        >
+                          <p className="font-medium">{customer.name}</p>
+                          {customer.phone && <p className="text-sm text-muted-foreground">{customer.phone}</p>}
+                          {customer.company_name && <p className="text-sm text-muted-foreground">{customer.company_name}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <Button type="submit" className="w-full" disabled={checkingPhone}>
-                  {checkingPhone ? 'Checking...' : 'Continue'}
+                  {checkingPhone ? 'Searching...' : 'Continue'}
                 </Button>
               </form>
             </DialogContent>
@@ -320,7 +430,10 @@ const Orders = () => {
             setOrderFormOpen(open);
             if (!open) {
               setPhoneNumber('');
+              setCustomerSearchName('');
               setExistingCustomer(null);
+              setMatchingCustomers([]);
+              setSearchType('phone');
             }
           }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -332,26 +445,38 @@ const Orders = () => {
                 <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
                   <h3 className="font-semibold">Customer Information</h3>
                   
-                  <div className="space-y-2">
-                    <Label>Phone Number</Label>
-                    <Input value={phoneNumber} disabled />
-                  </div>
-
                   {existingCustomer ? (
-                    <div className="space-y-2 rounded-lg border p-3 bg-background">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Name</p>
-                        <p className="font-medium">{existingCustomer.name}</p>
+                    <>
+                      <div className="space-y-2">
+                        <Label>Phone Number</Label>
+                        <Input value={phoneNumber} disabled />
                       </div>
-                      {existingCustomer.company_name && (
+                      <div className="space-y-2 rounded-lg border p-3 bg-background">
                         <div>
-                          <p className="text-sm text-muted-foreground">Company</p>
-                          <p className="font-medium">{existingCustomer.company_name}</p>
+                          <p className="text-sm text-muted-foreground">Name</p>
+                          <p className="font-medium">{existingCustomer.name}</p>
                         </div>
-                      )}
-                    </div>
+                        {existingCustomer.company_name && (
+                          <div>
+                            <p className="text-sm text-muted-foreground">Company</p>
+                            <p className="font-medium">{existingCustomer.company_name}</p>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   ) : (
                     <>
+                      <div className="space-y-2">
+                        <Label htmlFor="customer_phone">Phone Number *</Label>
+                        <Input 
+                          id="customer_phone" 
+                          name="customer_phone" 
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          required 
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="customer_name">Customer Name *</Label>
                         <Input id="customer_name" name="customer_name" required />
