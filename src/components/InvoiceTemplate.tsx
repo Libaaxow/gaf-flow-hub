@@ -25,6 +25,7 @@ interface InvoiceTemplateProps {
   customerAddress?: string;
   salesperson?: string;
   paymentMethod?: string;
+  projectName?: string;
   items: InvoiceItem[];
   status: "PAID" | "UNPAID" | "PARTIAL";
   amountPaid?: number;
@@ -42,6 +43,7 @@ export const InvoiceTemplate = ({
   customerAddress,
   salesperson,
   paymentMethod,
+  projectName,
   items,
   status,
   amountPaid = 0,
@@ -117,6 +119,13 @@ export const InvoiceTemplate = ({
             <span className="text-gray-500 mr-1">(Invoice#):</span>
             <span className="flex-1">{invoiceNumber}</span>
           </div>
+          {projectName && (
+            <div className="flex">
+              <span className="font-semibold text-[#1e40af] w-48">Mashruuca</span>
+              <span className="text-gray-500 mr-1">(Project):</span>
+              <span className="flex-1">{projectName}</span>
+            </div>
+          )}
           <div className="flex">
             <span className="font-semibold text-[#1e40af] w-48">Xarunta</span>
             <span className="text-gray-500 mr-1">(Branch):</span>

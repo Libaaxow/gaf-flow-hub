@@ -121,6 +121,7 @@ export default function AdminDashboard() {
   const [invoiceDueDate, setInvoiceDueDate] = useState('');
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
+  const [invoiceProjectName, setInvoiceProjectName] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
@@ -520,6 +521,7 @@ export default function AdminDashboard() {
             amount_paid: 0,
             status: 'draft',
             notes: invoiceNotes || null,
+            project_name: invoiceProjectName || null,
             created_by: user?.id,
           },
         ])
@@ -555,6 +557,7 @@ export default function AdminDashboard() {
       setInvoiceDueDate('');
       setInvoiceTax('');
       setInvoiceNotes('');
+      setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
       fetchAllData();
@@ -669,6 +672,7 @@ export default function AdminDashboard() {
     setInvoiceDueDate(invoice.due_date || '');
     setInvoiceTax(invoice.tax_amount.toString());
     setInvoiceNotes(invoice.notes || '');
+    setInvoiceProjectName(invoice.project_name || '');
     
     // Load invoice items
     if (invoice.invoice_items && invoice.invoice_items.length > 0) {
@@ -722,6 +726,7 @@ export default function AdminDashboard() {
           tax_amount: tax,
           total_amount: total,
           notes: invoiceNotes || null,
+          project_name: invoiceProjectName || null,
         })
         .eq('id', editingInvoice.id);
 
@@ -763,6 +768,7 @@ export default function AdminDashboard() {
       setInvoiceDueDate('');
       setInvoiceTax('');
       setInvoiceNotes('');
+      setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
       
       fetchAllData();

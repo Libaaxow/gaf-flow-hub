@@ -120,6 +120,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         customerAddress,
         salesperson,
         paymentMethod,
+        projectName: order.project_name || "",
         items,
         status,
         amountPaid,
@@ -163,6 +164,7 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
           customerAddress={customerAddress}
           salesperson={salesperson}
           paymentMethod={paymentMethod}
+          projectName={order.project_name || ""}
           items={items}
           status={status}
           amountPaid={amountPaid}

@@ -191,6 +191,7 @@ const AccountantDashboard = () => {
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceTerms, setInvoiceTerms] = useState('');
+  const [invoiceProjectName, setInvoiceProjectName] = useState('');
 
   // Invoice items state with area-based support
   interface InvoiceItem {
@@ -1586,6 +1587,7 @@ const AccountantDashboard = () => {
           total_amount: total,
           notes: invoiceNotes || null,
           terms: invoiceTerms || null,
+          project_name: invoiceProjectName || null,
           created_by: user?.id,
           status: 'draft',
         }])
@@ -1643,6 +1645,7 @@ const AccountantDashboard = () => {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceTerms('');
+      setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       
       fetchInvoices();
@@ -1810,6 +1813,7 @@ const AccountantDashboard = () => {
     setInvoiceDueDate(invoice.due_date || '');
     setInvoiceTax(invoice.tax_amount?.toString() || '');
     setInvoiceNotes(invoice.notes || '');
+    setInvoiceProjectName(invoice.project_name || '');
     
     // Load invoice items with product info
     if (invoice.invoice_items && invoice.invoice_items.length > 0) {
@@ -1887,6 +1891,7 @@ const AccountantDashboard = () => {
           tax_amount: tax,
           total_amount: total,
           notes: invoiceNotes || null,
+          project_name: invoiceProjectName || null,
         })
         .eq('id', editingInvoice.id);
 
@@ -1950,6 +1955,7 @@ const AccountantDashboard = () => {
       setInvoiceDueDate('');
       setInvoiceTax('');
       setInvoiceNotes('');
+      setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       
       fetchInvoices();
@@ -2561,6 +2567,15 @@ const AccountantDashboard = () => {
                                       </div>
                                       
                                       <div className="grid gap-2">
+                                        <Label htmlFor="workflow-project-name">Project Name</Label>
+                                        <Input
+                                          id="workflow-project-name"
+                                          value={invoiceProjectName}
+                                          onChange={(e) => setInvoiceProjectName(e.target.value)}
+                                          placeholder="Enter project name"
+                                        />
+                                      </div>
+                                      <div className="grid gap-2">
                                         <Label htmlFor="workflow-due-date">Due Date</Label>
                                         <Input
                                           id="workflow-due-date"
@@ -3150,6 +3165,15 @@ const AccountantDashboard = () => {
                           </span>
                         </div>
                         
+                        <div className="grid gap-2">
+                          <Label htmlFor="project-name">Project Name</Label>
+                          <Input
+                            id="project-name"
+                            value={invoiceProjectName}
+                            onChange={(e) => setInvoiceProjectName(e.target.value)}
+                            placeholder="Enter project name"
+                          />
+                        </div>
                         <div className="grid gap-2">
                           <Label htmlFor="due-date">Due Date</Label>
                           <Input
@@ -4716,6 +4740,15 @@ const AccountantDashboard = () => {
               </span>
             </div>
             
+            <div className="grid gap-2">
+              <Label htmlFor="edit-project-name">Project Name</Label>
+              <Input
+                id="edit-project-name"
+                value={invoiceProjectName}
+                onChange={(e) => setInvoiceProjectName(e.target.value)}
+                placeholder="Enter project name"
+              />
+            </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-invoice-notes">Notes</Label>
               <Input
