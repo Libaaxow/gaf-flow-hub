@@ -248,6 +248,7 @@ export type Database = {
           is_draft: boolean | null
           notes: string | null
           order_id: string | null
+          project_name: string | null
           status: string
           subtotal: number
           tax_amount: number
@@ -271,6 +272,7 @@ export type Database = {
           is_draft?: boolean | null
           notes?: string | null
           order_id?: string | null
+          project_name?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number
@@ -294,6 +296,7 @@ export type Database = {
           is_draft?: boolean | null
           notes?: string | null
           order_id?: string | null
+          project_name?: string | null
           status?: string
           subtotal?: number
           tax_amount?: number

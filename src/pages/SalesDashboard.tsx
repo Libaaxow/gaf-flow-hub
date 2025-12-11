@@ -451,6 +451,7 @@ const SalesDashboard = () => {
         is_draft: true,
         draft_by_sales: user?.id,
         notes: formData.get('notes') as string || null,
+        project_name: formData.get('project_name') as string || null,
       };
 
       const { data: newInvoice, error: invoiceError } = await supabase
@@ -1150,6 +1151,18 @@ const SalesDashboard = () => {
                             </p>
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Project Name */}
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="project_name" className="font-semibold">Project Name</Label>
+                        <Input 
+                          id="project_name" 
+                          name="project_name" 
+                          placeholder="Enter project name"
+                        />
                       </div>
                     </div>
 

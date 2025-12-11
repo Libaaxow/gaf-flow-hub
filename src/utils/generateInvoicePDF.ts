@@ -12,6 +12,7 @@ interface InvoiceData {
   customerAddress?: string;
   salesperson?: string;
   paymentMethod?: string;
+  projectName?: string;
   items: Array<{
     description: string;
     productName?: string;
@@ -115,6 +116,9 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     addRightRow("Taariikhada", "Invoice Date", data.invoiceDate);
     addRightRow("Iibiyaha", "Salesperson", data.salesperson || "-");
     addRightRow("Tixraaca", "Invoice#", data.invoiceNumber);
+    if (data.projectName) {
+      addRightRow("Mashruuca", "Project", data.projectName);
+    }
     addRightRow("Xarunta", "Branch", "Baidoa");
     addRightRow("Nooca Bixinta", "Payment Method", data.paymentMethod || "Cash");
 
