@@ -436,11 +436,13 @@ const SalesDashboard = () => {
       if (orderError) throw orderError;
 
       // Create draft invoice linked to the order
-      // Invoice number is PENDING - accountant will assign the actual number manually
+      // Generate unique draft invoice number
+      const { data: draftNumber } = await supabase.rpc('generate_draft_invoice_number');
+      
       const invoiceData = {
         customer_id: customerId,
         order_id: newOrder.id,
-        invoice_number: 'PENDING', // Placeholder - accountant assigns real number
+        invoice_number: draftNumber || `DRAFT-${Date.now()}`, // Use generated or fallback
         invoice_date: new Date().toISOString().split('T')[0],
         due_date: formData.get('due_date') as string || null,
         subtotal: subtotal,
