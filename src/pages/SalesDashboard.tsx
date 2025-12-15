@@ -876,7 +876,7 @@ const SalesDashboard = () => {
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select a customer..." />
                         </SelectTrigger>
-                        <SelectContent className="bg-background z-50 max-h-[300px]">
+                        <SelectContent className="bg-background z-50 max-h-[400px] overflow-y-auto">
                           <SelectItem value="new" className="text-primary font-semibold">
                             + Create New Customer
                           </SelectItem>
