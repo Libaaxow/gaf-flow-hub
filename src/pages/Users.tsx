@@ -380,19 +380,49 @@ const Users = () => {
               {pendingUsers.map((user) => (
                 <Card key={user.id} className="border-warning">
                   <CardHeader>
-                    <CardTitle className="text-lg">{user.full_name}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{user.email}</p>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{user.full_name}</CardTitle>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Reject & Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to reject and permanently delete {user.full_name}? This will remove them completely from the system.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => handleDeleteUser(user.id)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              Reject & Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <Badge variant="outline" className="text-warning border-warning">
                       Waiting for approval
                     </Badge>
                     
-                    <RoleManager
-                      userId={user.id}
-                      currentRoles={user.roles}
-                      onUpdate={fetchUsers}
-                    />
+                    <div className="flex gap-2">
+                      <RoleManager
+                        userId={user.id}
+                        currentRoles={user.roles}
+                        onUpdate={fetchUsers}
+                      />
+                    </div>
                   </CardContent>
                 </Card>
               ))}
