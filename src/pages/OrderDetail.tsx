@@ -416,11 +416,38 @@ const OrderDetail = () => {
   };
 
   const handleDeleteOrder = async () => {
-    if (!confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
+    if (!confirm('Are you sure you want to delete this order and all related data (invoices, payments, files, comments)? This action cannot be undone.')) {
       return;
     }
 
     try {
+      // First, get the invoice linked to this order to delete its items
+      const { data: linkedInvoice } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('order_id', order.id)
+        .maybeSingle();
+
+      // Delete invoice items if invoice exists
+      if (linkedInvoice) {
+        await supabase.from('invoice_items').delete().eq('invoice_id', linkedInvoice.id);
+        
+        // Delete payments linked to the invoice
+        await supabase.from('payments').delete().eq('invoice_id', linkedInvoice.id);
+        
+        // Delete the invoice
+        await supabase.from('invoices').delete().eq('id', linkedInvoice.id);
+      }
+
+      // Delete related records in order
+      await supabase.from('payments').delete().eq('order_id', order.id);
+      await supabase.from('commissions').delete().eq('order_id', order.id);
+      await supabase.from('order_files').delete().eq('order_id', order.id);
+      await supabase.from('order_comments').delete().eq('order_id', order.id);
+      await supabase.from('order_history').delete().eq('order_id', order.id);
+      await supabase.from('notifications').delete().eq('order_id', order.id);
+
+      // Finally delete the order
       const { error } = await supabase
         .from('orders')
         .delete()
@@ -430,7 +457,7 @@ const OrderDetail = () => {
 
       toast({
         title: 'Success',
-        description: 'Order deleted successfully',
+        description: 'Order and all related data deleted successfully',
       });
 
       navigate('/orders');
