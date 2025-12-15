@@ -387,7 +387,7 @@ const SalesDashboard = () => {
       if (!existingCustomer) {
         const customerData = {
           name: formData.get('customer_name') as string,
-          phone: phoneNumber,
+          phone: (formData.get('customer_phone') as string) || null,
           email: (formData.get('customer_email') as string) || null,
           company_name: (formData.get('company_name') as string) || null,
           created_by: user?.id,
@@ -830,7 +830,7 @@ const SalesDashboard = () => {
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <h2 className="text-xl sm:text-2xl font-bold">My Invoices</h2>
               
-              {/* Phone Check Dialog */}
+              {/* Customer Selection Dialog */}
               <Dialog open={phoneCheckOpen} onOpenChange={(open) => {
                 setPhoneCheckOpen(open);
                 if (!open) {
@@ -844,29 +844,54 @@ const SalesDashboard = () => {
                     New Invoice
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="bg-background">
                   <DialogHeader>
-                    <DialogTitle>Enter Customer Phone Number</DialogTitle>
+                    <DialogTitle>Select Customer</DialogTitle>
                   </DialogHeader>
-                  <form onSubmit={handlePhoneCheck} className="space-y-4">
+                  <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label htmlFor="phone_check">Phone Number *</Label>
-                      <Input 
-                        id="phone_check" 
-                        type="tel" 
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="Enter phone number"
-                        required 
-                      />
+                      <Label>Choose Existing Customer or Create New</Label>
+                      <Select 
+                        onValueChange={(value) => {
+                          if (value === 'new') {
+                            setExistingCustomer(null);
+                            setPhoneNumber('');
+                            setPhoneCheckOpen(false);
+                            setInvoiceFormOpen(true);
+                          } else {
+                            const selected = customers.find(c => c.id === value);
+                            if (selected) {
+                              setExistingCustomer(selected);
+                              setPhoneNumber(selected.phone || '');
+                              setPhoneCheckOpen(false);
+                              setInvoiceFormOpen(true);
+                              toast({
+                                title: 'Customer Selected',
+                                description: `Proceeding with: ${selected.name}`,
+                              });
+                            }
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select a customer..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50 max-h-[300px]">
+                          <SelectItem value="new" className="text-primary font-semibold">
+                            + Create New Customer
+                          </SelectItem>
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} {customer.phone ? `(${customer.phone})` : ''} {customer.company_name ? `- ${customer.company_name}` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <p className="text-sm text-muted-foreground">
-                        We'll check if this customer already exists
+                        Select an existing customer or create a new one
                       </p>
                     </div>
-                    <Button type="submit" className="w-full" disabled={checkingPhone}>
-                      {checkingPhone ? 'Checking...' : 'Continue'}
-                    </Button>
-                  </form>
+                  </div>
                 </DialogContent>
               </Dialog>
 
@@ -895,11 +920,6 @@ const SalesDashboard = () => {
                       <h3 className="font-semibold text-lg mb-4">Customer Information</h3>
                       
                       <div className="grid grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="font-semibold">Phone Number</Label>
-                          <Input value={phoneNumber} disabled className="bg-muted" />
-                        </div>
-
                         {existingCustomer ? (
                           <div className="col-span-2 space-y-4 rounded-lg border border-border p-4 bg-muted/30">
                             <div className="grid grid-cols-2 gap-4">
@@ -907,6 +927,12 @@ const SalesDashboard = () => {
                                 <p className="text-sm font-semibold mb-1">Customer Name</p>
                                 <p className="text-base">{existingCustomer.name}</p>
                               </div>
+                              {existingCustomer.phone && (
+                                <div>
+                                  <p className="text-sm font-semibold mb-1">Phone</p>
+                                  <p className="text-base">{existingCustomer.phone}</p>
+                                </div>
+                              )}
                               {existingCustomer.company_name && (
                                 <div>
                                   <p className="text-sm font-semibold mb-1">Company</p>
@@ -914,7 +940,7 @@ const SalesDashboard = () => {
                                 </div>
                               )}
                               {existingCustomer.email && (
-                                <div className="col-span-2">
+                                <div>
                                   <p className="text-sm font-semibold mb-1">Email</p>
                                   <p className="text-base">{existingCustomer.email}</p>
                                 </div>
@@ -926,6 +952,16 @@ const SalesDashboard = () => {
                             <div className="space-y-2">
                               <Label htmlFor="customer_name" className="font-semibold">Customer Name *</Label>
                               <Input id="customer_name" name="customer_name" required />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="customer_phone" className="font-semibold">Phone Number</Label>
+                              <Input 
+                                id="customer_phone" 
+                                name="customer_phone" 
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={(e) => setPhoneNumber(e.target.value)}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="customer_email" className="font-semibold">Email</Label>
