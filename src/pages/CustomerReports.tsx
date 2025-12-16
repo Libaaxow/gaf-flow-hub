@@ -553,7 +553,7 @@ const CustomerReports = () => {
                             ) : (
                               <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             )}
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-6 gap-4">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-7 gap-4">
                               <div>
                                 <p className="text-sm text-muted-foreground">Invoice #</p>
                                 <p className="font-semibold">{invoice.invoice_number}</p>
@@ -565,6 +565,14 @@ const CustomerReports = () => {
                               <div>
                                 <p className="text-sm text-muted-foreground">Order</p>
                                 <p className="truncate">{invoice.order?.job_title || 'N/A'}</p>
+                              </div>
+                              <div className="md:col-span-1">
+                                <p className="text-sm text-muted-foreground">Items</p>
+                                <p className="text-sm truncate" title={invoice.invoice_items.map(item => item.description).join(', ')}>
+                                  {invoice.invoice_items.length > 0 
+                                    ? invoice.invoice_items.map(item => item.description).join(', ')
+                                    : 'No items'}
+                                </p>
                               </div>
                               <div>
                                 <p className="text-sm text-muted-foreground">Total</p>
