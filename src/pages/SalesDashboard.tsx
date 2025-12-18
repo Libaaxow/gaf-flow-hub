@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -50,6 +50,7 @@ const SalesDashboard = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
+  const [viewRequest, setViewRequest] = useState<OrderRequest | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -403,6 +404,7 @@ const SalesDashboard = () => {
                       <TableHead>Phone</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -427,6 +429,15 @@ const SalesDashboard = () => {
                           )}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setViewRequest(request)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -435,6 +446,63 @@ const SalesDashboard = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* View Request Dialog */}
+        <Dialog open={!!viewRequest} onOpenChange={(open) => !open && setViewRequest(null)}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Order Request Details</DialogTitle>
+              <DialogDescription>
+                Submitted on {viewRequest && format(new Date(viewRequest.created_at), 'PPP p')}
+              </DialogDescription>
+            </DialogHeader>
+            {viewRequest && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  {getStatusBadge(viewRequest.status)}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Customer Name</Label>
+                    <p className="font-medium">{viewRequest.customer_name}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Company</Label>
+                    <p className="font-medium">{viewRequest.company_name || '-'}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Phone</Label>
+                    <p className="font-medium">{viewRequest.customer_phone || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Email</Label>
+                    <p className="font-medium">{viewRequest.customer_email || '-'}</p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-xs">Order Description</Label>
+                  <p className="font-medium whitespace-pre-wrap">{viewRequest.description}</p>
+                </div>
+                {viewRequest.notes && (
+                  <div>
+                    <Label className="text-muted-foreground text-xs">Additional Notes</Label>
+                    <p className="font-medium whitespace-pre-wrap">{viewRequest.notes}</p>
+                  </div>
+                )}
+                {viewRequest.processed_at && (
+                  <div className="pt-2 border-t">
+                    <p className="text-xs text-muted-foreground">
+                      Processed on {format(new Date(viewRequest.processed_at), 'PPP p')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
