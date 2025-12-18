@@ -1142,7 +1142,9 @@ export type Database = {
           description: string
           designer_id: string | null
           id: string
+          linked_invoice_id: string | null
           notes: string | null
+          payment_status: string | null
           print_operator_id: string | null
           processed_at: string | null
           processed_by: string | null
@@ -1159,7 +1161,9 @@ export type Database = {
           description: string
           designer_id?: string | null
           id?: string
+          linked_invoice_id?: string | null
           notes?: string | null
+          payment_status?: string | null
           print_operator_id?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -1176,7 +1180,9 @@ export type Database = {
           description?: string
           designer_id?: string | null
           id?: string
+          linked_invoice_id?: string | null
           notes?: string | null
+          payment_status?: string | null
           print_operator_id?: string | null
           processed_at?: string | null
           processed_by?: string | null
@@ -1189,6 +1195,13 @@ export type Database = {
             columns: ["designer_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_requests_linked_invoice_id_fkey"
+            columns: ["linked_invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
             referencedColumns: ["id"]
           },
           {
