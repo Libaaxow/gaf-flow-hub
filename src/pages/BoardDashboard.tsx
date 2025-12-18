@@ -123,7 +123,7 @@ const BoardDashboard = () => {
 
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
-        .select('total_amount, amount_paid, order_id');
+        .select('total_amount, amount_paid, order_id, is_draft, status');
       
       if (invoicesError) console.error('Board: invoices error', invoicesError);
 
@@ -151,10 +151,16 @@ const BoardDashboard = () => {
         expenses: expensesData?.length,
       });
 
-      // Calculate revenue from ALL invoices (including those linked to orders)
+      // Calculate revenue from ALL invoices
       const totalRevenue = invoicesData?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
       const collectedAmount = invoicesData?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
-      const outstandingAmount = totalRevenue - collectedAmount;
+      
+      // Outstanding Balance should only count non-draft invoices (actual customer debt)
+      const confirmedInvoices = invoicesData?.filter(inv => !inv.is_draft && inv.status !== 'draft') || [];
+      const confirmedRevenue = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+      const confirmedCollected = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
+      const outstandingAmount = confirmedRevenue - confirmedCollected;
+      
       const totalExpenses = expensesData?.reduce((sum, exp) => sum + Number(exp.amount || 0), 0) || 0;
       const netProfit = collectedAmount - totalExpenses;
 

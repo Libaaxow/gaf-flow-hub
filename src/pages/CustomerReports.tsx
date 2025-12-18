@@ -291,10 +291,12 @@ const CustomerReports = () => {
     return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
-  const totalBilled = reportData?.reduce((sum, inv) => sum + Number(inv.total_amount), 0) || 0;
-  const totalPaid = reportData?.reduce((sum, inv) => sum + Number(inv.amount_paid), 0) || 0;
+  // For total calculations, exclude draft invoices to match dashboard outstanding balance
+  const confirmedInvoices = reportData?.filter(inv => inv.status !== 'draft') || [];
+  const totalBilled = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0);
+  const totalPaid = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid), 0);
   const outstanding = totalBilled - totalPaid;
-  const avgOrderValue = reportData && reportData.length > 0 ? totalBilled / reportData.length : 0;
+  const avgOrderValue = confirmedInvoices.length > 0 ? totalBilled / confirmedInvoices.length : 0;
 
   return (
     <Layout>
