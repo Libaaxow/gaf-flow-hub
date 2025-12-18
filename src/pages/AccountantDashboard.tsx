@@ -134,6 +134,7 @@ const AccountantDashboard = () => {
   const [payments, setPayments] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [salesRequests, setSalesRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -274,6 +275,7 @@ const AccountantDashboard = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, debouncedFetchAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, debouncedFetchAllData)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, debouncedFetchAllData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sales_order_requests' }, debouncedFetchAllData)
       .subscribe();
 
     return () => {
@@ -295,7 +297,46 @@ const AccountantDashboard = () => {
       fetchCustomers(),
       fetchInvoices(),
       fetchProducts(),
+      fetchSalesRequests(),
     ]);
+  };
+
+  const fetchSalesRequests = async () => {
+    const { data, error } = await supabase
+      .from('sales_order_requests')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching sales requests:', error);
+      return;
+    }
+    setSalesRequests(data || []);
+  };
+
+  const handleProcessSalesRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from('sales_order_requests')
+      .update({ 
+        status: 'processed',
+        processed_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Success',
+      description: 'Request marked as processed',
+    });
+    fetchSalesRequests();
   };
 
   const fetchProducts = async () => {
@@ -2254,9 +2295,10 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Main Content Tabs */}
-        <Tabs defaultValue="workflow" className="space-y-3 sm:space-y-4 w-full">
+        <Tabs defaultValue="sales-requests" className="space-y-3 sm:space-y-4 w-full">
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-7 gap-1">
+            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8 gap-1">
+              <TabsTrigger value="sales-requests" className="text-xs sm:text-sm whitespace-nowrap">Sales Requests</TabsTrigger>
               <TabsTrigger value="workflow" className="text-xs sm:text-sm whitespace-nowrap">Workflow</TabsTrigger>
               <TabsTrigger value="invoices" className="text-xs sm:text-sm whitespace-nowrap">Invoices</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm whitespace-nowrap">Customers</TabsTrigger>
@@ -2266,6 +2308,92 @@ const AccountantDashboard = () => {
               <TabsTrigger value="reports" className="text-xs sm:text-sm whitespace-nowrap">Reports</TabsTrigger>
             </TabsList>
           </div>
+
+          {/* Sales Requests Tab */}
+          <TabsContent value="sales-requests" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Sales Order Requests</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Review requests from sales team and create customers/invoices</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="w-fit">
+                    {salesRequests.filter(r => r.status === 'pending').length} Pending
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead className="min-w-[150px]">Customer</TableHead>
+                        <TableHead className="min-w-[120px]">Phone</TableHead>
+                        <TableHead className="min-w-[200px]">Description</TableHead>
+                        <TableHead className="min-w-[150px]">Notes</TableHead>
+                        <TableHead className="min-w-[80px]">Status</TableHead>
+                        <TableHead className="min-w-[120px]">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesRequests.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                            No sales requests found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        salesRequests.map((request) => (
+                          <TableRow key={request.id}>
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(request.created_at), 'PP')}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{request.customer_name}</p>
+                                {request.company_name && (
+                                  <p className="text-xs text-muted-foreground">{request.company_name}</p>
+                                )}
+                                {request.customer_email && (
+                                  <p className="text-xs text-muted-foreground">{request.customer_email}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{request.customer_phone || '-'}</TableCell>
+                            <TableCell className="max-w-[200px]">
+                              <p className="truncate">{request.description}</p>
+                            </TableCell>
+                            <TableCell className="max-w-[150px]">
+                              <p className="truncate text-muted-foreground">{request.notes || '-'}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
+                                {request.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              {request.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleProcessSalesRequest(request.id)}
+                                >
+                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                  Mark Processed
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Workflow Tab */}
           <TabsContent value="workflow" className="space-y-3 sm:space-y-4">
