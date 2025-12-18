@@ -136,6 +136,7 @@ const AccountantDashboard = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
   const [viewSalesRequest, setViewSalesRequest] = useState<any | null>(null);
+  const [requestFiles, setRequestFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -373,6 +374,75 @@ const AccountantDashboard = () => {
     setViewSalesRequest(null);
   };
 
+  const handleAssignPrintOperatorToRequest = async (requestId: string, printOperatorId: string) => {
+    const { error } = await supabase
+      .from('sales_order_requests')
+      .update({ 
+        print_operator_id: printOperatorId,
+        status: 'in_print',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', requestId);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Success',
+      description: 'Print operator assigned and status updated to In Print',
+    });
+    fetchSalesRequests();
+    setViewSalesRequest(null);
+  };
+
+  const fetchRequestFiles = async (requestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('request_files')
+        .select('*')
+        .eq('request_id', requestId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRequestFiles(data || []);
+    } catch (error) {
+      console.error('Error fetching request files:', error);
+      setRequestFiles([]);
+    }
+  };
+
+  const handleDownloadRequestFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('request-files')
+        .download(filePath);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: 'Download failed',
+        description: error.message || 'Failed to download file',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getSalesRequestStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
@@ -381,6 +451,8 @@ const AccountantDashboard = () => {
         return <Badge className="bg-blue-500 text-white">Processed</Badge>;
       case 'in_design':
         return <Badge className="bg-purple-500 text-white">In Design</Badge>;
+      case 'design_submitted':
+        return <Badge className="bg-yellow-500 text-white">Design Submitted</Badge>;
       case 'in_print':
         return <Badge className="bg-orange-500 text-white">In Print</Badge>;
       case 'printed':
@@ -2462,6 +2534,7 @@ const AccountantDashboard = () => {
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="processed">Processed</SelectItem>
                                     <SelectItem value="in_design">In Design</SelectItem>
+                                    <SelectItem value="design_submitted">Design Submitted</SelectItem>
                                     <SelectItem value="in_print">In Print</SelectItem>
                                     <SelectItem value="printed">Printed</SelectItem>
                                     <SelectItem value="collected">Collected</SelectItem>
@@ -2479,8 +2552,13 @@ const AccountantDashboard = () => {
             </Card>
 
             {/* View Sales Request Dialog */}
-            <Dialog open={!!viewSalesRequest} onOpenChange={(open) => !open && setViewSalesRequest(null)}>
-              <DialogContent className="sm:max-w-[500px] max-h-[85vh] overflow-y-auto">
+            <Dialog open={!!viewSalesRequest} onOpenChange={(open) => {
+              if (!open) {
+                setViewSalesRequest(null);
+                setRequestFiles([]);
+              }
+            }}>
+              <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Sales Request Details</DialogTitle>
                   <DialogDescription>
@@ -2530,6 +2608,47 @@ const AccountantDashboard = () => {
                         </p>
                       </div>
                     )}
+
+                    {/* Design Files Section - Show for design_submitted status */}
+                    {(viewSalesRequest.status === 'design_submitted' || viewSalesRequest.status === 'in_print' || viewSalesRequest.status === 'printed' || viewSalesRequest.status === 'collected') && (
+                      <div className="pt-4 border-t space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-muted-foreground text-xs">Design Files</Label>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => fetchRequestFiles(viewSalesRequest.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Load Files
+                          </Button>
+                        </div>
+                        {requestFiles.length > 0 ? (
+                          <div className="space-y-2">
+                            {requestFiles.map((file) => (
+                              <div
+                                key={file.id}
+                                className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <FileText className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm truncate max-w-[200px]">{file.file_name}</span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleDownloadRequestFile(file.file_path, file.file_name)}
+                                >
+                                  <Download className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">Click "Load Files" to view uploaded designs</p>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Status Change */}
                     <div className="pt-4 border-t space-y-3">
@@ -2549,6 +2668,7 @@ const AccountantDashboard = () => {
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="processed">Processed</SelectItem>
                             <SelectItem value="in_design">In Design</SelectItem>
+                            <SelectItem value="design_submitted">Design Submitted</SelectItem>
                             <SelectItem value="in_print">In Print</SelectItem>
                             <SelectItem value="printed">Printed</SelectItem>
                             <SelectItem value="collected">Collected</SelectItem>
@@ -2578,6 +2698,32 @@ const AccountantDashboard = () => {
                           </Select>
                           <p className="text-xs text-muted-foreground mt-1">
                             Assigning a designer will automatically change status to "In Design"
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Print Operator Assignment - Show for design_submitted status */}
+                      {viewSalesRequest.status === 'design_submitted' && (
+                        <div className="pt-3 border-t">
+                          <Label className="text-muted-foreground text-xs">Send to Print Operator</Label>
+                          <Select
+                            onValueChange={(printOperatorId) => {
+                              handleAssignPrintOperatorToRequest(viewSalesRequest.id, printOperatorId);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select print operator..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px] overflow-y-auto">
+                              {printOperators.map((operator) => (
+                                <SelectItem key={operator.id} value={operator.id}>
+                                  {operator.full_name || 'Unknown Operator'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Assigning a print operator will send the design for printing
                           </p>
                         </div>
                       )}
