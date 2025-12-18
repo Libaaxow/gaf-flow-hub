@@ -216,6 +216,33 @@ const DesignerDashboard = () => {
     }
   };
 
+  const handleSubmitDesign = async (orderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: 'awaiting_accounting_approval' })
+        .eq('id', orderId)
+        .eq('designer_id', user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Design Submitted',
+        description: 'Your design has been submitted for approval and will be sent to print operator.',
+      });
+
+      fetchDesignerData();
+    } catch (error: any) {
+      console.error('Error submitting design:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit design',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       pending_accounting_review: { label: 'Pending Accountant', variant: 'outline' },
@@ -422,7 +449,7 @@ const DesignerDashboard = () => {
                       </TableCell>
                       <TableCell>{order.salesperson?.full_name || 'Unassigned'}</TableCell>
                       <TableCell>
-                        {order.status === 'delivered' && userRole !== 'admin' ? (
+                        <div className="flex gap-2">
                           <Button
                             size="sm"
                             variant="outline"
@@ -431,22 +458,19 @@ const DesignerDashboard = () => {
                               navigate(`/orders/${order.id}`);
                             }}
                           >
-                            <Eye className="h-4 w-4 mr-2" />
+                            <Eye className="h-4 w-4 mr-1" />
                             View
                           </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/orders/${order.id}`);
-                            }}
-                          >
-                            <Upload className="h-4 w-4 mr-2" />
-                            Manage
-                          </Button>
-                        )}
+                          {order.status === 'designing' && (
+                            <Button
+                              size="sm"
+                              onClick={(e) => handleSubmitDesign(order.id, e)}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Submit
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
