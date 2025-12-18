@@ -29,6 +29,7 @@ import PendingApproval from "./pages/PendingApproval";
 import CustomerOrderHistory from "./pages/CustomerOrderHistory";
 import CustomerAnalytics from "./pages/CustomerAnalytics";
 import Quotations from "./pages/Quotations";
+import BeginningBalances from "./pages/BeginningBalances";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -216,6 +217,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Quotations />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/beginning-balances"
+              element={
+                <ProtectedRoute>
+                  <BeginningBalances />
                 </ProtectedRoute>
               }
             />
