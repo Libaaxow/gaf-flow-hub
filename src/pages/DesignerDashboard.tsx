@@ -256,6 +256,54 @@ const DesignerDashboard = () => {
         return;
       }
 
+      if (!selectedRequest) return;
+
+      // Find or create customer
+      let customerId: string;
+      
+      // First try to find existing customer by phone or name
+      const { data: existingCustomers } = await supabase
+        .from('customers')
+        .select('id')
+        .or(`phone.eq.${selectedRequest.customer_phone || ''},name.eq.${selectedRequest.customer_name}`)
+        .limit(1);
+
+      if (existingCustomers && existingCustomers.length > 0) {
+        customerId = existingCustomers[0].id;
+      } else {
+        // Create new customer
+        const { data: newCustomer, error: customerError } = await supabase
+          .from('customers')
+          .insert({
+            name: selectedRequest.customer_name,
+            phone: selectedRequest.customer_phone,
+            email: selectedRequest.customer_email,
+            company_name: selectedRequest.company_name,
+            created_by: selectedRequest.created_by
+          })
+          .select('id')
+          .single();
+
+        if (customerError) throw customerError;
+        customerId = newCustomer.id;
+      }
+
+      // Create order
+      const { error: orderError } = await supabase
+        .from('orders')
+        .insert({
+          customer_id: customerId,
+          job_title: selectedRequest.description.substring(0, 100),
+          description: selectedRequest.description,
+          designer_id: selectedRequest.designer_id,
+          salesperson_id: selectedRequest.created_by,
+          status: 'designed',
+          notes: selectedRequest.notes
+        });
+
+      if (orderError) throw orderError;
+
+      // Update sales_order_request status
       const { error } = await supabase
         .from('sales_order_requests')
         .update({ status: 'design_submitted' })
@@ -266,7 +314,7 @@ const DesignerDashboard = () => {
 
       toast({
         title: 'Design Submitted',
-        description: 'Your design has been submitted to the accountant for review.',
+        description: 'Your design has been submitted and an order has been created.',
       });
 
       setSelectedRequest(null);
