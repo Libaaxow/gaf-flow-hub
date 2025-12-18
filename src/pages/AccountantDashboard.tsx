@@ -96,6 +96,7 @@ interface Invoice {
   amount_paid: number;
   status: string;
   order_id?: string;
+  is_draft?: boolean;
   invoice_items?: Array<{
     id: string;
     description: string;
@@ -1402,6 +1403,19 @@ const AccountantDashboard = () => {
         }
       }
 
+      // If invoice is fully paid, update any linked sales_order_requests
+      if (invoiceStatus === 'paid') {
+        await supabase
+          .from('sales_order_requests')
+          .update({ payment_status: 'paid' })
+          .eq('linked_invoice_id', invoice.id);
+        
+        // Update viewSalesRequest if it's the same invoice
+        if (viewSalesRequest && viewSalesRequest.linked_invoice_id === invoice.id) {
+          setViewSalesRequest({ ...viewSalesRequest, payment_status: 'paid' });
+        }
+      }
+
       const discountMsg = discountAmount > 0 ? ` (with $${discountAmount.toFixed(2)} discount)` : '';
       toast({
         title: 'Success',
@@ -1422,6 +1436,7 @@ const AccountantDashboard = () => {
       fetchActualStats();
       fetchFilteredData();
       fetchInvoices();
+      fetchSalesRequests();
     } catch (error: any) {
       console.error('Invoice payment recording error:', error);
       toast({
@@ -2649,6 +2664,137 @@ const AccountantDashboard = () => {
                         )}
                       </div>
                     )}
+
+                    {/* Invoice Linking Section - Show for design_submitted status */}
+                    {viewSalesRequest.status === 'design_submitted' && (
+                      <div className="pt-4 border-t space-y-3">
+                        <Label className="text-sm font-medium">Invoice & Payment</Label>
+                        
+                        {viewSalesRequest.linked_invoice_id ? (
+                          <div className="space-y-3">
+                            {/* Show linked invoice info */}
+                            {(() => {
+                              const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
+                              if (!linkedInvoice) return <p className="text-sm text-muted-foreground">Invoice linked but details not found</p>;
+                              
+                              const balance = linkedInvoice.total_amount - linkedInvoice.amount_paid;
+                              return (
+                                <div className="bg-muted p-3 rounded-lg space-y-2">
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Invoice:</span>
+                                    <span className="font-medium">{linkedInvoice.invoice_number}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Customer:</span>
+                                    <span className="font-medium">{linkedInvoice.customer?.name}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Total:</span>
+                                    <span className="font-medium">${linkedInvoice.total_amount.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Paid:</span>
+                                    <span className="font-medium">${linkedInvoice.amount_paid.toFixed(2)}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Balance:</span>
+                                    <span className={`font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
+                                      ${balance.toFixed(2)}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                            
+                            {/* Payment Status */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Payment Status:</span>
+                              {viewSalesRequest.payment_status === 'paid' && (
+                                <Badge className="bg-success text-success-foreground">Paid</Badge>
+                              )}
+                              {viewSalesRequest.payment_status === 'debt' && (
+                                <Badge className="bg-destructive text-destructive-foreground">Outstanding Debt</Badge>
+                              )}
+                              {viewSalesRequest.payment_status === 'pending' && (
+                                <Badge variant="secondary">Pending Payment</Badge>
+                              )}
+                            </div>
+
+                            {/* Payment/Debt Actions */}
+                            {viewSalesRequest.payment_status === 'pending' && (
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
+                                    if (linkedInvoice) {
+                                      setSelectedInvoiceForPayment(linkedInvoice);
+                                      setInvoicePaymentDialogOpen(true);
+                                    }
+                                  }}
+                                >
+                                  Record Payment
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={async () => {
+                                    const { error } = await supabase
+                                      .from('sales_order_requests')
+                                      .update({ payment_status: 'debt' })
+                                      .eq('id', viewSalesRequest.id);
+                                    if (!error) {
+                                      toast({ title: 'Marked as outstanding debt' });
+                                      setViewSalesRequest({ ...viewSalesRequest, payment_status: 'debt' });
+                                      fetchSalesRequests();
+                                    }
+                                  }}
+                                >
+                                  Mark as Debt
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <p className="text-sm text-muted-foreground">
+                              Link an invoice for customer: <strong>{viewSalesRequest.customer_name}</strong>
+                            </p>
+                            <Select
+                              onValueChange={async (invoiceId) => {
+                                const { error } = await supabase
+                                  .from('sales_order_requests')
+                                  .update({ linked_invoice_id: invoiceId })
+                                  .eq('id', viewSalesRequest.id);
+                                if (!error) {
+                                  toast({ title: 'Invoice linked successfully' });
+                                  setViewSalesRequest({ ...viewSalesRequest, linked_invoice_id: invoiceId });
+                                  fetchSalesRequests();
+                                } else {
+                                  toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                }
+                              }}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select invoice to link..." />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-[200px] overflow-y-auto">
+                                {invoices
+                                  .filter(inv => !inv.is_draft && inv.invoice_number !== 'PENDING')
+                                  .map((invoice) => (
+                                    <SelectItem key={invoice.id} value={invoice.id}>
+                                      {invoice.invoice_number} - {invoice.customer?.name} (${invoice.total_amount.toFixed(2)})
+                                    </SelectItem>
+                                  ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground">
+                              Create an invoice first if one doesn't exist for this customer
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     
                     {/* Status Change */}
                     <div className="pt-4 border-t space-y-3">
@@ -2702,8 +2848,10 @@ const AccountantDashboard = () => {
                         </div>
                       )}
 
-                      {/* Print Operator Assignment - Show for design_submitted status */}
-                      {viewSalesRequest.status === 'design_submitted' && (
+                      {/* Print Operator Assignment - Only show if invoice linked and payment handled */}
+                      {viewSalesRequest.status === 'design_submitted' && 
+                       viewSalesRequest.linked_invoice_id && 
+                       (viewSalesRequest.payment_status === 'paid' || viewSalesRequest.payment_status === 'debt') && (
                         <div className="pt-3 border-t">
                           <Label className="text-muted-foreground text-xs">Send to Print Operator</Label>
                           <Select
@@ -2725,6 +2873,20 @@ const AccountantDashboard = () => {
                           <p className="text-xs text-muted-foreground mt-1">
                             Assigning a print operator will send the design for printing
                           </p>
+                        </div>
+                      )}
+
+                      {/* Message if invoice not linked or payment not handled */}
+                      {viewSalesRequest.status === 'design_submitted' && 
+                       (!viewSalesRequest.linked_invoice_id || viewSalesRequest.payment_status === 'pending') && (
+                        <div className="pt-3 border-t">
+                          <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
+                            <p className="text-sm text-warning-foreground">
+                              {!viewSalesRequest.linked_invoice_id 
+                                ? 'Link an invoice before sending to print operator'
+                                : 'Record payment or mark as debt before sending to print operator'}
+                            </p>
+                          </div>
                         </div>
                       )}
                     </div>
