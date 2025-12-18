@@ -14,6 +14,7 @@ import { CalendarIcon, Download, FileText, ChevronDown, ChevronRight, Users } fr
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateCustomerReportPDF } from '@/utils/generateCustomerReportPDF';
+import { generateCombinedCustomerReportPDF } from '@/utils/generateCombinedCustomerReportPDF';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -313,118 +314,109 @@ const CustomerReports = () => {
     }
 
     setBulkDownloading(true);
-    let successCount = 0;
-    let failCount = 0;
 
     try {
+      const customersData: { customer: CustomerInfo; invoices: ReportInvoice[] }[] = [];
+
       for (const customerId of selectedCustomerIds) {
-        try {
-          // Fetch invoices for this customer
-          let query = supabase
-            .from('invoices')
-            .select(`
-              id,
-              invoice_number,
-              invoice_date,
-              order_id,
-              status,
-              subtotal,
-              tax_amount,
-              total_amount,
-              amount_paid,
-              orders (
-                job_title,
-                description,
-                payments (
-                  id,
-                  amount,
-                  payment_method,
-                  payment_date,
-                  reference_number,
-                  notes
-                )
-              ),
-              invoice_items (
+        // Fetch invoices for this customer
+        let query = supabase
+          .from('invoices')
+          .select(`
+            id,
+            invoice_number,
+            invoice_date,
+            order_id,
+            status,
+            subtotal,
+            tax_amount,
+            total_amount,
+            amount_paid,
+            orders (
+              job_title,
+              description,
+              payments (
                 id,
-                description,
-                quantity,
-                unit_price,
-                amount
+                amount,
+                payment_method,
+                payment_date,
+                reference_number,
+                notes
               )
-            `)
-            .eq('customer_id', customerId)
-            .order('invoice_date', { ascending: false });
+            ),
+            invoice_items (
+              id,
+              description,
+              quantity,
+              unit_price,
+              amount
+            )
+          `)
+          .eq('customer_id', customerId)
+          .order('invoice_date', { ascending: false });
 
-          // Apply filters
-          if (dateFrom) {
-            query = query.gte('invoice_date', format(dateFrom, 'yyyy-MM-dd'));
-          }
-          if (dateTo) {
-            query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
-          }
-          if (invoiceStatus && invoiceStatus !== 'all') {
-            query = query.eq('status', invoiceStatus);
-          }
-          if (minAmount) {
-            query = query.gte('total_amount', parseFloat(minAmount));
-          }
-          if (maxAmount) {
-            query = query.lte('total_amount', parseFloat(maxAmount));
-          }
-
-          const { data: invoices, error: invoicesError } = await query;
-          if (invoicesError) throw invoicesError;
-
-          // Skip if no invoices
-          if (!invoices || invoices.length === 0) {
-            continue;
-          }
-
-          // Fetch customer info
-          const { data: customer, error: customerError } = await supabase
-            .from('customers')
-            .select('*')
-            .eq('id', customerId)
-            .single();
-
-          if (customerError) throw customerError;
-
-          // Generate PDF
-          await generateCustomerReportPDF(invoices as ReportInvoice[], customer, {
-            dateFrom,
-            dateTo,
-            invoiceStatus,
-            minAmount,
-            maxAmount,
-          });
-
-          successCount++;
-          
-          // Small delay between downloads to prevent browser blocking
-          await new Promise(resolve => setTimeout(resolve, 500));
-        } catch (error) {
-          console.error(`Error generating report for customer ${customerId}:`, error);
-          failCount++;
+        // Apply filters
+        if (dateFrom) {
+          query = query.gte('invoice_date', format(dateFrom, 'yyyy-MM-dd'));
         }
+        if (dateTo) {
+          query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
+        }
+        if (invoiceStatus && invoiceStatus !== 'all') {
+          query = query.eq('status', invoiceStatus);
+        }
+        if (minAmount) {
+          query = query.gte('total_amount', parseFloat(minAmount));
+        }
+        if (maxAmount) {
+          query = query.lte('total_amount', parseFloat(maxAmount));
+        }
+
+        const { data: invoices, error: invoicesError } = await query;
+        if (invoicesError) throw invoicesError;
+
+        // Skip if no invoices
+        if (!invoices || invoices.length === 0) {
+          continue;
+        }
+
+        // Fetch customer info
+        const customer = customers.find(c => c.id === customerId);
+        if (!customer) continue;
+
+        customersData.push({
+          customer,
+          invoices: invoices as ReportInvoice[],
+        });
       }
 
-      if (successCount > 0) {
-        toast({
-          title: 'Success',
-          description: `Generated ${successCount} PDF reports${failCount > 0 ? `, ${failCount} failed` : ''}`,
-        });
-      } else {
+      if (customersData.length === 0) {
         toast({
           title: 'No Reports Generated',
           description: 'No invoices found for selected customers with current filters',
           variant: 'destructive',
         });
+        return;
       }
+
+      // Generate combined PDF
+      await generateCombinedCustomerReportPDF(customersData, {
+        dateFrom,
+        dateTo,
+        invoiceStatus,
+        minAmount,
+        maxAmount,
+      });
+
+      toast({
+        title: 'Success',
+        description: `Generated combined PDF report for ${customersData.length} customers`,
+      });
     } catch (error) {
       console.error('Error in bulk download:', error);
       toast({
         title: 'Error',
-        description: 'Failed to generate reports',
+        description: 'Failed to generate combined report',
         variant: 'destructive',
       });
     } finally {
