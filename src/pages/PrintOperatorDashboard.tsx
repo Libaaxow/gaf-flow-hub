@@ -8,11 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip, Calendar as CalendarIcon, DollarSign } from 'lucide-react';
+import { Printer, Package, CheckCircle2, Clock, Eye, Paperclip, Calendar as CalendarIcon, DollarSign, Download, FileText } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 
 interface Order {
@@ -28,6 +29,18 @@ interface Order {
   file_count?: number;
 }
 
+interface SalesRequest {
+  id: string;
+  customer_name: string;
+  company_name: string | null;
+  description: string;
+  notes: string | null;
+  status: string;
+  created_at: string;
+  designer: { full_name: string } | null;
+  files: { id: string; file_name: string; file_path: string }[];
+}
+
 interface Stats {
   readyForPrint: number;
   printing: number;
@@ -35,6 +48,8 @@ interface Stats {
   delivered: number;
   totalCommissions: number;
   paidCommissions: number;
+  salesRequestsInPrint: number;
+  salesRequestsPrinted: number;
 }
 
 const PrintOperatorDashboard = () => {
@@ -42,6 +57,7 @@ const PrintOperatorDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [salesRequests, setSalesRequests] = useState<SalesRequest[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [stats, setStats] = useState<Stats>({ 
     readyForPrint: 0, 
@@ -49,11 +65,16 @@ const PrintOperatorDashboard = () => {
     printed: 0, 
     delivered: 0,
     totalCommissions: 0,
-    paidCommissions: 0
+    paidCommissions: 0,
+    salesRequestsInPrint: 0,
+    salesRequestsPrinted: 0
   });
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [selectedRequest, setSelectedRequest] = useState<SalesRequest | null>(null);
+  const [filesDialogOpen, setFilesDialogOpen] = useState(false);
+  const [markingPrinted, setMarkingPrinted] = useState(false);
 
   useEffect(() => {
     if (user?.id) {
@@ -154,6 +175,65 @@ const PrintOperatorDashboard = () => {
         .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
+      // Fetch sales order requests assigned to this print operator
+      const { data: salesRequestsData } = await supabase
+        .from('sales_order_requests')
+        .select('*')
+        .eq('print_operator_id', user?.id)
+        .in('status', ['in_print', 'printed'])
+        .order('created_at', { ascending: false });
+
+      let salesRequestsWithFiles: SalesRequest[] = [];
+      if (salesRequestsData && salesRequestsData.length > 0) {
+        // Fetch designer info
+        const designerIds = [...new Set(salesRequestsData.map(r => r.designer_id).filter(Boolean))];
+        let designerMap = new Map();
+        if (designerIds.length > 0) {
+          const { data: designerData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', designerIds);
+          designerMap = new Map((designerData || []).map(p => [p.id, p]));
+        }
+
+        // Fetch files for all requests
+        const requestIds = salesRequestsData.map(r => r.id);
+        const { data: filesData } = await supabase
+          .from('request_files')
+          .select('id, request_id, file_name, file_path')
+          .in('request_id', requestIds);
+
+        const filesMap = new Map<string, { id: string; file_name: string; file_path: string }[]>();
+        (filesData || []).forEach(file => {
+          if (!filesMap.has(file.request_id)) {
+            filesMap.set(file.request_id, []);
+          }
+          filesMap.get(file.request_id)!.push({
+            id: file.id,
+            file_name: file.file_name,
+            file_path: file.file_path
+          });
+        });
+
+        salesRequestsWithFiles = salesRequestsData.map(request => ({
+          id: request.id,
+          customer_name: request.customer_name,
+          company_name: request.company_name,
+          description: request.description,
+          notes: request.notes,
+          status: request.status,
+          created_at: request.created_at,
+          designer: request.designer_id ? designerMap.get(request.designer_id) || null : null,
+          files: filesMap.get(request.id) || []
+        }));
+      }
+
+      setSalesRequests(salesRequestsWithFiles);
+
+      // Calculate sales request stats
+      const salesRequestsInPrint = salesRequestsWithFiles.filter(r => r.status === 'in_print').length;
+      const salesRequestsPrinted = salesRequestsWithFiles.filter(r => r.status === 'printed').length;
+
       if (ordersData) {
         // Batch fetch all unique designer profiles in a single query
         const designerIds = [...new Set(ordersData.map(o => o.designer_id).filter(Boolean))];
@@ -201,7 +281,20 @@ const PrintOperatorDashboard = () => {
           printed, 
           delivered,
           totalCommissions,
-          paidCommissions
+          paidCommissions,
+          salesRequestsInPrint,
+          salesRequestsPrinted
+        });
+      } else {
+        setStats({ 
+          readyForPrint: 0, 
+          printing: 0, 
+          printed: 0, 
+          delivered: 0,
+          totalCommissions,
+          paidCommissions,
+          salesRequestsInPrint,
+          salesRequestsPrinted
         });
       }
     } catch (error: any) {
@@ -224,9 +317,63 @@ const PrintOperatorDashboard = () => {
       ready_for_collection: { label: 'Ready for Collection', className: 'bg-info text-info-foreground' },
       on_hold: { label: 'On Hold', className: 'bg-destructive text-destructive-foreground' },
       delivered: { label: 'Delivered', className: 'bg-success text-success-foreground' },
+      in_print: { label: 'In Print', className: 'bg-primary text-primary-foreground' },
     };
     const config = statusMap[status] || { label: status, className: 'bg-secondary' };
     return <Badge className={config.className}>{config.label}</Badge>;
+  };
+
+  const handleMarkPrinted = async (requestId: string) => {
+    try {
+      setMarkingPrinted(true);
+      const { error } = await supabase
+        .from('sales_order_requests')
+        .update({ status: 'printed' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Job marked as printed',
+      });
+
+      fetchPrintData();
+      setFilesDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setMarkingPrinted(false);
+    }
+  };
+
+  const handleDownloadFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('request-files')
+        .download(filePath);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: 'Failed to download file',
+        variant: 'destructive',
+      });
+    }
   };
 
   if (loading) {
@@ -295,11 +442,92 @@ const PrintOperatorDashboard = () => {
           </Card>
         </div>
 
-        <Tabs defaultValue="jobs" className="w-full">
+        <Tabs defaultValue="sales-requests" className="w-full">
           <TabsList>
+            <TabsTrigger value="sales-requests">
+              Sales Requests
+              {stats.salesRequestsInPrint > 0 && (
+                <Badge className="ml-2 bg-primary text-primary-foreground">{stats.salesRequestsInPrint}</Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="jobs">Print Jobs</TabsTrigger>
             <TabsTrigger value="commissions">My Commissions</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="sales-requests" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Sales Requests to Print</CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto custom-scrollbar">
+                {salesRequests.filter(r => r.status === 'in_print').length === 0 ? (
+                  <div className="text-center py-12">
+                    <Printer className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">No print jobs</h3>
+                    <p className="text-muted-foreground">
+                      Jobs assigned to you will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Customer</TableHead>
+                        <TableHead className="min-w-[150px]">Company</TableHead>
+                        <TableHead className="min-w-[200px]">Description</TableHead>
+                        <TableHead className="min-w-[150px]">Designer</TableHead>
+                        <TableHead className="min-w-[80px]">Files</TableHead>
+                        <TableHead className="min-w-[120px]">Status</TableHead>
+                        <TableHead className="min-w-[180px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesRequests.filter(r => r.status === 'in_print').map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell className="font-medium">{request.customer_name}</TableCell>
+                          <TableCell>{request.company_name || 'N/A'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{request.description}</TableCell>
+                          <TableCell>{request.designer?.full_name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                              <span className={request.files.length > 0 ? 'font-medium' : ''}>
+                                {request.files.length}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex gap-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setFilesDialogOpen(true);
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Files
+                              </Button>
+                              <Button 
+                                size="sm"
+                                onClick={() => handleMarkPrinted(request.id)}
+                                disabled={markingPrinted}
+                              >
+                                <CheckCircle2 className="h-4 w-4 mr-1" />
+                                Mark Printed
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="jobs" className="mt-4">
             <Card>
@@ -480,6 +708,74 @@ const PrintOperatorDashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Files Dialog */}
+      <Dialog open={filesDialogOpen} onOpenChange={setFilesDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Design Files</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedRequest && (
+              <>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Customer:</strong> {selectedRequest.customer_name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Description:</strong> {selectedRequest.description}
+                  </p>
+                  {selectedRequest.notes && (
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Notes:</strong> {selectedRequest.notes}
+                    </p>
+                  )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <h4 className="font-medium mb-2">Files ({selectedRequest.files.length})</h4>
+                  {selectedRequest.files.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No files uploaded</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {selectedRequest.files.map((file) => (
+                        <div 
+                          key={file.id} 
+                          className="flex items-center justify-between p-2 border rounded"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <span className="text-sm truncate">{file.file_name}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDownloadFile(file.file_path, file.file_name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {selectedRequest.status === 'in_print' && (
+                  <div className="flex justify-end pt-4 border-t">
+                    <Button 
+                      onClick={() => handleMarkPrinted(selectedRequest.id)}
+                      disabled={markingPrinted}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Mark as Printed
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
