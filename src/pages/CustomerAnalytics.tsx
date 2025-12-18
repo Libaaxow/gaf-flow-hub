@@ -16,7 +16,6 @@ import {
   TrendingUp,
   Gift,
   Heart,
-  Package,
   Calendar,
   FileText
 } from 'lucide-react';
@@ -32,16 +31,6 @@ interface Customer {
   created_at: string;
 }
 
-interface Order {
-  id: string;
-  job_title: string;
-  order_value: number;
-  amount_paid: number;
-  payment_status: string;
-  status: string;
-  created_at: string;
-}
-
 interface Invoice {
   id: string;
   invoice_number: string;
@@ -49,6 +38,7 @@ interface Invoice {
   amount_paid: number;
   status: string;
   invoice_date: string;
+  project_name: string | null;
 }
 
 type DateFilter = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all';
@@ -59,7 +49,6 @@ const CustomerAnalytics = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [orders, setOrders] = useState<Order[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>('all');
 
@@ -83,20 +72,10 @@ const CustomerAnalytics = () => {
       if (customerError) throw customerError;
       setCustomer(customerData);
 
-      // Fetch orders with all needed fields
-      const { data: ordersData, error: ordersError } = await supabase
-        .from('orders')
-        .select('id, job_title, order_value, amount_paid, payment_status, status, created_at')
-        .eq('customer_id', customerId)
-        .order('created_at', { ascending: false });
-
-      if (ordersError) throw ordersError;
-      setOrders(ordersData || []);
-
-      // Fetch invoices with all needed fields
+      // Fetch invoices only - this is the single source of truth
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
-        .select('id, invoice_number, total_amount, amount_paid, status, invoice_date')
+        .select('id, invoice_number, total_amount, amount_paid, status, invoice_date, project_name')
         .eq('customer_id', customerId)
         .order('invoice_date', { ascending: false });
 
@@ -131,13 +110,6 @@ const CustomerAnalytics = () => {
     }
   };
 
-  // Filter orders based on date filter
-  const filteredOrders = useMemo(() => {
-    const startDate = getFilterStartDate(dateFilter);
-    if (!startDate) return orders;
-    return orders.filter(order => isAfter(new Date(order.created_at), startDate));
-  }, [orders, dateFilter]);
-
   // Filter invoices based on date filter
   const filteredInvoices = useMemo(() => {
     const startDate = getFilterStartDate(dateFilter);
@@ -171,41 +143,24 @@ const CustomerAnalytics = () => {
     );
   }
 
-  // Calculate metrics from BOTH orders AND invoices
-  // Use orders if available, otherwise fall back to invoices
-  const orderRevenue = filteredOrders.reduce((sum, order) => sum + (order.order_value || 0), 0);
-  const orderPaid = filteredOrders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
-  
-  // Invoice-based metrics - exclude draft invoices for accurate outstanding calculation
+  // Calculate metrics from INVOICES ONLY (single source of truth)
+  // Exclude draft invoices for accurate outstanding calculation
   const confirmedInvoices = filteredInvoices.filter(inv => inv.status !== 'draft');
-  const invoiceTotal = confirmedInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const invoicePaid = confirmedInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
-  
-  // Use whichever source has data (prefer invoices as they're more accurate for financial tracking)
-  const totalRevenue = invoiceTotal > 0 ? invoiceTotal : orderRevenue;
-  const totalPaid = invoicePaid > 0 ? invoicePaid : orderPaid;
+  const totalRevenue = confirmedInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const totalPaid = confirmedInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   const totalOutstanding = totalRevenue - totalPaid;
   
-  const totalOrders = filteredOrders.length;
   const totalInvoiceCount = confirmedInvoices.length;
-  const averageValue = totalInvoiceCount > 0 
-    ? invoiceTotal / totalInvoiceCount 
-    : (totalOrders > 0 ? orderRevenue / totalOrders : 0);
+  const averageValue = totalInvoiceCount > 0 ? totalRevenue / totalInvoiceCount : 0;
   
-  // Calculate loyalty score (0-100) - using all-time data for consistency
-  // Exclude draft invoices from loyalty calculations
+  // Calculate loyalty score (0-100) - using all-time invoice data
   const confirmedAllTimeInvoices = invoices.filter(inv => inv.status !== 'draft');
-  const allTimeInvoiceTotal = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const allTimeInvoicePaid = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
-  const allTimeOrderRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
-  const allTimeOrderPaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
-  
-  const allTimeRevenue = allTimeInvoiceTotal > 0 ? allTimeInvoiceTotal : allTimeOrderRevenue;
-  const allTimePaid = allTimeInvoicePaid > 0 ? allTimeInvoicePaid : allTimeOrderPaid;
+  const allTimeRevenue = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const allTimePaid = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   
   const daysSinceFirstOrder = customer.created_at ? 
     Math.floor((Date.now() - new Date(customer.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 0;
-  const totalTransactions = Math.max(orders.length, invoices.length);
+  const totalTransactions = confirmedAllTimeInvoices.length;
   const transactionsPerMonth = daysSinceFirstOrder > 0 ? (totalTransactions / (daysSinceFirstOrder / 30)) : 0;
   const paymentRate = allTimeRevenue > 0 ? (allTimePaid / allTimeRevenue) * 100 : 0;
   const loyaltyScore = Math.min(100, Math.round(
@@ -222,11 +177,10 @@ const CustomerAnalytics = () => {
 
   const loyaltyLevel = getLoyaltyLevel(loyaltyScore);
 
-  // Prepare revenue over time data - use invoices if available, otherwise orders
-  const revenueSource = filteredInvoices.length > 0 ? filteredInvoices : filteredOrders;
-  const revenueByPeriod = revenueSource.reduce((acc, item) => {
+  // Prepare revenue over time data - use invoices only
+  const revenueByPeriod = confirmedInvoices.reduce((acc, invoice) => {
     let periodKey: string;
-    const itemDate = new Date('invoice_date' in item ? item.invoice_date : item.created_at);
+    const itemDate = new Date(invoice.invoice_date);
     
     switch (dateFilter) {
       case 'daily':
@@ -248,8 +202,7 @@ const CustomerAnalytics = () => {
     if (!acc[periodKey]) {
       acc[periodKey] = 0;
     }
-    const amount = 'total_amount' in item ? item.total_amount : item.order_value;
-    acc[periodKey] += amount || 0;
+    acc[periodKey] += invoice.total_amount || 0;
     return acc;
   }, {} as Record<string, number>);
 
@@ -268,30 +221,18 @@ const CustomerAnalytics = () => {
     return acc;
   }, [] as Array<{ name: string; value: number }>);
 
-  // Payment status breakdown - combine orders and invoices
+  // Payment status breakdown - invoices only
   const paymentStatusData: Array<{ name: string; value: number }> = [];
   
-  if (filteredInvoices.length > 0) {
-    filteredInvoices.forEach(inv => {
-      const status = inv.status === 'paid' ? 'paid' : (inv.amount_paid > 0 ? 'partial' : 'unpaid');
-      const existing = paymentStatusData.find(item => item.name === status);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        paymentStatusData.push({ name: status, value: 1 });
-      }
-    });
-  } else if (filteredOrders.length > 0) {
-    filteredOrders.forEach(order => {
-      const status = order.payment_status || 'unknown';
-      const existing = paymentStatusData.find(item => item.name === status);
-      if (existing) {
-        existing.value += 1;
-      } else {
-        paymentStatusData.push({ name: status, value: 1 });
-      }
-    });
-  }
+  confirmedInvoices.forEach(inv => {
+    const status = inv.status === 'paid' ? 'paid' : (inv.amount_paid > 0 ? 'partial' : 'unpaid');
+    const existing = paymentStatusData.find(item => item.name === status);
+    if (existing) {
+      existing.value += 1;
+    } else {
+      paymentStatusData.push({ name: status, value: 1 });
+    }
+  });
 
   const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -415,19 +356,11 @@ const CustomerAnalytics = () => {
 
           <Card className="border-green-500/20">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                {totalInvoiceCount > 0 ? 'Total Invoices' : 'Total Orders'}
-              </CardTitle>
-              {totalInvoiceCount > 0 ? (
-                <FileText className="h-4 w-4 text-green-500" />
-              ) : (
-                <Package className="h-4 w-4 text-green-500" />
-              )}
+              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+              <FileText className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-500">
-                {totalInvoiceCount > 0 ? totalInvoiceCount : totalOrders}
-              </div>
+              <div className="text-2xl font-bold text-green-500">{totalInvoiceCount}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 {getFilterLabel(dateFilter)} • Avg: ${averageValue.toFixed(0)}
               </p>
@@ -647,54 +580,12 @@ const CustomerAnalytics = () => {
           </Card>
         )}
 
-        {/* Recent Orders */}
-        {filteredOrders.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Orders - {getFilterLabel(dateFilter)}</CardTitle>
-              <CardDescription>{filteredOrders.length} orders found</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {filteredOrders.slice(0, 10).map((order) => (
-                  <div 
-                    key={order.id} 
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/orders/${order.id}`)}
-                  >
-                    <div className="flex items-center gap-4">
-                      <Package className="h-8 w-8 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{order.job_title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {format(new Date(order.created_at), 'PPp')}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold">${(order.order_value || 0).toLocaleString()}</p>
-                      <Badge 
-                        variant={
-                          order.payment_status === 'paid' ? 'default' : 
-                          order.payment_status === 'partial' ? 'secondary' : 'destructive'
-                        }
-                      >
-                        {order.payment_status || 'unpaid'}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Empty state */}
-        {filteredOrders.length === 0 && filteredInvoices.length === 0 && (
+        {confirmedInvoices.length === 0 && (
           <Card>
             <CardContent className="py-12">
               <div className="text-center text-muted-foreground">
-                No orders or invoices found for {getFilterLabel(dateFilter).toLowerCase()}
+                No invoices found for {getFilterLabel(dateFilter).toLowerCase()}
               </div>
             </CardContent>
           </Card>
