@@ -2570,8 +2570,8 @@ const AccountantDashboard = () => {
                             </SelectTrigger>
                             <SelectContent className="max-h-[200px] overflow-y-auto">
                               {designers.map((designer) => (
-                                <SelectItem key={designer.user_id} value={designer.user_id}>
-                                  {designer.profiles?.full_name || 'Unknown Designer'}
+                                <SelectItem key={designer.id} value={designer.id}>
+                                  {designer.full_name || 'Unknown Designer'}
                                 </SelectItem>
                               ))}
                             </SelectContent>
