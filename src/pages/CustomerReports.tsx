@@ -45,6 +45,7 @@ interface ReportInvoice {
   tax_amount: number;
   total_amount: number;
   amount_paid: number;
+  is_draft: boolean | null;
   order?: {
     job_title: string;
     description: string;
@@ -169,6 +170,7 @@ const CustomerReports = () => {
           invoice_date,
           order_id,
           status,
+          is_draft,
           subtotal,
           tax_amount,
           total_amount,
@@ -328,6 +330,7 @@ const CustomerReports = () => {
             invoice_date,
             order_id,
             status,
+            is_draft,
             subtotal,
             tax_amount,
             total_amount,
@@ -435,8 +438,8 @@ const CustomerReports = () => {
     return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
-  // For total calculations, exclude draft invoices to match dashboard outstanding balance
-  const confirmedInvoices = reportData?.filter(inv => inv.status !== 'draft') || [];
+  // For total calculations, exclude only true draft invoices (is_draft=true)
+  const confirmedInvoices = reportData?.filter(inv => !inv.is_draft) || [];
   const totalBilled = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount), 0);
   const totalPaid = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid), 0);
   const outstanding = totalBilled - totalPaid;

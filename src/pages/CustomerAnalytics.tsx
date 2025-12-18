@@ -39,6 +39,7 @@ interface Invoice {
   status: string;
   invoice_date: string;
   project_name: string | null;
+  is_draft: boolean | null;
 }
 
 type DateFilter = 'daily' | 'weekly' | 'monthly' | 'yearly' | 'all';
@@ -75,7 +76,7 @@ const CustomerAnalytics = () => {
       // Fetch invoices only - this is the single source of truth
       const { data: invoicesData, error: invoicesError } = await supabase
         .from('invoices')
-        .select('id, invoice_number, total_amount, amount_paid, status, invoice_date, project_name')
+        .select('id, invoice_number, total_amount, amount_paid, status, invoice_date, project_name, is_draft')
         .eq('customer_id', customerId)
         .order('invoice_date', { ascending: false });
 
@@ -144,8 +145,8 @@ const CustomerAnalytics = () => {
   }
 
   // Calculate metrics from INVOICES ONLY (single source of truth)
-  // Exclude draft invoices for accurate outstanding calculation
-  const confirmedInvoices = filteredInvoices.filter(inv => inv.status !== 'draft');
+  // Exclude only true draft invoices (is_draft=true)
+  const confirmedInvoices = filteredInvoices.filter(inv => !inv.is_draft);
   const totalRevenue = confirmedInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
   const totalPaid = confirmedInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   const totalOutstanding = totalRevenue - totalPaid;
@@ -154,7 +155,7 @@ const CustomerAnalytics = () => {
   const averageValue = totalInvoiceCount > 0 ? totalRevenue / totalInvoiceCount : 0;
   
   // Calculate loyalty score (0-100) - using all-time invoice data
-  const confirmedAllTimeInvoices = invoices.filter(inv => inv.status !== 'draft');
+  const confirmedAllTimeInvoices = invoices.filter(inv => !inv.is_draft);
   const allTimeRevenue = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
   const allTimePaid = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   
