@@ -285,14 +285,14 @@ const SalesDashboard = () => {
                   New Order Request
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[600px]">
+              <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Submit Order Request</DialogTitle>
                   <DialogDescription>
                     Submit customer order details. The accountant will create the customer record, invoice, and assign work.
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSubmitRequest} className="space-y-4">
+                <form onSubmit={handleSubmitRequest} className="space-y-4 overflow-y-auto">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="customer_name">Name *</Label>
