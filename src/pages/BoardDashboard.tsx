@@ -151,15 +151,9 @@ const BoardDashboard = () => {
         expenses: expensesData?.length,
       });
 
-      const orderRevenue = ordersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
-      const orderCollected = ordersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
-
-      const standaloneInvoices = invoicesData?.filter(inv => !inv.order_id) || [];
-      const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
-      const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
-
-      const totalRevenue = orderRevenue + invoiceRevenue;
-      const collectedAmount = orderCollected + invoiceCollected;
+      // Calculate revenue from ALL invoices (including those linked to orders)
+      const totalRevenue = invoicesData?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
+      const collectedAmount = invoicesData?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
       const outstandingAmount = totalRevenue - collectedAmount;
       const totalExpenses = expensesData?.reduce((sum, exp) => sum + Number(exp.amount || 0), 0) || 0;
       const netProfit = collectedAmount - totalExpenses;
@@ -172,12 +166,9 @@ const BoardDashboard = () => {
       const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered').length || 0;
 
       console.log('Board calculated stats:', {
-        orderRevenue,
-        invoiceRevenue,
         totalRevenue,
-        orderCollected,
-        invoiceCollected,
         collectedAmount,
+        outstandingAmount,
         totalExpenses,
         netProfit,
       });

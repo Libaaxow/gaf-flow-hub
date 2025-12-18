@@ -335,18 +335,10 @@ const AccountantDashboard = () => {
         .select('amount, approval_status')
         .eq('approval_status', 'approved');
 
-      // Calculate revenue from orders
-      const orderRevenue = allOrdersData?.reduce((sum, order) => sum + Number(order.order_value || 0), 0) || 0;
-      const orderCollected = allOrdersData?.reduce((sum, order) => sum + Number(order.amount_paid || 0), 0) || 0;
-
-      // Calculate revenue from standalone invoices (not linked to orders)
-      const standaloneInvoices = allInvoices?.filter(inv => !inv.order_id) || [];
-      const invoiceRevenue = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
-      const invoiceCollected = standaloneInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
-
-      // Combine order and invoice totals
-      const totalRevenue = orderRevenue + invoiceRevenue;
-      const collectedAmount = orderCollected + invoiceCollected;
+      // Calculate revenue from ALL invoices (including those linked to orders)
+      // This ensures Outstanding Balance matches the sum of all customer debts
+      const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
+      const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
       const outstandingAmount = totalRevenue - collectedAmount;
       const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
       const profit = collectedAmount - totalExpenses;
