@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon, DollarSign } from 'lucide-react';
+import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon, DollarSign, Download, Trash2, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -15,6 +15,17 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 
 interface SalesRequest {
   id: string;
@@ -30,6 +41,14 @@ interface SalesRequest {
   created_at: string;
   created_by: string | null;
   creator?: { full_name: string } | null;
+}
+
+interface RequestFile {
+  id: string;
+  file_name: string;
+  file_path: string;
+  file_type: string | null;
+  created_at: string;
 }
 
 interface Stats {
@@ -60,6 +79,12 @@ const DesignerDashboard = () => {
   const [profile, setProfile] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [dateFilter, setDateFilter] = useState<Date | null>(null);
+  
+  // Dialog states
+  const [selectedRequest, setSelectedRequest] = useState<SalesRequest | null>(null);
+  const [requestFiles, setRequestFiles] = useState<RequestFile[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchUserRole();
@@ -219,9 +244,18 @@ const DesignerDashboard = () => {
     }
   };
 
-  const handleSubmitDesign = async (requestId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSubmitDesign = async (requestId: string) => {
     try {
+      // Check if there are any files uploaded
+      if (requestFiles.length === 0) {
+        toast({
+          title: 'No files uploaded',
+          description: 'Please upload at least one design file before submitting.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('sales_order_requests')
         .update({ status: 'in_print' })
@@ -232,9 +266,10 @@ const DesignerDashboard = () => {
 
       toast({
         title: 'Design Submitted',
-        description: 'Your design has been submitted and is ready for print operator.',
+        description: 'Your design has been submitted and is ready for review.',
       });
 
+      setSelectedRequest(null);
       fetchDesignerData();
     } catch (error: any) {
       console.error('Error submitting design:', error);
@@ -244,6 +279,105 @@ const DesignerDashboard = () => {
         variant: 'destructive',
       });
     }
+  };
+
+  const fetchRequestFiles = async (requestId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('request_files')
+        .select('*')
+        .eq('request_id', requestId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setRequestFiles(data || []);
+    } catch (error) {
+      console.error('Error fetching request files:', error);
+      setRequestFiles([]);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !selectedRequest) return;
+
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${selectedRequest.id}/${Date.now()}-${file.name}`;
+
+        // Upload to storage
+        const { error: uploadError } = await supabase.storage
+          .from('request-files')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        // Save file record to database
+        const { error: dbError } = await supabase
+          .from('request_files')
+          .insert({
+            request_id: selectedRequest.id,
+            uploaded_by: user?.id,
+            file_name: file.name,
+            file_path: fileName,
+            file_type: file.type,
+          });
+
+        if (dbError) throw dbError;
+      }
+
+      toast({
+        title: 'Files uploaded',
+        description: `${files.length} file(s) uploaded successfully.`,
+      });
+
+      fetchRequestFiles(selectedRequest.id);
+    } catch (error: any) {
+      console.error('Error uploading file:', error);
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'Failed to upload file',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDownloadFile = async (filePath: string, fileName: string) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('request-files')
+        .download(filePath);
+
+      if (error) throw error;
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: 'Download failed',
+        description: error.message || 'Failed to download file',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const openRequestDetails = async (request: SalesRequest) => {
+    setSelectedRequest(request);
+    await fetchRequestFiles(request.id);
   };
 
   const getStatusBadge = (status: string) => {
@@ -449,22 +583,14 @@ const DesignerDashboard = () => {
                       </TableCell>
                       <TableCell>{request.creator?.full_name || 'Unknown'}</TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          {request.status === 'in_design' && (
-                            <Button
-                              size="sm"
-                              onClick={(e) => handleSubmitDesign(request.id, e)}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Submit
-                            </Button>
-                          )}
-                          {request.status !== 'in_design' && (
-                            <Badge variant="outline">
-                              {request.status === 'in_print' ? 'Awaiting Print' : request.status}
-                            </Badge>
-                          )}
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openRequestDetails(request)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          {request.status === 'in_design' ? 'Manage' : 'View'}
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))
@@ -533,6 +659,149 @@ const DesignerDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Request Details Dialog */}
+        <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Job Details</DialogTitle>
+              <DialogDescription>
+                View job information and upload design files
+              </DialogDescription>
+            </DialogHeader>
+
+            {selectedRequest && (
+              <div className="space-y-6">
+                {/* Customer Information */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg">Customer Information</h3>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <Label className="text-muted-foreground">Name</Label>
+                      <p className="font-medium">{selectedRequest.customer_name}</p>
+                    </div>
+                    {selectedRequest.company_name && (
+                      <div>
+                        <Label className="text-muted-foreground">Company</Label>
+                        <p className="font-medium">{selectedRequest.company_name}</p>
+                      </div>
+                    )}
+                    {selectedRequest.customer_phone && (
+                      <div>
+                        <Label className="text-muted-foreground">Phone</Label>
+                        <p className="font-medium">{selectedRequest.customer_phone}</p>
+                      </div>
+                    )}
+                    {selectedRequest.customer_email && (
+                      <div>
+                        <Label className="text-muted-foreground">Email</Label>
+                        <p className="font-medium">{selectedRequest.customer_email}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Job Details */}
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-lg">Job Details</h3>
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-muted-foreground">Description</Label>
+                      <p className="font-medium whitespace-pre-wrap">{selectedRequest.description}</p>
+                    </div>
+                    {selectedRequest.notes && (
+                      <div>
+                        <Label className="text-muted-foreground">Notes</Label>
+                        <p className="font-medium whitespace-pre-wrap">{selectedRequest.notes}</p>
+                      </div>
+                    )}
+                    <div className="flex gap-4">
+                      <div>
+                        <Label className="text-muted-foreground">Status</Label>
+                        <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground">Created</Label>
+                        <p className="font-medium">{format(new Date(selectedRequest.created_at), 'PPP')}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Design Files */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-lg">Design Files</h3>
+                    {selectedRequest.status === 'in_design' && (
+                      <div>
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleFileUpload}
+                          multiple
+                          className="hidden"
+                          accept="image/*,.pdf,.ai,.psd,.eps,.svg"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploading}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          {uploading ? 'Uploading...' : 'Upload Files'}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {requestFiles.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No files uploaded yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {requestFiles.map((file) => (
+                        <div
+                          key={file.id}
+                          className="flex items-center justify-between p-3 border rounded-lg"
+                        >
+                          <div className="flex items-center gap-3">
+                            <FileText className="h-5 w-5 text-muted-foreground" />
+                            <div>
+                              <p className="font-medium text-sm">{file.file_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(file.created_at), 'PPp')}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownloadFile(file.file_path, file.file_name)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Submit Button */}
+                {selectedRequest.status === 'in_design' && (
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
+                      Cancel
+                    </Button>
+                    <Button onClick={() => handleSubmitDesign(selectedRequest.id)}>
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      Submit Design
+                    </Button>
+                  </DialogFooter>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </Layout>
   );
