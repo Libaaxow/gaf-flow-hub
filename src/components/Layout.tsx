@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Building2,
   Package,
+  Wallet,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -45,6 +46,7 @@ const navItems: NavItem[] = [
   { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'accountant', 'board'] },
   { href: '/customer-reports', label: 'Customer Reports', icon: FileText, roles: ['admin', 'accountant', 'board'] },
   { href: '/financial-reports', label: 'Financial Reports', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
+  { href: '/beginning-balances', label: 'Beginning Balances', icon: Wallet, roles: ['admin', 'accountant'] },
   { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
   { href: '/users', label: 'Users', icon: UserCog, roles: ['admin'] },
   { href: '/settings', label: 'Settings', icon: Settings },

@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      beginning_balances: {
+        Row: {
+          account_type: string
+          amount: number
+          created_at: string
+          created_by: string | null
+          effective_date: string
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_type: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_type?: string
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          effective_date?: string
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beginning_balances_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commissions: {
         Row: {
           commission_amount: number
