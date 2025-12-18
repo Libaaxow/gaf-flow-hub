@@ -318,12 +318,15 @@ const AccountantDashboard = () => {
   };
 
   const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string) => {
+    // When marking as collected, set status to completed
+    const finalStatus = newStatus === 'collected' ? 'completed' : newStatus;
+    
     const updateData: any = { 
-      status: newStatus,
+      status: finalStatus,
       updated_at: new Date().toISOString()
     };
     
-    if (newStatus === 'processed' || newStatus === 'in_design' || newStatus === 'in_print' || newStatus === 'printed' || newStatus === 'collected') {
+    if (newStatus === 'processed' || newStatus === 'in_design' || newStatus === 'in_print' || newStatus === 'printed' || newStatus === 'collected' || newStatus === 'completed') {
       updateData.processed_at = new Date().toISOString();
     }
 
@@ -343,7 +346,7 @@ const AccountantDashboard = () => {
 
     toast({
       title: 'Success',
-      description: `Request status updated to ${newStatus.replace('_', ' ')}`,
+      description: `Request status updated to ${finalStatus.replace('_', ' ')}`,
     });
     fetchSalesRequests();
   };
@@ -460,6 +463,8 @@ const AccountantDashboard = () => {
         return <Badge className="bg-teal-500 text-white">Printed</Badge>;
       case 'collected':
         return <Badge className="bg-success text-success-foreground">Collected</Badge>;
+      case 'completed':
+        return <Badge className="bg-success text-success-foreground">Completed</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -2446,8 +2451,14 @@ const AccountantDashboard = () => {
         {/* Main Content Tabs */}
         <Tabs defaultValue="sales-requests" className="space-y-3 sm:space-y-4 w-full">
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-8 gap-1">
+            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-4 lg:grid-cols-9 gap-1">
               <TabsTrigger value="sales-requests" className="text-xs sm:text-sm whitespace-nowrap">Sales Requests</TabsTrigger>
+              <TabsTrigger value="collection" className="text-xs sm:text-sm whitespace-nowrap">
+                Collection
+                {salesRequests.filter(r => r.status === 'printed').length > 0 && (
+                  <Badge className="ml-1 bg-teal-500 text-white text-xs">{salesRequests.filter(r => r.status === 'printed').length}</Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="workflow" className="text-xs sm:text-sm whitespace-nowrap">Workflow</TabsTrigger>
               <TabsTrigger value="invoices" className="text-xs sm:text-sm whitespace-nowrap">Invoices</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm whitespace-nowrap">Customers</TabsTrigger>
@@ -2552,7 +2563,8 @@ const AccountantDashboard = () => {
                                     <SelectItem value="design_submitted">Design Submitted</SelectItem>
                                     <SelectItem value="in_print">In Print</SelectItem>
                                     <SelectItem value="printed">Printed</SelectItem>
-                                    <SelectItem value="collected">Collected</SelectItem>
+                                    <SelectItem value="collected">Mark Collected (Complete)</SelectItem>
+                                    <SelectItem value="completed">Completed</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -2894,6 +2906,77 @@ const AccountantDashboard = () => {
                 )}
               </DialogContent>
             </Dialog>
+          </TabsContent>
+
+          {/* Collection Tab - Printed orders ready for collection */}
+          <TabsContent value="collection" className="space-y-3 sm:space-y-4">
+            <Card className="mobile-card">
+              <CardHeader className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">Ready for Collection</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">Printed orders waiting for customer collection. Mark as collected to complete the order.</CardDescription>
+                  </div>
+                  <Badge variant="outline" className="w-fit">
+                    {salesRequests.filter(r => r.status === 'printed').length} Ready
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0 sm:p-6 sm:pt-0">
+                <div className="overflow-x-auto -mx-4 sm:mx-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[100px]">Date</TableHead>
+                        <TableHead className="min-w-[150px]">Customer</TableHead>
+                        <TableHead className="min-w-[120px]">Phone</TableHead>
+                        <TableHead className="min-w-[200px]">Description</TableHead>
+                        <TableHead className="min-w-[120px]">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesRequests.filter(r => r.status === 'printed').length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                            No printed orders waiting for collection
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        salesRequests.filter(r => r.status === 'printed').map((request) => (
+                          <TableRow key={request.id}>
+                            <TableCell className="whitespace-nowrap">
+                              {format(new Date(request.created_at), 'PP')}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{request.customer_name}</p>
+                                {request.company_name && (
+                                  <p className="text-xs text-muted-foreground">{request.company_name}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>{request.customer_phone || '-'}</TableCell>
+                            <TableCell className="max-w-[200px]">
+                              <p className="truncate">{request.description}</p>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                onClick={() => handleUpdateSalesRequestStatus(request.id, 'collected')}
+                                className="bg-success hover:bg-success/90 text-success-foreground"
+                              >
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Mark Collected
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Workflow Tab */}

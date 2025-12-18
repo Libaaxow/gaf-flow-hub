@@ -313,11 +313,12 @@ const PrintOperatorDashboard = () => {
       ready_for_print: { label: 'Ready for Print', className: 'bg-info text-info-foreground' },
       designed: { label: 'Ready for Print', className: 'bg-info text-info-foreground' },
       printing: { label: 'Printing', className: 'bg-primary text-primary-foreground' },
-      printed: { label: 'Printed', className: 'bg-success text-success-foreground' },
+      printed: { label: 'Printed', className: 'bg-teal-500 text-white' },
       ready_for_collection: { label: 'Ready for Collection', className: 'bg-info text-info-foreground' },
       on_hold: { label: 'On Hold', className: 'bg-destructive text-destructive-foreground' },
       delivered: { label: 'Delivered', className: 'bg-success text-success-foreground' },
       in_print: { label: 'In Print', className: 'bg-primary text-primary-foreground' },
+      completed: { label: 'Completed', className: 'bg-success text-success-foreground' },
     };
     const config = statusMap[status] || { label: status, className: 'bg-secondary' };
     return <Badge className={config.className}>{config.label}</Badge>;
