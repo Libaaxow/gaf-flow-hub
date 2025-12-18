@@ -10,11 +10,12 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { CalendarIcon, Download, FileText, ChevronDown, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Download, FileText, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generateCustomerReportPDF } from '@/utils/generateCustomerReportPDF';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface InvoiceItem {
   id: string;
@@ -75,6 +76,8 @@ const CustomerReports = () => {
   const [expandedInvoices, setExpandedInvoices] = useState<Set<string>>(new Set());
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [autoGenerate, setAutoGenerate] = useState(false);
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<Set<string>>(new Set());
+  const [bulkDownloading, setBulkDownloading] = useState(false);
 
   // Auto-select customer from URL parameter
   useEffect(() => {
@@ -280,6 +283,155 @@ const CustomerReports = () => {
     }
   };
 
+  // Bulk download functionality
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedCustomerIds(new Set(customers.map(c => c.id)));
+    } else {
+      setSelectedCustomerIds(new Set());
+    }
+  };
+
+  const handleSelectCustomer = (customerId: string, checked: boolean) => {
+    const newSelected = new Set(selectedCustomerIds);
+    if (checked) {
+      newSelected.add(customerId);
+    } else {
+      newSelected.delete(customerId);
+    }
+    setSelectedCustomerIds(newSelected);
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedCustomerIds.size === 0) {
+      toast({
+        title: 'Error',
+        description: 'Please select at least one customer',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setBulkDownloading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const customerId of selectedCustomerIds) {
+        try {
+          // Fetch invoices for this customer
+          let query = supabase
+            .from('invoices')
+            .select(`
+              id,
+              invoice_number,
+              invoice_date,
+              order_id,
+              status,
+              subtotal,
+              tax_amount,
+              total_amount,
+              amount_paid,
+              orders (
+                job_title,
+                description,
+                payments (
+                  id,
+                  amount,
+                  payment_method,
+                  payment_date,
+                  reference_number,
+                  notes
+                )
+              ),
+              invoice_items (
+                id,
+                description,
+                quantity,
+                unit_price,
+                amount
+              )
+            `)
+            .eq('customer_id', customerId)
+            .order('invoice_date', { ascending: false });
+
+          // Apply filters
+          if (dateFrom) {
+            query = query.gte('invoice_date', format(dateFrom, 'yyyy-MM-dd'));
+          }
+          if (dateTo) {
+            query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
+          }
+          if (invoiceStatus && invoiceStatus !== 'all') {
+            query = query.eq('status', invoiceStatus);
+          }
+          if (minAmount) {
+            query = query.gte('total_amount', parseFloat(minAmount));
+          }
+          if (maxAmount) {
+            query = query.lte('total_amount', parseFloat(maxAmount));
+          }
+
+          const { data: invoices, error: invoicesError } = await query;
+          if (invoicesError) throw invoicesError;
+
+          // Skip if no invoices
+          if (!invoices || invoices.length === 0) {
+            continue;
+          }
+
+          // Fetch customer info
+          const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', customerId)
+            .single();
+
+          if (customerError) throw customerError;
+
+          // Generate PDF
+          await generateCustomerReportPDF(invoices as ReportInvoice[], customer, {
+            dateFrom,
+            dateTo,
+            invoiceStatus,
+            minAmount,
+            maxAmount,
+          });
+
+          successCount++;
+          
+          // Small delay between downloads to prevent browser blocking
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } catch (error) {
+          console.error(`Error generating report for customer ${customerId}:`, error);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast({
+          title: 'Success',
+          description: `Generated ${successCount} PDF reports${failCount > 0 ? `, ${failCount} failed` : ''}`,
+        });
+      } else {
+        toast({
+          title: 'No Reports Generated',
+          description: 'No invoices found for selected customers with current filters',
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      console.error('Error in bulk download:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to generate reports',
+        variant: 'destructive',
+      });
+    } finally {
+      setBulkDownloading(false);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
       paid: { label: 'PAID', variant: 'default' },
@@ -297,6 +449,8 @@ const CustomerReports = () => {
   const totalPaid = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid), 0);
   const outstanding = totalBilled - totalPaid;
   const avgOrderValue = confirmedInvoices.length > 0 ? totalBilled / confirmedInvoices.length : 0;
+
+  const isAllSelected = customers.length > 0 && selectedCustomerIds.size === customers.length;
 
   return (
     <Layout>
@@ -471,6 +625,83 @@ const CustomerReports = () => {
                 </>
               ) : (
                 'Generate Report'
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Bulk Download Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Bulk Download All Customers
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Select customers below to download their reports at once. Filters above will apply to all reports.
+            </p>
+            
+            {/* Select All Checkbox */}
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="select-all"
+                  checked={isAllSelected}
+                  onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
+                />
+                <Label htmlFor="select-all" className="font-semibold cursor-pointer">
+                  Select All ({customers.length} customers)
+                </Label>
+              </div>
+              {selectedCustomerIds.size > 0 && (
+                <Badge variant="secondary">{selectedCustomerIds.size} selected</Badge>
+              )}
+            </div>
+
+            {/* Customer Checkbox List */}
+            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-3">
+              {loadingCustomers ? (
+                <p className="text-sm text-muted-foreground text-center py-4">Loading customers...</p>
+              ) : customers.length > 0 ? (
+                customers.map((customer) => (
+                  <div key={customer.id} className="flex items-center space-x-2 hover:bg-muted/50 p-2 rounded">
+                    <Checkbox
+                      id={`customer-${customer.id}`}
+                      checked={selectedCustomerIds.has(customer.id)}
+                      onCheckedChange={(checked) => handleSelectCustomer(customer.id, checked as boolean)}
+                    />
+                    <Label htmlFor={`customer-${customer.id}`} className="flex-1 cursor-pointer">
+                      <span className="font-medium">{customer.name}</span>
+                      {customer.company_name && (
+                        <span className="text-muted-foreground ml-2">({customer.company_name})</span>
+                      )}
+                    </Label>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">No customers found</p>
+              )}
+            </div>
+
+            {/* Bulk Download Button */}
+            <Button 
+              onClick={handleBulkDownload} 
+              disabled={bulkDownloading || selectedCustomerIds.size === 0}
+              className="w-full"
+              variant="secondary"
+            >
+              {bulkDownloading ? (
+                <>
+                  <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-t-2 border-current mr-2" />
+                  Downloading {selectedCustomerIds.size} Reports...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download {selectedCustomerIds.size > 0 ? `${selectedCustomerIds.size} ` : ''}Selected Reports
+                </>
               )}
             </Button>
           </CardContent>
