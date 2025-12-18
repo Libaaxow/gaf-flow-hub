@@ -379,6 +379,14 @@ const AccountantDashboard = () => {
         .select('amount, approval_status')
         .eq('approval_status', 'approved');
 
+      // Fetch beginning balances
+      const { data: beginningBalancesData } = await supabase
+        .from('beginning_balances')
+        .select('amount, account_type');
+
+      // Calculate beginning balance total
+      const beginningBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
+
       // Calculate revenue from ALL invoices for total revenue
       const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
       const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
@@ -390,7 +398,8 @@ const AccountantDashboard = () => {
       const outstandingAmount = confirmedRevenue - confirmedCollected;
       
       const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
-      const profit = collectedAmount - totalExpenses;
+      // Profit now includes beginning balance
+      const profit = beginningBalance + collectedAmount - totalExpenses;
       const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       const paidCommissions = allCommissions?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       

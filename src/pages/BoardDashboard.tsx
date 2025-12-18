@@ -140,6 +140,13 @@ const BoardDashboard = () => {
       
       if (expensesError) console.error('Board: expenses error', expensesError);
 
+      // Fetch beginning balances
+      const { data: beginningBalancesData, error: beginningBalancesError } = await supabase
+        .from('beginning_balances')
+        .select('amount, account_type');
+      
+      if (beginningBalancesError) console.error('Board: beginning balances error', beginningBalancesError);
+
       const { count: customerCount } = await supabase
         .from('customers')
         .select('*', { count: 'exact', head: true });
@@ -149,7 +156,11 @@ const BoardDashboard = () => {
         invoices: invoicesData?.length,
         commissions: commissionsData?.length,
         expenses: expensesData?.length,
+        beginningBalances: beginningBalancesData?.length,
       });
+
+      // Calculate beginning balance total
+      const beginningBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
 
       // Calculate revenue from ALL invoices
       const totalRevenue = invoicesData?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
@@ -162,7 +173,8 @@ const BoardDashboard = () => {
       const outstandingAmount = confirmedRevenue - confirmedCollected;
       
       const totalExpenses = expensesData?.reduce((sum, exp) => sum + Number(exp.amount || 0), 0) || 0;
-      const netProfit = collectedAmount - totalExpenses;
+      // Net profit now includes beginning balance
+      const netProfit = beginningBalance + collectedAmount - totalExpenses;
 
       const totalCommissions = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
       const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
@@ -172,6 +184,7 @@ const BoardDashboard = () => {
       const completedOrders = ordersData?.filter(o => o.status === 'completed' || o.status === 'delivered').length || 0;
 
       console.log('Board calculated stats:', {
+        beginningBalance,
         totalRevenue,
         collectedAmount,
         outstandingAmount,
