@@ -339,8 +339,8 @@ const AccountantDashboard = () => {
       const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
       const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
       
-      // Outstanding Balance should only count non-draft invoices (actual customer debt)
-      const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft && inv.status !== 'draft') || [];
+      // Outstanding Balance should only exclude true draft invoices (is_draft=true)
+      const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft) || [];
       const confirmedRevenue = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
       const confirmedCollected = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
       const outstandingAmount = confirmedRevenue - confirmedCollected;
