@@ -16,17 +16,20 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
-interface Order {
+interface SalesRequest {
   id: string;
-  job_title: string;
+  customer_name: string;
+  customer_phone: string | null;
+  customer_email: string | null;
+  company_name: string | null;
   description: string;
+  notes: string | null;
   status: string;
-  delivery_date: string;
-  customer_id: string;
-  salesperson_id: string;
+  designer_id: string | null;
+  print_operator_id: string | null;
   created_at: string;
-  customers: { name: string; company_name: string };
-  salesperson?: { full_name: string } | null;
+  created_by: string | null;
+  creator?: { full_name: string } | null;
 }
 
 interface Stats {
@@ -42,7 +45,7 @@ const DesignerDashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [requests, setRequests] = useState<SalesRequest[]>([]);
   const [commissions, setCommissions] = useState<any[]>([]);
   const [stats, setStats] = useState<Stats>({
     totalJobs: 0,
@@ -151,10 +154,10 @@ const DesignerDashboard = () => {
       const totalCommissions = commissionsData?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
       const paidCommissions = commissionsData?.filter(c => c.paid_status === 'paid').reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
 
-      // Fetch assigned orders (optionally filtered by delivery date)
+      // Fetch assigned sales requests
       let query = supabase
-        .from('orders')
-        .select('*, customers(name, company_name)')
+        .from('sales_order_requests')
+        .select('*')
         .eq('designer_id', user?.id);
       
       // Only apply date filter if a specific date is selected
@@ -162,38 +165,38 @@ const DesignerDashboard = () => {
         const startDate = startOfDay(dateFilter).toISOString();
         const endDate = endOfDay(dateFilter).toISOString();
         query = query
-          .gte('delivery_date', startDate)
-          .lte('delivery_date', endDate);
+          .gte('created_at', startDate)
+          .lte('created_at', endDate);
       }
       
-      const { data: ordersData } = await query.order('created_at', { ascending: false });
+      const { data: requestsData } = await query.order('created_at', { ascending: false });
 
-      if (ordersData) {
-        // Batch fetch all unique salesperson profiles in a single query
-        const salespersonIds = [...new Set(ordersData.map(o => o.salesperson_id).filter(Boolean))];
+      if (requestsData) {
+        // Batch fetch all unique creator profiles in a single query
+        const creatorIds = [...new Set(requestsData.map(r => r.created_by).filter(Boolean))];
         
-        let salespersonMap = new Map();
-        if (salespersonIds.length > 0) {
-          const { data: salespersonData } = await supabase
+        let creatorMap = new Map();
+        if (creatorIds.length > 0) {
+          const { data: creatorData } = await supabase
             .from('profiles')
             .select('id, full_name')
-            .in('id', salespersonIds);
+            .in('id', creatorIds);
           
-          salespersonMap = new Map((salespersonData || []).map(p => [p.id, p]));
+          creatorMap = new Map((creatorData || []).map(p => [p.id, p]));
         }
 
-        const ordersWithSalesperson = ordersData.map(order => ({
-          ...order,
-          salesperson: order.salesperson_id ? salespersonMap.get(order.salesperson_id) || null : null,
+        const requestsWithCreator = requestsData.map(request => ({
+          ...request,
+          creator: request.created_by ? creatorMap.get(request.created_by) || null : null,
         }));
 
-        setOrders(ordersWithSalesperson as any);
+        setRequests(requestsWithCreator as any);
 
         // Calculate stats
-        const totalJobs = ordersWithSalesperson.length;
-        const completed = ordersWithSalesperson.filter(o => o.status === 'delivered').length;
-        const inProgress = ordersWithSalesperson.filter(o => o.status === 'designing').length;
-        const awaitingApproval = ordersWithSalesperson.filter(o => o.status === 'awaiting_accounting_approval').length;
+        const totalJobs = requestsWithCreator.length;
+        const completed = requestsWithCreator.filter(r => r.status === 'printed' || r.status === 'collected').length;
+        const inProgress = requestsWithCreator.filter(r => r.status === 'in_design').length;
+        const awaitingApproval = requestsWithCreator.filter(r => r.status === 'in_print').length;
 
         setStats({ 
           totalJobs, 
@@ -216,20 +219,20 @@ const DesignerDashboard = () => {
     }
   };
 
-  const handleSubmitDesign = async (orderId: string, e: React.MouseEvent) => {
+  const handleSubmitDesign = async (requestId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       const { error } = await supabase
-        .from('orders')
-        .update({ status: 'awaiting_accounting_approval' })
-        .eq('id', orderId)
+        .from('sales_order_requests')
+        .update({ status: 'in_print' })
+        .eq('id', requestId)
         .eq('designer_id', user?.id);
 
       if (error) throw error;
 
       toast({
         title: 'Design Submitted',
-        description: 'Your design has been submitted for approval and will be sent to print operator.',
+        description: 'Your design has been submitted and is ready for print operator.',
       });
 
       fetchDesignerData();
@@ -245,23 +248,23 @@ const DesignerDashboard = () => {
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-      pending_accounting_review: { label: 'Pending Accountant', variant: 'outline' },
-      designing: { label: 'In Design', variant: 'default' },
-      awaiting_accounting_approval: { label: 'Awaiting Approval', variant: 'secondary' },
-      ready_for_print: { label: 'Ready for Print', variant: 'default' },
-      printing: { label: 'Printing', variant: 'default' },
-      delivered: { label: 'Completed', variant: 'secondary' },
+      pending: { label: 'Pending', variant: 'outline' },
+      processed: { label: 'Processed', variant: 'secondary' },
+      in_design: { label: 'In Design', variant: 'default' },
+      in_print: { label: 'In Print', variant: 'default' },
+      printed: { label: 'Printed', variant: 'secondary' },
+      collected: { label: 'Collected', variant: 'secondary' },
     };
 
     const config = statusMap[status] || { label: status, variant: 'outline' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const filteredOrders = orders.filter(order => {
+  const filteredRequests = requests.filter(request => {
     if (filter === 'all') return true;
-    if (filter === 'in-progress') return order.status === 'designing';
-    if (filter === 'ready') return order.status === 'awaiting_accounting_approval';
-    if (filter === 'completed') return order.status === 'delivered';
+    if (filter === 'in-progress') return request.status === 'in_design';
+    if (filter === 'ready') return request.status === 'in_print';
+    if (filter === 'completed') return request.status === 'printed' || request.status === 'collected';
     return true;
   });
 
@@ -404,71 +407,62 @@ const DesignerDashboard = () => {
                 <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[100px]">Order ID</TableHead>
+                  <TableHead className="min-w-[100px]">Request ID</TableHead>
                   <TableHead className="min-w-[150px]">Customer</TableHead>
-                  <TableHead className="min-w-[150px]">Job Title</TableHead>
+                  <TableHead className="min-w-[200px]">Description</TableHead>
                   <TableHead className="min-w-[120px]">Status</TableHead>
-                  <TableHead className="min-w-[120px]">Deadline</TableHead>
-                  <TableHead className="min-w-[150px]">Salesperson</TableHead>
-                  <TableHead className="min-w-[100px]">Actions</TableHead>
+                  <TableHead className="min-w-[120px]">Created</TableHead>
+                  <TableHead className="min-w-[150px]">Created By</TableHead>
+                  <TableHead className="min-w-[150px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredOrders.length === 0 ? (
+                {filteredRequests.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                       No jobs found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredOrders.map((order) => (
+                  filteredRequests.map((request) => (
                     <TableRow 
-                      key={order.id}
-                      className="cursor-pointer hover:bg-muted/50 transition-colors"
-                      onClick={() => navigate(`/orders/${order.id}`)}
+                      key={request.id}
+                      className="hover:bg-muted/50 transition-colors"
                     >
                       <TableCell className="font-mono text-sm">
-                        #{order.id.slice(0, 8)}
+                        #{request.id.slice(0, 8)}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{order.customers.name}</div>
-                          {order.customers.company_name && (
+                          <div className="font-medium">{request.customer_name}</div>
+                          {request.company_name && (
                             <div className="text-sm text-muted-foreground">
-                              {order.customers.company_name}
+                              {request.company_name}
                             </div>
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>{order.job_title}</TableCell>
-                      <TableCell>{getStatusBadge(order.status)}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{request.description}</TableCell>
+                      <TableCell>{getStatusBadge(request.status)}</TableCell>
                       <TableCell>
-                        {order.delivery_date
-                          ? new Date(order.delivery_date).toLocaleDateString()
-                          : 'Not set'}
+                        {format(new Date(request.created_at), 'PP')}
                       </TableCell>
-                      <TableCell>{order.salesperson?.full_name || 'Unassigned'}</TableCell>
+                      <TableCell>{request.creator?.full_name || 'Unknown'}</TableCell>
                       <TableCell>
                         <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(`/orders/${order.id}`);
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
-                          {order.status === 'designing' && (
+                          {request.status === 'in_design' && (
                             <Button
                               size="sm"
-                              onClick={(e) => handleSubmitDesign(order.id, e)}
+                              onClick={(e) => handleSubmitDesign(request.id, e)}
                             >
                               <CheckCircle className="h-4 w-4 mr-1" />
                               Submit
                             </Button>
+                          )}
+                          {request.status !== 'in_design' && (
+                            <Badge variant="outline">
+                              {request.status === 'in_print' ? 'Awaiting Print' : request.status}
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
