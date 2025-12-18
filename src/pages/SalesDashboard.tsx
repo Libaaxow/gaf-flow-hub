@@ -123,13 +123,32 @@ const SalesDashboard = () => {
     
     const formData = new FormData(e.currentTarget);
     
+    // Compile all fields into a structured note
+    const itemName = formData.get('item_name') as string;
+    const qty = formData.get('qty') as string;
+    const amount = formData.get('amount') as string;
+    const description = formData.get('description') as string;
+    const timeNeeded = formData.get('time_needed') as string;
+    const comment = formData.get('comment') as string;
+
+    const noteParts = [
+      `Item: ${itemName}`,
+      `Qty: ${qty}`,
+      amount ? `Amount: ${amount}` : null,
+      description ? `Description: ${description}` : null,
+      timeNeeded ? `Time Needed: ${timeNeeded}` : null,
+      comment ? `Comment: ${comment}` : null,
+    ].filter(Boolean);
+
+    const compiledNote = noteParts.join('\n');
+
     const requestData = {
       customer_name: formData.get('customer_name') as string,
       customer_phone: (formData.get('customer_phone') as string) || null,
-      customer_email: (formData.get('customer_email') as string) || null,
-      company_name: (formData.get('company_name') as string) || null,
-      description: formData.get('description') as string,
-      notes: (formData.get('notes') as string) || null,
+      customer_email: null,
+      company_name: null,
+      description: itemName, // Use item name as the main description
+      notes: compiledNote,
       status: 'pending',
       created_by: user?.id,
     };
@@ -266,7 +285,7 @@ const SalesDashboard = () => {
                   New Order Request
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
                   <DialogTitle>Submit Order Request</DialogTitle>
                   <DialogDescription>
@@ -276,12 +295,12 @@ const SalesDashboard = () => {
                 <form onSubmit={handleSubmitRequest} className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="customer_name">Customer Name *</Label>
+                      <Label htmlFor="customer_name">Name *</Label>
                       <Input 
                         id="customer_name" 
                         name="customer_name" 
                         required 
-                        placeholder="Enter customer name"
+                        placeholder="Customer name"
                       />
                     </div>
                     <div className="space-y-2">
@@ -295,39 +314,57 @@ const SalesDashboard = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="customer_email">Email</Label>
+                      <Label htmlFor="item_name">Item Name *</Label>
                       <Input 
-                        id="customer_email" 
-                        name="customer_email" 
-                        type="email"
-                        placeholder="Email address"
+                        id="item_name" 
+                        name="item_name" 
+                        required
+                        placeholder="e.g., Business Cards, Banner"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="company_name">Company</Label>
+                      <Label htmlFor="qty">Qty *</Label>
                       <Input 
-                        id="company_name" 
-                        name="company_name" 
-                        placeholder="Company name"
+                        id="qty" 
+                        name="qty" 
+                        required
+                        placeholder="e.g., 100, 2"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="amount">Amount</Label>
+                      <Input 
+                        id="amount" 
+                        name="amount" 
+                        placeholder="e.g., $50, 500"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="time_needed">Time Needed</Label>
+                      <Input 
+                        id="time_needed" 
+                        name="time_needed" 
+                        placeholder="e.g., 2 days, urgent"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="description">Order Description *</Label>
+                    <Label htmlFor="description">Description</Label>
                     <Textarea 
                       id="description" 
                       name="description" 
-                      required 
-                      placeholder="Describe what the customer needs (e.g., 10 business cards, 2 banners 3x5m)"
-                      rows={3}
+                      placeholder="Size, color, material details..."
+                      rows={2}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="notes">Additional Notes</Label>
+                    <Label htmlFor="comment">Comment</Label>
                     <Textarea 
-                      id="notes" 
-                      name="notes" 
-                      placeholder="Any special instructions or details"
+                      id="comment" 
+                      name="comment" 
+                      placeholder="Any special instructions or notes"
                       rows={2}
                     />
                   </div>
