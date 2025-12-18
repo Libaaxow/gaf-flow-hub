@@ -57,6 +57,8 @@ import { format, startOfMonth, endOfMonth, startOfDay, endOfDay, subDays, subMon
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
+import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -3480,18 +3482,38 @@ const AccountantDashboard = () => {
                     <CardTitle className="text-base sm:text-lg">Payment Management</CardTitle>
                     <CardDescription className="text-xs sm:text-sm">Record and track customer payments</CardDescription>
                   </div>
-                  <Button 
-                    onClick={() => {
-                      console.log('Opening payment dialog');
-                      setPaymentDialogOpen(true);
-                    }}
-                    size="sm"
-                    className="w-full sm:w-auto shrink-0 relative z-30"
-                    type="button"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Record Payment
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        generatePaymentsReportPDF(payments, {
+                          dateFrom: startDate,
+                          dateTo: endDate,
+                        });
+                        toast({
+                          title: 'Success',
+                          description: 'Payments report downloaded',
+                        });
+                      }}
+                      className="shrink-0"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download All
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        console.log('Opening payment dialog');
+                        setPaymentDialogOpen(true);
+                      }}
+                      size="sm"
+                      className="w-full sm:w-auto shrink-0 relative z-30"
+                      type="button"
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Record Payment
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0 relative z-10">
@@ -3800,13 +3822,30 @@ const AccountantDashboard = () => {
                     <CardTitle>Expense Management</CardTitle>
                     <CardDescription>Record and track business expenses</CardDescription>
                   </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Record Expense
-                      </Button>
-                    </DialogTrigger>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        generateExpensesReportPDF(expenses, {
+                          dateFrom: startDate,
+                          dateTo: endDate,
+                        });
+                        toast({
+                          title: 'Success',
+                          description: 'Expenses report downloaded',
+                        });
+                      }}
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Download All
+                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Record Expense
+                        </Button>
+                      </DialogTrigger>
                     <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>Record Expense</DialogTitle>
@@ -3889,7 +3928,8 @@ const AccountantDashboard = () => {
                         <Button onClick={handleRecordExpense}>Record Expense</Button>
                       </DialogFooter>
                     </DialogContent>
-                  </Dialog>
+                    </Dialog>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="p-0 sm:p-6 sm:pt-0">
