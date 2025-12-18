@@ -1045,6 +1045,54 @@ export type Database = {
           },
         ]
       }
+      sales_order_requests: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          created_by: string | null
+          customer_email: string | null
+          customer_name: string
+          customer_phone: string | null
+          description: string
+          id: string
+          notes: string | null
+          processed_at: string | null
+          processed_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name: string
+          customer_phone?: string | null
+          description: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_email?: string | null
+          customer_name?: string
+          customer_phone?: string | null
+          description?: string
+          id?: string
+          notes?: string | null
+          processed_at?: string | null
+          processed_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tax_settings: {
         Row: {
           id: string
