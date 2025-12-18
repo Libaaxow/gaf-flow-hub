@@ -161,10 +161,22 @@ const SalesDashboard = () => {
   };
 
   const getStatusBadge = (status: string) => {
-    if (status === 'pending') {
-      return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
+      case 'processed':
+        return <Badge className="bg-blue-500 text-white">Processed</Badge>;
+      case 'in_design':
+        return <Badge className="bg-purple-500 text-white">In Design</Badge>;
+      case 'in_print':
+        return <Badge className="bg-orange-500 text-white">In Print</Badge>;
+      case 'printed':
+        return <Badge className="bg-teal-500 text-white">Printed</Badge>;
+      case 'collected':
+        return <Badge className="bg-success text-success-foreground">Collected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
     }
-    return <Badge className="bg-success text-success-foreground">Processed</Badge>;
   };
 
   const statCards = [

@@ -1095,8 +1095,10 @@ export type Database = {
           customer_name: string
           customer_phone: string | null
           description: string
+          designer_id: string | null
           id: string
           notes: string | null
+          print_operator_id: string | null
           processed_at: string | null
           processed_by: string | null
           status: string
@@ -1110,8 +1112,10 @@ export type Database = {
           customer_name: string
           customer_phone?: string | null
           description: string
+          designer_id?: string | null
           id?: string
           notes?: string | null
+          print_operator_id?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: string
@@ -1125,14 +1129,31 @@ export type Database = {
           customer_name?: string
           customer_phone?: string | null
           description?: string
+          designer_id?: string | null
           id?: string
           notes?: string | null
+          print_operator_id?: string | null
           processed_at?: string | null
           processed_by?: string | null
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_requests_designer_id_fkey"
+            columns: ["designer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_order_requests_print_operator_id_fkey"
+            columns: ["print_operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tax_settings: {
         Row: {
