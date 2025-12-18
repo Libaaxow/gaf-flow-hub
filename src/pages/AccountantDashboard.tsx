@@ -2458,7 +2458,7 @@ const AccountantDashboard = () => {
                                   <SelectTrigger className="w-[120px]" onClick={(e) => e.stopPropagation()}>
                                     <SelectValue />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent className="max-h-[200px] overflow-y-auto">
                                     <SelectItem value="pending">Pending</SelectItem>
                                     <SelectItem value="processed">Processed</SelectItem>
                                     <SelectItem value="in_design">In Design</SelectItem>
@@ -2545,7 +2545,7 @@ const AccountantDashboard = () => {
                           <SelectTrigger className="mt-1">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-h-[200px] overflow-y-auto">
                             <SelectItem value="pending">Pending</SelectItem>
                             <SelectItem value="processed">Processed</SelectItem>
                             <SelectItem value="in_design">In Design</SelectItem>
@@ -2568,7 +2568,7 @@ const AccountantDashboard = () => {
                             <SelectTrigger className="mt-1">
                               <SelectValue placeholder="Select designer..." />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="max-h-[200px] overflow-y-auto">
                               {designers.map((designer) => (
                                 <SelectItem key={designer.user_id} value={designer.user_id}>
                                   {designer.profiles?.full_name || 'Unknown Designer'}
