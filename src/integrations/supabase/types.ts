@@ -1086,6 +1086,51 @@ export type Database = {
           },
         ]
       }
+      request_files: {
+        Row: {
+          created_at: string | null
+          file_name: string
+          file_path: string
+          file_type: string | null
+          id: string
+          request_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          file_name: string
+          file_path: string
+          file_type?: string | null
+          id?: string
+          request_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          file_name?: string
+          file_path?: string
+          file_type?: string | null
+          id?: string
+          request_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "request_files_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "sales_order_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "request_files_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_requests: {
         Row: {
           company_name: string | null
