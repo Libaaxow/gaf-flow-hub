@@ -315,12 +315,44 @@ const AccountantDashboard = () => {
     setSalesRequests(data || []);
   };
 
-  const handleProcessSalesRequest = async (requestId: string) => {
+  const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string) => {
+    const updateData: any = { 
+      status: newStatus,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (newStatus === 'processed' || newStatus === 'in_design' || newStatus === 'in_print' || newStatus === 'printed' || newStatus === 'collected') {
+      updateData.processed_at = new Date().toISOString();
+    }
+
+    const { error } = await supabase
+      .from('sales_order_requests')
+      .update(updateData)
+      .eq('id', requestId);
+
+    if (error) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Success',
+      description: `Request status updated to ${newStatus.replace('_', ' ')}`,
+    });
+    fetchSalesRequests();
+  };
+
+  const handleAssignDesignerToRequest = async (requestId: string, designerId: string) => {
     const { error } = await supabase
       .from('sales_order_requests')
       .update({ 
-        status: 'processed',
-        processed_at: new Date().toISOString()
+        designer_id: designerId,
+        status: 'in_design',
+        updated_at: new Date().toISOString()
       })
       .eq('id', requestId);
 
@@ -335,9 +367,29 @@ const AccountantDashboard = () => {
 
     toast({
       title: 'Success',
-      description: 'Request marked as processed',
+      description: 'Designer assigned and status updated to In Design',
     });
     fetchSalesRequests();
+    setViewSalesRequest(null);
+  };
+
+  const getSalesRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge className="bg-warning text-warning-foreground">Pending</Badge>;
+      case 'processed':
+        return <Badge className="bg-blue-500 text-white">Processed</Badge>;
+      case 'in_design':
+        return <Badge className="bg-purple-500 text-white">In Design</Badge>;
+      case 'in_print':
+        return <Badge className="bg-orange-500 text-white">In Print</Badge>;
+      case 'printed':
+        return <Badge className="bg-teal-500 text-white">Printed</Badge>;
+      case 'collected':
+        return <Badge className="bg-success text-success-foreground">Collected</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
   };
 
   const fetchProducts = async () => {
@@ -2383,9 +2435,7 @@ const AccountantDashboard = () => {
                               <p className="truncate text-muted-foreground">{request.notes || '-'}</p>
                             </TableCell>
                             <TableCell>
-                              <Badge variant={request.status === 'pending' ? 'secondary' : 'default'}>
-                                {request.status}
-                              </Badge>
+                              {getSalesRequestStatusBadge(request.status)}
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -2399,19 +2449,24 @@ const AccountantDashboard = () => {
                                 >
                                   <Eye className="h-4 w-4" />
                                 </Button>
-                                {request.status === 'pending' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleProcessSalesRequest(request.id);
-                                    }}
-                                  >
-                                    <CheckCircle className="mr-2 h-4 w-4" />
-                                    Mark Processed
-                                  </Button>
-                                )}
+                                <Select
+                                  value={request.status}
+                                  onValueChange={(value) => {
+                                    handleUpdateSalesRequestStatus(request.id, value);
+                                  }}
+                                >
+                                  <SelectTrigger className="w-[120px]" onClick={(e) => e.stopPropagation()}>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="pending">Pending</SelectItem>
+                                    <SelectItem value="processed">Processed</SelectItem>
+                                    <SelectItem value="in_design">In Design</SelectItem>
+                                    <SelectItem value="in_print">In Print</SelectItem>
+                                    <SelectItem value="printed">Printed</SelectItem>
+                                    <SelectItem value="collected">Collected</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2436,9 +2491,7 @@ const AccountantDashboard = () => {
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <span className="text-sm text-muted-foreground">Status</span>
-                      <Badge variant={viewSalesRequest.status === 'pending' ? 'secondary' : 'default'}>
-                        {viewSalesRequest.status}
-                      </Badge>
+                      {getSalesRequestStatusBadge(viewSalesRequest.status)}
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -2477,20 +2530,58 @@ const AccountantDashboard = () => {
                         </p>
                       </div>
                     )}
-                    {viewSalesRequest.status === 'pending' && (
-                      <div className="pt-4 border-t">
-                        <Button 
-                          onClick={() => {
-                            handleProcessSalesRequest(viewSalesRequest.id);
-                            setViewSalesRequest(null);
+                    
+                    {/* Status Change */}
+                    <div className="pt-4 border-t space-y-3">
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Change Status</Label>
+                        <Select
+                          value={viewSalesRequest.status}
+                          onValueChange={(value) => {
+                            handleUpdateSalesRequestStatus(viewSalesRequest.id, value);
+                            setViewSalesRequest({ ...viewSalesRequest, status: value });
                           }}
-                          className="w-full"
                         >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Mark as Processed
-                        </Button>
+                          <SelectTrigger className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Pending</SelectItem>
+                            <SelectItem value="processed">Processed</SelectItem>
+                            <SelectItem value="in_design">In Design</SelectItem>
+                            <SelectItem value="in_print">In Print</SelectItem>
+                            <SelectItem value="printed">Printed</SelectItem>
+                            <SelectItem value="collected">Collected</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                    )}
+                      
+                      {/* Designer Assignment */}
+                      {(viewSalesRequest.status === 'processed' || viewSalesRequest.status === 'pending') && (
+                        <div>
+                          <Label className="text-muted-foreground text-xs">Assign Designer</Label>
+                          <Select
+                            onValueChange={(designerId) => {
+                              handleAssignDesignerToRequest(viewSalesRequest.id, designerId);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue placeholder="Select designer..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {designers.map((designer) => (
+                                <SelectItem key={designer.user_id} value={designer.user_id}>
+                                  {designer.profiles?.full_name || 'Unknown Designer'}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Assigning a designer will automatically change status to "In Design"
+                          </p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </DialogContent>
