@@ -135,6 +135,7 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
+  const [viewSalesRequest, setViewSalesRequest] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -2346,7 +2347,11 @@ const AccountantDashboard = () => {
                         </TableRow>
                       ) : (
                         salesRequests.map((request) => (
-                          <TableRow key={request.id}>
+                          <TableRow 
+                            key={request.id} 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => setViewSalesRequest(request)}
+                          >
                             <TableCell className="whitespace-nowrap">
                               {format(new Date(request.created_at), 'PP')}
                             </TableCell>
@@ -2374,16 +2379,31 @@ const AccountantDashboard = () => {
                               </Badge>
                             </TableCell>
                             <TableCell>
-                              {request.status === 'pending' && (
+                              <div className="flex items-center gap-2">
                                 <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleProcessSalesRequest(request.id)}
+                                  size="icon"
+                                  variant="ghost"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setViewSalesRequest(request);
+                                  }}
                                 >
-                                  <CheckCircle className="mr-2 h-4 w-4" />
-                                  Mark Processed
+                                  <Eye className="h-4 w-4" />
                                 </Button>
-                              )}
+                                {request.status === 'pending' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleProcessSalesRequest(request.id);
+                                    }}
+                                  >
+                                    <CheckCircle className="mr-2 h-4 w-4" />
+                                    Mark Processed
+                                  </Button>
+                                )}
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -2393,6 +2413,79 @@ const AccountantDashboard = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {/* View Sales Request Dialog */}
+            <Dialog open={!!viewSalesRequest} onOpenChange={(open) => !open && setViewSalesRequest(null)}>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>Sales Request Details</DialogTitle>
+                  <DialogDescription>
+                    Submitted on {viewSalesRequest && format(new Date(viewSalesRequest.created_at), 'PPP p')}
+                  </DialogDescription>
+                </DialogHeader>
+                {viewSalesRequest && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-muted-foreground">Status</span>
+                      <Badge variant={viewSalesRequest.status === 'pending' ? 'secondary' : 'default'}>
+                        {viewSalesRequest.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Customer Name</Label>
+                        <p className="font-medium">{viewSalesRequest.customer_name}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Company</Label>
+                        <p className="font-medium">{viewSalesRequest.company_name || '-'}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Phone</Label>
+                        <p className="font-medium">{viewSalesRequest.customer_phone || '-'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Email</Label>
+                        <p className="font-medium">{viewSalesRequest.customer_email || '-'}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground text-xs">Order Description</Label>
+                      <p className="font-medium whitespace-pre-wrap">{viewSalesRequest.description}</p>
+                    </div>
+                    {viewSalesRequest.notes && (
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Additional Notes</Label>
+                        <p className="font-medium whitespace-pre-wrap">{viewSalesRequest.notes}</p>
+                      </div>
+                    )}
+                    {viewSalesRequest.processed_at && (
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground">
+                          Processed on {format(new Date(viewSalesRequest.processed_at), 'PPP p')}
+                        </p>
+                      </div>
+                    )}
+                    {viewSalesRequest.status === 'pending' && (
+                      <div className="pt-4 border-t">
+                        <Button 
+                          onClick={() => {
+                            handleProcessSalesRequest(viewSalesRequest.id);
+                            setViewSalesRequest(null);
+                          }}
+                          className="w-full"
+                        >
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Mark as Processed
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </DialogContent>
+            </Dialog>
           </TabsContent>
 
           {/* Workflow Tab */}
