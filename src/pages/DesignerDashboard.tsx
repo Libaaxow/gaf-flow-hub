@@ -221,7 +221,7 @@ const DesignerDashboard = () => {
         const totalJobs = requestsWithCreator.length;
         const completed = requestsWithCreator.filter(r => r.status === 'printed' || r.status === 'collected').length;
         const inProgress = requestsWithCreator.filter(r => r.status === 'in_design').length;
-        const awaitingApproval = requestsWithCreator.filter(r => r.status === 'in_print').length;
+        const awaitingApproval = requestsWithCreator.filter(r => r.status === 'design_submitted' || r.status === 'in_print').length;
 
         setStats({ 
           totalJobs, 
@@ -258,7 +258,7 @@ const DesignerDashboard = () => {
 
       const { error } = await supabase
         .from('sales_order_requests')
-        .update({ status: 'in_print' })
+        .update({ status: 'design_submitted' })
         .eq('id', requestId)
         .eq('designer_id', user?.id);
 
@@ -266,7 +266,7 @@ const DesignerDashboard = () => {
 
       toast({
         title: 'Design Submitted',
-        description: 'Your design has been submitted and is ready for review.',
+        description: 'Your design has been submitted to the accountant for review.',
       });
 
       setSelectedRequest(null);
@@ -385,6 +385,7 @@ const DesignerDashboard = () => {
       pending: { label: 'Pending', variant: 'outline' },
       processed: { label: 'Processed', variant: 'secondary' },
       in_design: { label: 'In Design', variant: 'default' },
+      design_submitted: { label: 'Submitted', variant: 'secondary' },
       in_print: { label: 'In Print', variant: 'default' },
       printed: { label: 'Printed', variant: 'secondary' },
       collected: { label: 'Collected', variant: 'secondary' },
@@ -397,7 +398,7 @@ const DesignerDashboard = () => {
   const filteredRequests = requests.filter(request => {
     if (filter === 'all') return true;
     if (filter === 'in-progress') return request.status === 'in_design';
-    if (filter === 'ready') return request.status === 'in_print';
+    if (filter === 'ready') return request.status === 'design_submitted' || request.status === 'in_print';
     if (filter === 'completed') return request.status === 'printed' || request.status === 'collected';
     return true;
   });
