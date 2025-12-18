@@ -176,9 +176,10 @@ const CustomerAnalytics = () => {
   const orderRevenue = filteredOrders.reduce((sum, order) => sum + (order.order_value || 0), 0);
   const orderPaid = filteredOrders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
   
-  // Invoice-based metrics
-  const invoiceTotal = filteredInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const invoicePaid = filteredInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+  // Invoice-based metrics - exclude draft invoices for accurate outstanding calculation
+  const confirmedInvoices = filteredInvoices.filter(inv => inv.status !== 'draft');
+  const invoiceTotal = confirmedInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const invoicePaid = confirmedInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   
   // Use whichever source has data (prefer invoices as they're more accurate for financial tracking)
   const totalRevenue = invoiceTotal > 0 ? invoiceTotal : orderRevenue;
@@ -186,14 +187,16 @@ const CustomerAnalytics = () => {
   const totalOutstanding = totalRevenue - totalPaid;
   
   const totalOrders = filteredOrders.length;
-  const totalInvoiceCount = filteredInvoices.length;
+  const totalInvoiceCount = confirmedInvoices.length;
   const averageValue = totalInvoiceCount > 0 
     ? invoiceTotal / totalInvoiceCount 
     : (totalOrders > 0 ? orderRevenue / totalOrders : 0);
   
   // Calculate loyalty score (0-100) - using all-time data for consistency
-  const allTimeInvoiceTotal = invoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
-  const allTimeInvoicePaid = invoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
+  // Exclude draft invoices from loyalty calculations
+  const confirmedAllTimeInvoices = invoices.filter(inv => inv.status !== 'draft');
+  const allTimeInvoiceTotal = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.total_amount || 0), 0);
+  const allTimeInvoicePaid = confirmedAllTimeInvoices.reduce((sum, inv) => sum + (inv.amount_paid || 0), 0);
   const allTimeOrderRevenue = orders.reduce((sum, order) => sum + (order.order_value || 0), 0);
   const allTimeOrderPaid = orders.reduce((sum, order) => sum + (order.amount_paid || 0), 0);
   

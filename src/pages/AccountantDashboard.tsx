@@ -319,10 +319,10 @@ const AccountantDashboard = () => {
         .from('orders')
         .select('order_value, amount_paid');
 
-      // Get all invoices for revenue calculation
+      // Get all invoices for revenue calculation (excluding drafts for accurate debt tracking)
       const { data: allInvoices } = await supabase
         .from('invoices')
-        .select('total_amount, amount_paid, order_id');
+        .select('total_amount, amount_paid, order_id, is_draft, status');
 
       // Get all commissions
       const { data: allCommissions } = await supabase
@@ -335,11 +335,16 @@ const AccountantDashboard = () => {
         .select('amount, approval_status')
         .eq('approval_status', 'approved');
 
-      // Calculate revenue from ALL invoices (including those linked to orders)
-      // This ensures Outstanding Balance matches the sum of all customer debts
+      // Calculate revenue from ALL invoices for total revenue
       const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
       const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
-      const outstandingAmount = totalRevenue - collectedAmount;
+      
+      // Outstanding Balance should only count non-draft invoices (actual customer debt)
+      const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft && inv.status !== 'draft') || [];
+      const confirmedRevenue = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+      const confirmedCollected = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
+      const outstandingAmount = confirmedRevenue - confirmedCollected;
+      
       const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
       const profit = collectedAmount - totalExpenses;
       const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
