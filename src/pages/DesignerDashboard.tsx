@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon, DollarSign, Download, Trash2, X } from 'lucide-react';
+import { FileText, Clock, CheckCircle, AlertCircle, Eye, Calendar as CalendarIcon, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -15,17 +15,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, sanitizeStorageFilename } from '@/lib/utils';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
+import { JobDetailsDialog } from '@/components/JobDetailsDialog';
 
 interface SalesRequest {
   id: string;
@@ -713,146 +703,19 @@ const DesignerDashboard = () => {
         </Tabs>
 
         {/* Request Details Dialog */}
-        <Dialog open={!!selectedRequest} onOpenChange={(open) => !open && setSelectedRequest(null)}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Job Details</DialogTitle>
-              <DialogDescription>
-                View job information and upload design files
-              </DialogDescription>
-            </DialogHeader>
-
-            {selectedRequest && (
-              <div className="space-y-6">
-                {/* Customer Information */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">Customer Information</h3>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <Label className="text-muted-foreground">Name</Label>
-                      <p className="font-medium">{selectedRequest.customer_name}</p>
-                    </div>
-                    {selectedRequest.company_name && (
-                      <div>
-                        <Label className="text-muted-foreground">Company</Label>
-                        <p className="font-medium">{selectedRequest.company_name}</p>
-                      </div>
-                    )}
-                    {selectedRequest.customer_phone && (
-                      <div>
-                        <Label className="text-muted-foreground">Phone</Label>
-                        <p className="font-medium">{selectedRequest.customer_phone}</p>
-                      </div>
-                    )}
-                    {selectedRequest.customer_email && (
-                      <div>
-                        <Label className="text-muted-foreground">Email</Label>
-                        <p className="font-medium">{selectedRequest.customer_email}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Job Details */}
-                <div className="space-y-3">
-                  <h3 className="font-semibold text-lg">Job Details</h3>
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-muted-foreground">Description</Label>
-                      <p className="font-medium whitespace-pre-wrap">{selectedRequest.description}</p>
-                    </div>
-                    {selectedRequest.notes && (
-                      <div>
-                        <Label className="text-muted-foreground">Notes</Label>
-                        <p className="font-medium whitespace-pre-wrap">{selectedRequest.notes}</p>
-                      </div>
-                    )}
-                    <div className="flex gap-4">
-                      <div>
-                        <Label className="text-muted-foreground">Status</Label>
-                        <div className="mt-1">{getStatusBadge(selectedRequest.status)}</div>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground">Created</Label>
-                        <p className="font-medium">{format(new Date(selectedRequest.created_at), 'PPP')}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Design Files */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-lg">Design Files</h3>
-                    {selectedRequest.status === 'in_design' && (
-                      <div>
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileUpload}
-                          multiple
-                          className="hidden"
-                        />
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={uploading}
-                        >
-                          <Upload className="h-4 w-4 mr-2" />
-                          {uploading ? 'Uploading...' : 'Upload Files'}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-
-                  {requestFiles.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No files uploaded yet.</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {requestFiles.map((file) => (
-                        <div
-                          key={file.id}
-                          className="flex items-center justify-between p-3 border rounded-lg"
-                        >
-                          <div className="flex items-center gap-3">
-                            <FileText className="h-5 w-5 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium text-sm">{file.file_name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {format(new Date(file.created_at), 'PPp')}
-                              </p>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadFile(file.file_path, file.file_name)}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Submit Button */}
-                {selectedRequest.status === 'in_design' && (
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setSelectedRequest(null)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={() => handleSubmitDesign(selectedRequest.id)}>
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      Submit Design
-                    </Button>
-                  </DialogFooter>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <JobDetailsDialog
+          open={!!selectedRequest}
+          onOpenChange={(open) => !open && setSelectedRequest(null)}
+          request={selectedRequest}
+          files={requestFiles}
+          onDownloadFile={handleDownloadFile}
+          onUploadFile={handleFileUpload}
+          onSubmitDesign={() => selectedRequest && handleSubmitDesign(selectedRequest.id)}
+          showUpload={selectedRequest?.status === 'in_design'}
+          showSubmit={selectedRequest?.status === 'in_design'}
+          uploading={uploading}
+          variant="designer"
+        />
       </div>
     </Layout>
   );
