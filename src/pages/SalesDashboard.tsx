@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { JobDetailsDialog } from '@/components/JobDetailsDialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -497,61 +498,12 @@ const SalesDashboard = () => {
         </Card>
 
         {/* View Request Dialog */}
-        <Dialog open={!!viewRequest} onOpenChange={(open) => !open && setViewRequest(null)}>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Order Request Details</DialogTitle>
-              <DialogDescription>
-                Submitted on {viewRequest && format(new Date(viewRequest.created_at), 'PPP p')}
-              </DialogDescription>
-            </DialogHeader>
-            {viewRequest && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(viewRequest.status)}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Customer Name</Label>
-                    <p className="font-medium">{viewRequest.customer_name}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Company</Label>
-                    <p className="font-medium">{viewRequest.company_name || '-'}</p>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Phone</Label>
-                    <p className="font-medium">{viewRequest.customer_phone || '-'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Email</Label>
-                    <p className="font-medium">{viewRequest.customer_email || '-'}</p>
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-xs">Order Description</Label>
-                  <p className="font-medium whitespace-pre-wrap">{viewRequest.description}</p>
-                </div>
-                {viewRequest.notes && (
-                  <div>
-                    <Label className="text-muted-foreground text-xs">Additional Notes</Label>
-                    <p className="font-medium whitespace-pre-wrap">{viewRequest.notes}</p>
-                  </div>
-                )}
-                {viewRequest.processed_at && (
-                  <div className="pt-2 border-t">
-                    <p className="text-xs text-muted-foreground">
-                      Processed on {format(new Date(viewRequest.processed_at), 'PPP p')}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        <JobDetailsDialog
+          open={!!viewRequest}
+          onOpenChange={(open) => !open && setViewRequest(null)}
+          request={viewRequest}
+          variant="sales"
+        />
       </div>
     </Layout>
   );

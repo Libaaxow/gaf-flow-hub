@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
+import { JobDetailsDialog } from '@/components/JobDetailsDialog';
 import { 
   DollarSign, 
   TrendingUp, 
