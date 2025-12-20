@@ -444,11 +444,17 @@ const PrintOperatorDashboard = () => {
         </div>
 
         <Tabs defaultValue="sales-requests" className="w-full">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="sales-requests">
               Sales Requests
               {stats.salesRequestsInPrint > 0 && (
                 <Badge className="ml-2 bg-primary text-primary-foreground">{stats.salesRequestsInPrint}</Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="printed-history">
+              Printed History
+              {stats.salesRequestsPrinted > 0 && (
+                <Badge className="ml-2 bg-teal-500 text-white">{stats.salesRequestsPrinted}</Badge>
               )}
             </TabsTrigger>
             <TabsTrigger value="jobs">Print Jobs</TabsTrigger>
@@ -520,6 +526,76 @@ const PrintOperatorDashboard = () => {
                                 Mark Printed
                               </Button>
                             </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="printed-history" className="mt-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="h-5 w-5 text-teal-500" />
+                  Printed Jobs History
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="overflow-x-auto custom-scrollbar">
+                {salesRequests.filter(r => r.status === 'printed').length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">No printed jobs yet</h3>
+                    <p className="text-muted-foreground">
+                      Jobs you mark as printed will appear here
+                    </p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="min-w-[150px]">Customer</TableHead>
+                        <TableHead className="min-w-[150px]">Company</TableHead>
+                        <TableHead className="min-w-[200px]">Description</TableHead>
+                        <TableHead className="min-w-[150px]">Designer</TableHead>
+                        <TableHead className="min-w-[80px]">Files</TableHead>
+                        <TableHead className="min-w-[130px]">Date</TableHead>
+                        <TableHead className="min-w-[120px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {salesRequests.filter(r => r.status === 'printed').map((request) => (
+                        <TableRow key={request.id}>
+                          <TableCell className="font-medium">{request.customer_name}</TableCell>
+                          <TableCell>{request.company_name || 'N/A'}</TableCell>
+                          <TableCell className="max-w-[200px] truncate">{request.description}</TableCell>
+                          <TableCell>{request.designer?.full_name || 'N/A'}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <Paperclip className="h-4 w-4 text-muted-foreground" />
+                              <span className={request.files.length > 0 ? 'font-medium' : ''}>
+                                {request.files.length}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(request.created_at), 'PP')}
+                          </TableCell>
+                          <TableCell>
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setFilesDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              View Files
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
