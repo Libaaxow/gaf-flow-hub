@@ -2586,325 +2586,426 @@ const AccountantDashboard = () => {
                 setRequestFiles([]);
               }
             }}>
-              <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Sales Request Details</DialogTitle>
-                  <DialogDescription>
-                    Submitted on {viewSalesRequest && format(new Date(viewSalesRequest.created_at), 'PPP p')}
-                  </DialogDescription>
+              <DialogContent className="sm:max-w-[700px] max-h-[90vh] p-0 gap-0 overflow-hidden bg-gradient-to-br from-background via-background to-muted/30">
+                {/* Decorative Header Background */}
+                <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent pointer-events-none" />
+                
+                <DialogHeader className="relative px-6 pt-6 pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <DialogTitle className="text-2xl font-bold tracking-tight">
+                        Sales Request Details
+                      </DialogTitle>
+                      <DialogDescription className="text-sm">
+                        {viewSalesRequest && `ID: #${viewSalesRequest.id.slice(0, 8)} • ${format(new Date(viewSalesRequest.created_at), 'PPP p')}`}
+                      </DialogDescription>
+                    </div>
+                    {viewSalesRequest && getSalesRequestStatusBadge(viewSalesRequest.status)}
+                  </div>
                 </DialogHeader>
-                {viewSalesRequest && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">Status</span>
-                      {getSalesRequestStatusBadge(viewSalesRequest.status)}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Customer Name</Label>
-                        <p className="font-medium">{viewSalesRequest.customer_name}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Company</Label>
-                        <p className="font-medium">{viewSalesRequest.company_name || '-'}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Phone</Label>
-                        <p className="font-medium">{viewSalesRequest.customer_phone || '-'}</p>
-                      </div>
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Email</Label>
-                        <p className="font-medium">{viewSalesRequest.customer_email || '-'}</p>
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="text-muted-foreground text-xs">Order Description</Label>
-                      <p className="font-medium whitespace-pre-wrap">{viewSalesRequest.description}</p>
-                    </div>
-                    {viewSalesRequest.notes && (
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Additional Notes</Label>
-                        <p className="font-medium whitespace-pre-wrap">{viewSalesRequest.notes}</p>
-                      </div>
-                    )}
-                    {viewSalesRequest.processed_at && (
-                      <div className="pt-2 border-t">
-                        <p className="text-xs text-muted-foreground">
-                          Processed on {format(new Date(viewSalesRequest.processed_at), 'PPP p')}
-                        </p>
-                      </div>
-                    )}
 
-                    {/* Design Files Section - Show for design_submitted status */}
-                    {(viewSalesRequest.status === 'design_submitted' || viewSalesRequest.status === 'in_print' || viewSalesRequest.status === 'printed' || viewSalesRequest.status === 'collected') && (
-                      <div className="pt-4 border-t space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="text-muted-foreground text-xs">Design Files</Label>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => fetchRequestFiles(viewSalesRequest.id)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Load Files
-                          </Button>
-                        </div>
-                        {requestFiles.length > 0 ? (
-                          <div className="space-y-2">
-                            {requestFiles.map((file) => (
-                              <div
-                                key={file.id}
-                                className="flex items-center justify-between p-2 bg-muted rounded-lg"
-                              >
-                                <div className="flex items-center gap-2">
-                                  <FileText className="h-4 w-4 text-muted-foreground" />
-                                  <span className="text-sm truncate max-w-[200px]">{file.file_name}</span>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleDownloadRequestFile(file.file_path, file.file_name)}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
+                <ScrollArea className="max-h-[calc(90vh-120px)]">
+                  {viewSalesRequest && (
+                    <div className="px-6 pb-6 space-y-6">
+                      {/* Customer Section */}
+                      <div className="relative">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Users className="h-4 w-4 text-primary" />
                           </div>
-                        ) : (
-                          <p className="text-sm text-muted-foreground">Click "Load Files" to view uploaded designs</p>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Invoice Linking Section - Show for design_submitted status */}
-                    {viewSalesRequest.status === 'design_submitted' && (
-                      <div className="pt-4 border-t space-y-3">
-                        <Label className="text-sm font-medium">Invoice & Payment</Label>
+                          <h3 className="font-semibold text-lg">Customer Information</h3>
+                        </div>
                         
-                        {viewSalesRequest.linked_invoice_id ? (
-                          <div className="space-y-3">
-                            {/* Show linked invoice info */}
-                            {(() => {
-                              const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
-                              if (!linkedInvoice) return <p className="text-sm text-muted-foreground">Invoice linked but details not found</p>;
-                              
-                              const balance = linkedInvoice.total_amount - linkedInvoice.amount_paid;
-                              return (
-                                <div className="bg-muted p-3 rounded-lg space-y-2">
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Invoice:</span>
-                                    <span className="font-medium">{linkedInvoice.invoice_number}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Customer:</span>
-                                    <span className="font-medium">{linkedInvoice.customer?.name}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Total:</span>
-                                    <span className="font-medium">${linkedInvoice.total_amount.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Paid:</span>
-                                    <span className="font-medium">${linkedInvoice.amount_paid.toFixed(2)}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Balance:</span>
-                                    <span className={`font-medium ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
-                                      ${balance.toFixed(2)}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                            
-                            {/* Payment Status */}
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="group rounded-xl border bg-card/50 p-4 transition-all hover:bg-card hover:shadow-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <Users className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium uppercase tracking-wider">Name</span>
+                            </div>
+                            <p className="font-semibold text-foreground">{viewSalesRequest.customer_name}</p>
+                          </div>
+
+                          <div className="group rounded-xl border bg-card/50 p-4 transition-all hover:bg-card hover:shadow-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                              <FileText className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium uppercase tracking-wider">Company</span>
+                            </div>
+                            <p className="font-semibold text-foreground">{viewSalesRequest.company_name || '—'}</p>
+                          </div>
+
+                          {viewSalesRequest.customer_phone && (
+                            <div className="group rounded-xl border bg-card/50 p-4 transition-all hover:bg-card hover:shadow-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Phone</span>
+                              </div>
+                              <p className="font-semibold text-foreground">{viewSalesRequest.customer_phone}</p>
+                            </div>
+                          )}
+
+                          {viewSalesRequest.customer_email && (
+                            <div className="group rounded-xl border bg-card/50 p-4 transition-all hover:bg-card hover:shadow-sm">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Email</span>
+                              </div>
+                              <p className="font-semibold text-foreground truncate">{viewSalesRequest.customer_email}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Job Details Section */}
+                      <div className="pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="h-8 w-8 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                            <FileText className="h-4 w-4 text-violet-500" />
+                          </div>
+                          <h3 className="font-semibold text-lg">Job Details</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="rounded-xl border bg-card/50 p-4">
+                            <div className="flex items-center gap-2 text-muted-foreground mb-2">
+                              <FileText className="h-3.5 w-3.5" />
+                              <span className="text-xs font-medium uppercase tracking-wider">Description</span>
+                            </div>
+                            <p className="text-foreground leading-relaxed whitespace-pre-wrap">{viewSalesRequest.description}</p>
+                          </div>
+
+                          {viewSalesRequest.notes && (
+                            <div className="rounded-xl border bg-amber-500/5 border-amber-500/20 p-4">
+                              <div className="flex items-center gap-2 text-amber-600 mb-2">
+                                <AlertCircle className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Notes</span>
+                              </div>
+                              <p className="text-foreground leading-relaxed whitespace-pre-wrap">{viewSalesRequest.notes}</p>
+                            </div>
+                          )}
+
+                          {viewSalesRequest.processed_at && (
+                            <div className="rounded-xl border bg-card/50 p-4">
+                              <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                <span className="text-xs font-medium uppercase tracking-wider">Processed</span>
+                              </div>
+                              <p className="font-semibold text-foreground">
+                                {format(new Date(viewSalesRequest.processed_at), 'PPP p')}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Design Files Section - Show for design_submitted status */}
+                      {(viewSalesRequest.status === 'design_submitted' || viewSalesRequest.status === 'in_print' || viewSalesRequest.status === 'printed' || viewSalesRequest.status === 'collected') && (
+                        <div className="pt-4 border-t border-border/50">
+                          <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
-                              <span className="text-sm text-muted-foreground">Payment Status:</span>
-                              {viewSalesRequest.payment_status === 'paid' && (
-                                <Badge className="bg-success text-success-foreground">Paid</Badge>
-                              )}
-                              {viewSalesRequest.payment_status === 'debt' && (
-                                <Badge className="bg-destructive text-destructive-foreground">Outstanding Debt</Badge>
-                              )}
-                              {viewSalesRequest.payment_status === 'pending' && (
-                                <Badge variant="secondary">Pending Payment</Badge>
+                              <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                <FileText className="h-4 w-4 text-emerald-500" />
+                              </div>
+                              <h3 className="font-semibold text-lg">Design Files</h3>
+                              {requestFiles.length > 0 && (
+                                <Badge variant="secondary" className="ml-2">{requestFiles.length}</Badge>
                               )}
                             </div>
-
-                            {/* Payment/Debt Actions */}
-                            {viewSalesRequest.payment_status === 'pending' && (
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
-                                    if (linkedInvoice) {
-                                      setSelectedInvoiceForPayment(linkedInvoice);
-                                      setInvoicePaymentDialogOpen(true);
-                                    }
-                                  }}
-                                >
-                                  Record Payment
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={async () => {
-                                    const { error } = await supabase
-                                      .from('sales_order_requests')
-                                      .update({ payment_status: 'debt' })
-                                      .eq('id', viewSalesRequest.id);
-                                    if (!error) {
-                                      toast({ title: 'Marked as outstanding debt' });
-                                      setViewSalesRequest({ ...viewSalesRequest, payment_status: 'debt' });
-                                      fetchSalesRequests();
-                                    }
-                                  }}
-                                >
-                                  Mark as Debt
-                                </Button>
-                              </div>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => fetchRequestFiles(viewSalesRequest.id)}
+                              className="gap-2"
+                            >
+                              <Eye className="h-4 w-4" />
+                              Load Files
+                            </Button>
                           </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <p className="text-sm text-muted-foreground">
-                              Link an invoice for customer: <strong>{viewSalesRequest.customer_name}</strong>
-                            </p>
+                          {requestFiles.length > 0 ? (
+                            <div className="space-y-2">
+                              {requestFiles.map((file) => (
+                                <div
+                                  key={file.id}
+                                  className="group flex items-center justify-between rounded-xl border bg-card/50 p-4 transition-all hover:bg-card hover:shadow-sm"
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                                      <FileText className="h-5 w-5 text-primary" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-medium text-sm truncate">{file.file_name}</p>
+                                      <p className="text-xs text-muted-foreground">
+                                        {format(new Date(file.created_at), 'MMM d, yyyy • h:mm a')}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleDownloadRequestFile(file.file_path, file.file_name)}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border-2 border-dashed bg-muted/30 p-8 text-center">
+                              <FileText className="mx-auto h-10 w-10 text-muted-foreground/50" />
+                              <p className="mt-2 text-sm text-muted-foreground">Click "Load Files" to view uploaded designs</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Invoice Linking Section - Show for design_submitted status */}
+                      {viewSalesRequest.status === 'design_submitted' && (
+                        <div className="pt-4 border-t border-border/50">
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                              <DollarSign className="h-4 w-4 text-blue-500" />
+                            </div>
+                            <h3 className="font-semibold text-lg">Invoice & Payment</h3>
+                          </div>
+                          
+                          {viewSalesRequest.linked_invoice_id ? (
+                            <div className="space-y-4">
+                              {/* Show linked invoice info */}
+                              {(() => {
+                                const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
+                                if (!linkedInvoice) return <p className="text-sm text-muted-foreground">Invoice linked but details not found</p>;
+                                
+                                const balance = linkedInvoice.total_amount - linkedInvoice.amount_paid;
+                                return (
+                                  <div className="rounded-xl border bg-gradient-to-br from-blue-500/5 to-transparent p-4 space-y-3">
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">Invoice:</span>
+                                      <span className="font-semibold">{linkedInvoice.invoice_number}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">Customer:</span>
+                                      <span className="font-medium">{linkedInvoice.customer?.name}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">Total:</span>
+                                      <span className="font-medium">${linkedInvoice.total_amount.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                      <span className="text-muted-foreground">Paid:</span>
+                                      <span className="font-medium text-emerald-600">${linkedInvoice.amount_paid.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm pt-2 border-t border-border/50">
+                                      <span className="text-muted-foreground font-medium">Balance:</span>
+                                      <span className={`font-bold ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
+                                        ${balance.toFixed(2)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                              
+                              {/* Payment Status */}
+                              <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50">
+                                <span className="text-sm text-muted-foreground">Payment Status:</span>
+                                {viewSalesRequest.payment_status === 'paid' && (
+                                  <Badge className="bg-success text-success-foreground">Paid</Badge>
+                                )}
+                                {viewSalesRequest.payment_status === 'debt' && (
+                                  <Badge className="bg-destructive text-destructive-foreground">Outstanding Debt</Badge>
+                                )}
+                                {viewSalesRequest.payment_status === 'pending' && (
+                                  <Badge variant="secondary">Pending Payment</Badge>
+                                )}
+                              </div>
+
+                              {/* Payment/Debt Actions */}
+                              {viewSalesRequest.payment_status === 'pending' && (
+                                <div className="flex gap-3">
+                                  <Button
+                                    size="sm"
+                                    className="gap-2"
+                                    onClick={() => {
+                                      const linkedInvoice = invoices.find(inv => inv.id === viewSalesRequest.linked_invoice_id);
+                                      if (linkedInvoice) {
+                                        setSelectedInvoiceForPayment(linkedInvoice);
+                                        setInvoicePaymentDialogOpen(true);
+                                      }
+                                    }}
+                                  >
+                                    <DollarSign className="h-4 w-4" />
+                                    Record Payment
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      const { error } = await supabase
+                                        .from('sales_order_requests')
+                                        .update({ payment_status: 'debt' })
+                                        .eq('id', viewSalesRequest.id);
+                                      if (!error) {
+                                        toast({ title: 'Marked as outstanding debt' });
+                                        setViewSalesRequest({ ...viewSalesRequest, payment_status: 'debt' });
+                                        fetchSalesRequests();
+                                      }
+                                    }}
+                                  >
+                                    Mark as Debt
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="space-y-4">
+                              <div className="rounded-xl border bg-muted/30 p-4">
+                                <p className="text-sm text-muted-foreground">
+                                  Link an invoice for customer: <strong className="text-foreground">{viewSalesRequest.customer_name}</strong>
+                                </p>
+                              </div>
+                              <Select
+                                onValueChange={async (invoiceId) => {
+                                  const { error } = await supabase
+                                    .from('sales_order_requests')
+                                    .update({ linked_invoice_id: invoiceId })
+                                    .eq('id', viewSalesRequest.id);
+                                  if (!error) {
+                                    toast({ title: 'Invoice linked successfully' });
+                                    setViewSalesRequest({ ...viewSalesRequest, linked_invoice_id: invoiceId });
+                                    fetchSalesRequests();
+                                  } else {
+                                    toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                  }
+                                }}
+                              >
+                                <SelectTrigger className="rounded-xl">
+                                  <SelectValue placeholder="Select invoice to link..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
+                                  {invoices
+                                    .filter(inv => !inv.is_draft && inv.invoice_number !== 'PENDING')
+                                    .map((invoice) => (
+                                      <SelectItem key={invoice.id} value={invoice.id}>
+                                        {invoice.invoice_number} - {invoice.customer?.name} (${invoice.total_amount.toFixed(2)})
+                                      </SelectItem>
+                                    ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                Create an invoice first if one doesn't exist for this customer
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {/* Workflow Actions Section */}
+                      <div className="pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="h-8 w-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                            <TrendingUp className="h-4 w-4 text-orange-500" />
+                          </div>
+                          <h3 className="font-semibold text-lg">Workflow Actions</h3>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Status Change */}
+                          <div className="rounded-xl border bg-card/50 p-4">
+                            <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Change Status</Label>
                             <Select
-                              onValueChange={async (invoiceId) => {
-                                const { error } = await supabase
-                                  .from('sales_order_requests')
-                                  .update({ linked_invoice_id: invoiceId })
-                                  .eq('id', viewSalesRequest.id);
-                                if (!error) {
-                                  toast({ title: 'Invoice linked successfully' });
-                                  setViewSalesRequest({ ...viewSalesRequest, linked_invoice_id: invoiceId });
-                                  fetchSalesRequests();
-                                } else {
-                                  toast({ title: 'Error', description: error.message, variant: 'destructive' });
-                                }
+                              value={viewSalesRequest.status}
+                              onValueChange={(value) => {
+                                handleUpdateSalesRequestStatus(viewSalesRequest.id, value);
+                                setViewSalesRequest({ ...viewSalesRequest, status: value });
                               }}
                             >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select invoice to link..." />
+                              <SelectTrigger className="mt-2 rounded-xl">
+                                <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="max-h-[200px] overflow-y-auto">
-                                {invoices
-                                  .filter(inv => !inv.is_draft && inv.invoice_number !== 'PENDING')
-                                  .map((invoice) => (
-                                    <SelectItem key={invoice.id} value={invoice.id}>
-                                      {invoice.invoice_number} - {invoice.customer?.name} (${invoice.total_amount.toFixed(2)})
-                                    </SelectItem>
-                                  ))}
+                                <SelectItem value="pending">Pending</SelectItem>
+                                <SelectItem value="processed">Processed</SelectItem>
+                                <SelectItem value="in_design">In Design</SelectItem>
+                                <SelectItem value="design_submitted">Design Submitted</SelectItem>
+                                <SelectItem value="in_print">In Print</SelectItem>
+                                <SelectItem value="printed">Printed</SelectItem>
+                                <SelectItem value="collected">Collected</SelectItem>
                               </SelectContent>
                             </Select>
-                            <p className="text-xs text-muted-foreground">
-                              Create an invoice first if one doesn't exist for this customer
-                            </p>
                           </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {/* Status Change */}
-                    <div className="pt-4 border-t space-y-3">
-                      <div>
-                        <Label className="text-muted-foreground text-xs">Change Status</Label>
-                        <Select
-                          value={viewSalesRequest.status}
-                          onValueChange={(value) => {
-                            handleUpdateSalesRequestStatus(viewSalesRequest.id, value);
-                            setViewSalesRequest({ ...viewSalesRequest, status: value });
-                          }}
-                        >
-                          <SelectTrigger className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="max-h-[200px] overflow-y-auto">
-                            <SelectItem value="pending">Pending</SelectItem>
-                            <SelectItem value="processed">Processed</SelectItem>
-                            <SelectItem value="in_design">In Design</SelectItem>
-                            <SelectItem value="design_submitted">Design Submitted</SelectItem>
-                            <SelectItem value="in_print">In Print</SelectItem>
-                            <SelectItem value="printed">Printed</SelectItem>
-                            <SelectItem value="collected">Collected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      
-                      {/* Designer Assignment */}
-                      {(viewSalesRequest.status === 'processed' || viewSalesRequest.status === 'pending') && (
-                        <div>
-                          <Label className="text-muted-foreground text-xs">Assign Designer</Label>
-                          <Select
-                            onValueChange={(designerId) => {
-                              handleAssignDesignerToRequest(viewSalesRequest.id, designerId);
-                            }}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select designer..." />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px] overflow-y-auto">
-                              {designers.map((designer) => (
-                                <SelectItem key={designer.id} value={designer.id}>
-                                  {designer.full_name || 'Unknown Designer'}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Assigning a designer will automatically change status to "In Design"
-                          </p>
-                        </div>
-                      )}
+                          
+                          {/* Designer Assignment */}
+                          {(viewSalesRequest.status === 'processed' || viewSalesRequest.status === 'pending') && (
+                            <div className="rounded-xl border bg-violet-500/5 border-violet-500/20 p-4">
+                              <Label className="text-xs font-medium uppercase tracking-wider text-violet-600">Assign Designer</Label>
+                              <Select
+                                onValueChange={(designerId) => {
+                                  handleAssignDesignerToRequest(viewSalesRequest.id, designerId);
+                                }}
+                              >
+                                <SelectTrigger className="mt-2 rounded-xl">
+                                  <SelectValue placeholder="Select designer..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
+                                  {designers.map((designer) => (
+                                    <SelectItem key={designer.id} value={designer.id}>
+                                      {designer.full_name || 'Unknown Designer'}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Assigning a designer will automatically change status to "In Design"
+                              </p>
+                            </div>
+                          )}
 
-                      {/* Print Operator Assignment - Only show if invoice linked and payment handled */}
-                      {viewSalesRequest.status === 'design_submitted' && 
-                       viewSalesRequest.linked_invoice_id && 
-                       (viewSalesRequest.payment_status === 'paid' || viewSalesRequest.payment_status === 'debt') && (
-                        <div className="pt-3 border-t">
-                          <Label className="text-muted-foreground text-xs">Send to Print Operator</Label>
-                          <Select
-                            onValueChange={(printOperatorId) => {
-                              handleAssignPrintOperatorToRequest(viewSalesRequest.id, printOperatorId);
-                            }}
-                          >
-                            <SelectTrigger className="mt-1">
-                              <SelectValue placeholder="Select print operator..." />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-[200px] overflow-y-auto">
-                              {printOperators.map((operator) => (
-                                <SelectItem key={operator.id} value={operator.id}>
-                                  {operator.full_name || 'Unknown Operator'}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Assigning a print operator will send the design for printing
-                          </p>
-                        </div>
-                      )}
+                          {/* Print Operator Assignment - Only show if invoice linked and payment handled */}
+                          {viewSalesRequest.status === 'design_submitted' && 
+                           viewSalesRequest.linked_invoice_id && 
+                           (viewSalesRequest.payment_status === 'paid' || viewSalesRequest.payment_status === 'debt') && (
+                            <div className="rounded-xl border bg-teal-500/5 border-teal-500/20 p-4">
+                              <Label className="text-xs font-medium uppercase tracking-wider text-teal-600">Send to Print Operator</Label>
+                              <Select
+                                onValueChange={(printOperatorId) => {
+                                  handleAssignPrintOperatorToRequest(viewSalesRequest.id, printOperatorId);
+                                }}
+                              >
+                                <SelectTrigger className="mt-2 rounded-xl">
+                                  <SelectValue placeholder="Select print operator..." />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-[200px] overflow-y-auto">
+                                  {printOperators.map((operator) => (
+                                    <SelectItem key={operator.id} value={operator.id}>
+                                      {operator.full_name || 'Unknown Operator'}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground mt-2">
+                                Assigning a print operator will send the design for printing
+                              </p>
+                            </div>
+                          )}
 
-                      {/* Message if invoice not linked or payment not handled */}
-                      {viewSalesRequest.status === 'design_submitted' && 
-                       (!viewSalesRequest.linked_invoice_id || viewSalesRequest.payment_status === 'pending') && (
-                        <div className="pt-3 border-t">
-                          <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
-                            <p className="text-sm text-warning-foreground">
-                              {!viewSalesRequest.linked_invoice_id 
-                                ? 'Link an invoice before sending to print operator'
-                                : 'Record payment or mark as debt before sending to print operator'}
-                            </p>
-                          </div>
+                          {/* Message if invoice not linked or payment not handled */}
+                          {viewSalesRequest.status === 'design_submitted' && 
+                           (!viewSalesRequest.linked_invoice_id || viewSalesRequest.payment_status === 'pending') && (
+                            <div className="rounded-xl bg-warning/10 border border-warning/30 p-4">
+                              <div className="flex items-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-warning" />
+                                <p className="text-sm text-warning-foreground">
+                                  {!viewSalesRequest.linked_invoice_id 
+                                    ? 'Link an invoice before sending to print operator'
+                                    : 'Record payment or mark as debt before sending to print operator'}
+                                </p>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </ScrollArea>
               </DialogContent>
             </Dialog>
           </TabsContent>
