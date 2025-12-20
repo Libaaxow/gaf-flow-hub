@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { cn } from '@/lib/utils';
+import { cn, sanitizeStorageFilename } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -352,13 +352,16 @@ const DesignerDashboard = () => {
     setUploading(true);
     try {
       for (const file of Array.from(files)) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${selectedRequest.id}/${Date.now()}-${file.name}`;
+        // Preserve original file bytes (no resizing/compression). Only sanitize the *storage key*.
+        const safeName = sanitizeStorageFilename(file.name);
+        const filePath = `${selectedRequest.id}/${Date.now()}-${safeName}`;
 
         // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('request-files')
-          .upload(fileName, file);
+          .upload(filePath, file, {
+            contentType: file.type || 'application/octet-stream',
+          });
 
         if (uploadError) throw uploadError;
 
@@ -369,8 +372,8 @@ const DesignerDashboard = () => {
             request_id: selectedRequest.id,
             uploaded_by: user?.id,
             file_name: file.name,
-            file_path: fileName,
-            file_type: file.type,
+            file_path: filePath,
+            file_type: file.type || null,
           });
 
         if (dbError) throw dbError;
@@ -789,7 +792,6 @@ const DesignerDashboard = () => {
                           onChange={handleFileUpload}
                           multiple
                           className="hidden"
-                          accept="image/*,.pdf,.ai,.psd,.eps,.svg"
                         />
                         <Button
                           variant="outline"
