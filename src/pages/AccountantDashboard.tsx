@@ -234,6 +234,7 @@ const AccountantDashboard = () => {
   // Dialog states
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
   const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
@@ -249,6 +250,7 @@ const AccountantDashboard = () => {
   // Invoice required dialog states
   const [invoiceRequiredDialogOpen, setInvoiceRequiredDialogOpen] = useState(false);
   const [pendingStatusChange, setPendingStatusChange] = useState<{ requestId: string; newStatus: string; request: any } | null>(null);
+  const [pendingSalesRequestLink, setPendingSalesRequestLink] = useState<{ requestId: string; newStatus: string } | null>(null);
   const [createCustomerForRequest, setCreateCustomerForRequest] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState('');
   const [newCustomerEmail, setNewCustomerEmail] = useState('');
@@ -388,7 +390,7 @@ const AccountantDashboard = () => {
     fetchSalesRequests();
   };
 
-  // Handle creating customer and invoice for a sales request
+  // Handle creating customer and opening invoice form for a sales request
   const handleCreateCustomerAndInvoiceForRequest = async () => {
     if (!pendingStatusChange) return;
     
@@ -446,87 +448,31 @@ const AccountantDashboard = () => {
     
     // Generate invoice number
     const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
-    const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+    const generatedInvoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
     
-    // Create invoice
-    const { data: newInvoice, error: invoiceError } = await supabase
-      .from('invoices')
-      .insert({
-        invoice_number: invoiceNumber,
-        customer_id: customerId,
-        invoice_date: new Date().toISOString().split('T')[0],
-        subtotal: 0,
-        tax_amount: 0,
-        total_amount: 0,
-        status: 'draft',
-        notes: `Created from sales request: ${pendingStatusChange.request.description?.substring(0, 100) || 'N/A'}`,
-      })
-      .select()
-      .single();
+    // Pre-fill invoice form
+    setInvoiceNumber(generatedInvoiceNumber);
+    setInvoiceCustomer(customerId);
+    setInvoiceNotes(`Sales Request: ${pendingStatusChange.request.description?.substring(0, 200) || 'N/A'}`);
+    setInvoiceItems([{ 
+      description: pendingStatusChange.request.description || '', 
+      quantity: 1, 
+      unit_price: 0, 
+      amount: 0, 
+      sale_type: 'unit', 
+      width_m: null, 
+      height_m: null, 
+      area_m2: null 
+    }]);
     
-    if (invoiceError) {
-      toast({
-        title: 'Error creating invoice',
-        description: invoiceError.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    // Link invoice to the sales request
-    const { error: linkError } = await supabase
-      .from('sales_order_requests')
-      .update({ linked_invoice_id: newInvoice.id })
-      .eq('id', pendingStatusChange.requestId);
-    
-    if (linkError) {
-      toast({
-        title: 'Error linking invoice',
-        description: linkError.message,
-        variant: 'destructive',
-      });
-      return;
-    }
-    
-    toast({
-      title: 'Invoice created and linked',
-      description: `Invoice ${invoiceNumber} created and linked to this request`,
+    // Store pending request info to link after invoice creation
+    setPendingSalesRequestLink({
+      requestId: pendingStatusChange.requestId,
+      newStatus: pendingStatusChange.newStatus
     });
     
-    // Close dialog and reset state
+    // Close the invoice required dialog
     setInvoiceRequiredDialogOpen(false);
-    
-    // Now proceed with the status change
-    const finalStatus = pendingStatusChange.newStatus === 'collected' ? 'completed' : pendingStatusChange.newStatus;
-    
-    const updateData: any = { 
-      status: finalStatus,
-      updated_at: new Date().toISOString()
-    };
-    
-    if (['processed', 'in_design', 'in_print', 'printed', 'collected', 'completed'].includes(pendingStatusChange.newStatus)) {
-      updateData.processed_at = new Date().toISOString();
-    }
-
-    const { error: statusError } = await supabase
-      .from('sales_order_requests')
-      .update(updateData)
-      .eq('id', pendingStatusChange.requestId);
-
-    if (statusError) {
-      toast({
-        title: 'Error updating status',
-        description: statusError.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Success',
-        description: `Request status updated to ${finalStatus.replace('_', ' ')}`,
-      });
-    }
-    
-    // Reset state
     setPendingStatusChange(null);
     setNewCustomerName('');
     setNewCustomerEmail('');
@@ -535,9 +481,8 @@ const AccountantDashboard = () => {
     setSelectedCustomerForRequest('');
     setCreateCustomerForRequest(false);
     
-    // Refresh data
-    fetchSalesRequests();
-    fetchInvoices();
+    // Open the invoice creation dialog
+    setCreateInvoiceDialogOpen(true);
   };
 
   const handleAssignDesignerToRequest = async (requestId: string, designerId: string) => {
@@ -2058,10 +2003,52 @@ const AccountantDashboard = () => {
 
       if (itemsError) throw itemsError;
 
-      toast({
-        title: 'Success',
-        description: `Invoice ${invoiceNumber} created successfully`,
-      });
+      // If there's a pending sales request link, link the invoice and update status
+      if (pendingSalesRequestLink) {
+        const { error: linkError } = await supabase
+          .from('sales_order_requests')
+          .update({ linked_invoice_id: invoiceData.id })
+          .eq('id', pendingSalesRequestLink.requestId);
+        
+        if (!linkError) {
+          // Update the sales request status
+          const finalStatus = pendingSalesRequestLink.newStatus === 'collected' ? 'completed' : pendingSalesRequestLink.newStatus;
+          
+          const updateData: any = { 
+            status: finalStatus,
+            updated_at: new Date().toISOString()
+          };
+          
+          if (['processed', 'in_design', 'in_print', 'printed', 'collected', 'completed'].includes(pendingSalesRequestLink.newStatus)) {
+            updateData.processed_at = new Date().toISOString();
+          }
+
+          await supabase
+            .from('sales_order_requests')
+            .update(updateData)
+            .eq('id', pendingSalesRequestLink.requestId);
+          
+          toast({
+            title: 'Success',
+            description: `Invoice ${invoiceNumber} created and linked to sales request. Status updated to ${finalStatus.replace('_', ' ')}.`,
+          });
+          
+          fetchSalesRequests();
+        } else {
+          toast({
+            title: 'Warning',
+            description: `Invoice created but failed to link to sales request: ${linkError.message}`,
+            variant: 'destructive',
+          });
+        }
+        
+        setPendingSalesRequestLink(null);
+      } else {
+        toast({
+          title: 'Success',
+          description: `Invoice ${invoiceNumber} created successfully`,
+        });
+      }
 
       setInvoiceNumber('');
       setInvoiceCustomer('');
@@ -2072,6 +2059,7 @@ const AccountantDashboard = () => {
       setInvoiceTerms('');
       setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+      setCreateInvoiceDialogOpen(false);
       
       fetchInvoices();
       fetchActualStats();
@@ -4001,13 +3989,11 @@ const AccountantDashboard = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="w-full sm:w-auto">
+                  <Button size="sm" className="w-full sm:w-auto" onClick={() => setCreateInvoiceDialogOpen(true)}>
                         <Plus className="mr-2 h-4 w-4" />
                         Create Invoice
                       </Button>
-                    </DialogTrigger>
+                  <Dialog open={createInvoiceDialogOpen} onOpenChange={setCreateInvoiceDialogOpen}>
                     <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[95vh] flex flex-col">
                       <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Create Invoice</DialogTitle>
@@ -6140,11 +6126,11 @@ const AccountantDashboard = () => {
               <div className="space-y-3">
                 <h4 className="font-semibold text-sm flex items-center gap-2">
                   <FileText className="h-4 w-4" />
-                  Step 2: Invoice will be created automatically
+                  Step 2: Create Invoice
                 </h4>
                 <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4">
                   <p className="text-sm text-muted-foreground">
-                    An invoice will be created and linked to this request. You can edit the invoice details afterwards from the Invoices tab.
+                    After selecting a customer, you'll be taken to the invoice creation form to enter invoice details, items, and pricing.
                   </p>
                 </div>
               </div>
@@ -6163,7 +6149,7 @@ const AccountantDashboard = () => {
               disabled={!createCustomerForRequest && !selectedCustomerForRequest}
             >
               <FileText className="h-4 w-4 mr-2" />
-              Create Invoice & Proceed
+              Proceed to Invoice Form
             </Button>
           </DialogFooter>
         </DialogContent>
