@@ -245,6 +245,16 @@ const AccountantDashboard = () => {
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [activatingDraftInvoice, setActivatingDraftInvoice] = useState<any>(null);
   const [assignNumberDialogOpen, setAssignNumberDialogOpen] = useState(false);
+  
+  // Invoice required dialog states
+  const [invoiceRequiredDialogOpen, setInvoiceRequiredDialogOpen] = useState(false);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{ requestId: string; newStatus: string; request: any } | null>(null);
+  const [createCustomerForRequest, setCreateCustomerForRequest] = useState(false);
+  const [newCustomerName, setNewCustomerName] = useState('');
+  const [newCustomerEmail, setNewCustomerEmail] = useState('');
+  const [newCustomerPhone, setNewCustomerPhone] = useState('');
+  const [newCustomerCompany, setNewCustomerCompany] = useState('');
+  const [selectedCustomerForRequest, setSelectedCustomerForRequest] = useState('');
 
   // Invoice payment form states
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
@@ -324,7 +334,27 @@ const AccountantDashboard = () => {
     setSalesRequests(data || []);
   };
 
-  const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string) => {
+  const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string, request?: any) => {
+    // Find the request if not provided
+    const salesRequest = request || salesRequests.find(r => r.id === requestId);
+    
+    // If changing from pending to any other status, require invoice to be linked first
+    if (salesRequest?.status === 'pending' && newStatus !== 'pending') {
+      if (!salesRequest.linked_invoice_id) {
+        // Show the invoice required dialog
+        setPendingStatusChange({ requestId, newStatus, request: salesRequest });
+        setInvoiceRequiredDialogOpen(true);
+        // Pre-fill customer info from the request
+        setNewCustomerName(salesRequest.customer_name || '');
+        setNewCustomerEmail(salesRequest.customer_email || '');
+        setNewCustomerPhone(salesRequest.customer_phone || '');
+        setNewCustomerCompany(salesRequest.company_name || '');
+        setSelectedCustomerForRequest('');
+        setCreateCustomerForRequest(false);
+        return;
+      }
+    }
+
     // When marking as collected, set status to completed
     const finalStatus = newStatus === 'collected' ? 'completed' : newStatus;
     
@@ -356,6 +386,158 @@ const AccountantDashboard = () => {
       description: `Request status updated to ${finalStatus.replace('_', ' ')}`,
     });
     fetchSalesRequests();
+  };
+
+  // Handle creating customer and invoice for a sales request
+  const handleCreateCustomerAndInvoiceForRequest = async () => {
+    if (!pendingStatusChange) return;
+    
+    let customerId = selectedCustomerForRequest;
+    
+    // Create new customer if needed
+    if (createCustomerForRequest || !selectedCustomerForRequest) {
+      if (!newCustomerName.trim()) {
+        toast({
+          title: 'Error',
+          description: 'Customer name is required',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const { data: newCustomer, error: customerError } = await supabase
+        .from('customers')
+        .insert({
+          name: newCustomerName.trim(),
+          email: newCustomerEmail.trim() || null,
+          phone: newCustomerPhone.trim() || null,
+          company_name: newCustomerCompany.trim() || null,
+        })
+        .select()
+        .single();
+      
+      if (customerError) {
+        toast({
+          title: 'Error creating customer',
+          description: customerError.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      customerId = newCustomer.id;
+      toast({
+        title: 'Customer created',
+        description: `Customer "${newCustomerName}" created successfully`,
+      });
+      
+      // Refresh customers list
+      fetchCustomers();
+    }
+    
+    if (!customerId) {
+      toast({
+        title: 'Error',
+        description: 'Please select or create a customer first',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Generate invoice number
+    const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+    const invoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+    
+    // Create invoice
+    const { data: newInvoice, error: invoiceError } = await supabase
+      .from('invoices')
+      .insert({
+        invoice_number: invoiceNumber,
+        customer_id: customerId,
+        invoice_date: new Date().toISOString().split('T')[0],
+        subtotal: 0,
+        tax_amount: 0,
+        total_amount: 0,
+        status: 'unpaid',
+        notes: `Created from sales request: ${pendingStatusChange.request.description?.substring(0, 100) || 'N/A'}`,
+      })
+      .select()
+      .single();
+    
+    if (invoiceError) {
+      toast({
+        title: 'Error creating invoice',
+        description: invoiceError.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Link invoice to the sales request
+    const { error: linkError } = await supabase
+      .from('sales_order_requests')
+      .update({ linked_invoice_id: newInvoice.id })
+      .eq('id', pendingStatusChange.requestId);
+    
+    if (linkError) {
+      toast({
+        title: 'Error linking invoice',
+        description: linkError.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    toast({
+      title: 'Invoice created and linked',
+      description: `Invoice ${invoiceNumber} created and linked to this request`,
+    });
+    
+    // Close dialog and reset state
+    setInvoiceRequiredDialogOpen(false);
+    
+    // Now proceed with the status change
+    const finalStatus = pendingStatusChange.newStatus === 'collected' ? 'completed' : pendingStatusChange.newStatus;
+    
+    const updateData: any = { 
+      status: finalStatus,
+      updated_at: new Date().toISOString()
+    };
+    
+    if (['processed', 'in_design', 'in_print', 'printed', 'collected', 'completed'].includes(pendingStatusChange.newStatus)) {
+      updateData.processed_at = new Date().toISOString();
+    }
+
+    const { error: statusError } = await supabase
+      .from('sales_order_requests')
+      .update(updateData)
+      .eq('id', pendingStatusChange.requestId);
+
+    if (statusError) {
+      toast({
+        title: 'Error updating status',
+        description: statusError.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Success',
+        description: `Request status updated to ${finalStatus.replace('_', ' ')}`,
+      });
+    }
+    
+    // Reset state
+    setPendingStatusChange(null);
+    setNewCustomerName('');
+    setNewCustomerEmail('');
+    setNewCustomerPhone('');
+    setNewCustomerCompany('');
+    setSelectedCustomerForRequest('');
+    setCreateCustomerForRequest(false);
+    
+    // Refresh data
+    fetchSalesRequests();
+    fetchInvoices();
   };
 
   const handleAssignDesignerToRequest = async (requestId: string, designerId: string) => {
@@ -2613,7 +2795,7 @@ const AccountantDashboard = () => {
                                 <Select
                                   value={request.status}
                                   onValueChange={(value) => {
-                                    handleUpdateSalesRequestStatus(request.id, value);
+                                    handleUpdateSalesRequestStatus(request.id, value, request);
                                   }}
                                 >
                                   <SelectTrigger className="w-[120px]" onClick={(e) => e.stopPropagation()}>
@@ -2973,11 +3155,25 @@ const AccountantDashboard = () => {
                           {/* Status Change */}
                           <div className="rounded-xl border bg-card/50 p-4">
                             <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Change Status</Label>
+                            {/* Show warning if pending and no invoice linked */}
+                            {viewSalesRequest.status === 'pending' && !viewSalesRequest.linked_invoice_id && (
+                              <div className="mt-2 mb-2 rounded-lg bg-warning/10 border border-warning/30 p-3">
+                                <div className="flex items-center gap-2">
+                                  <AlertCircle className="h-4 w-4 text-warning" />
+                                  <p className="text-xs text-warning-foreground">
+                                    Create and link an invoice before changing status
+                                  </p>
+                                </div>
+                              </div>
+                            )}
                             <Select
                               value={viewSalesRequest.status}
                               onValueChange={(value) => {
-                                handleUpdateSalesRequestStatus(viewSalesRequest.id, value);
-                                setViewSalesRequest({ ...viewSalesRequest, status: value });
+                                handleUpdateSalesRequestStatus(viewSalesRequest.id, value, viewSalesRequest);
+                                // Only update local state if not showing the dialog
+                                if (viewSalesRequest.linked_invoice_id || viewSalesRequest.status !== 'pending' || value === 'pending') {
+                                  setViewSalesRequest({ ...viewSalesRequest, status: value });
+                                }
                               }}
                             >
                               <SelectTrigger className="mt-2 rounded-xl">
@@ -5788,6 +5984,186 @@ const AccountantDashboard = () => {
             </Button>
             <Button onClick={handleActivateDraftInvoice}>
               Activate Invoice
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Invoice Required Dialog - Forces invoice creation before status change */}
+      <Dialog open={invoiceRequiredDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setInvoiceRequiredDialogOpen(false);
+          setPendingStatusChange(null);
+          setNewCustomerName('');
+          setNewCustomerEmail('');
+          setNewCustomerPhone('');
+          setNewCustomerCompany('');
+          setSelectedCustomerForRequest('');
+          setCreateCustomerForRequest(false);
+        }
+      }}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Invoice Required
+            </DialogTitle>
+            <DialogDescription>
+              Before processing this request, you must create an invoice and link a customer.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 max-h-[60vh]">
+            <div className="space-y-6 pr-4">
+              {/* Request Details */}
+              {pendingStatusChange && (
+                <div className="rounded-xl border bg-muted/30 p-4 space-y-2">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Request Details
+                  </h4>
+                  <div className="grid gap-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Customer:</span>
+                      <span className="font-medium">{pendingStatusChange.request.customer_name}</span>
+                    </div>
+                    {pendingStatusChange.request.company_name && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Company:</span>
+                        <span className="font-medium">{pendingStatusChange.request.company_name}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Changing to:</span>
+                      <Badge variant="secondary">{pendingStatusChange.newStatus.replace('_', ' ')}</Badge>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Customer Selection */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-sm flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Step 1: Select or Create Customer
+                  </h4>
+                </div>
+                
+                {!createCustomerForRequest ? (
+                  <div className="space-y-3">
+                    <div className="grid gap-2">
+                      <Label>Select Existing Customer</Label>
+                      <Select value={selectedCustomerForRequest} onValueChange={setSelectedCustomerForRequest}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Choose a customer..." />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px]">
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="text-center text-sm text-muted-foreground">— or —</div>
+                    
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={() => setCreateCustomerForRequest(true)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create New Customer
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 rounded-xl border bg-card/50 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-semibold">New Customer Details</Label>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => setCreateCustomerForRequest(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                    <div className="grid gap-3">
+                      <div className="grid gap-1">
+                        <Label htmlFor="new-cust-name" className="text-xs">Name *</Label>
+                        <Input
+                          id="new-cust-name"
+                          value={newCustomerName}
+                          onChange={(e) => setNewCustomerName(e.target.value)}
+                          placeholder="Customer name"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="grid gap-1">
+                          <Label htmlFor="new-cust-email" className="text-xs">Email</Label>
+                          <Input
+                            id="new-cust-email"
+                            type="email"
+                            value={newCustomerEmail}
+                            onChange={(e) => setNewCustomerEmail(e.target.value)}
+                            placeholder="email@example.com"
+                          />
+                        </div>
+                        <div className="grid gap-1">
+                          <Label htmlFor="new-cust-phone" className="text-xs">Phone</Label>
+                          <Input
+                            id="new-cust-phone"
+                            value={newCustomerPhone}
+                            onChange={(e) => setNewCustomerPhone(e.target.value)}
+                            placeholder="+1234567890"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor="new-cust-company" className="text-xs">Company Name</Label>
+                        <Input
+                          id="new-cust-company"
+                          value={newCustomerCompany}
+                          onChange={(e) => setNewCustomerCompany(e.target.value)}
+                          placeholder="Company name"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Invoice Creation Info */}
+              <div className="space-y-3">
+                <h4 className="font-semibold text-sm flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Step 2: Invoice will be created automatically
+                </h4>
+                <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4">
+                  <p className="text-sm text-muted-foreground">
+                    An invoice will be created and linked to this request. You can edit the invoice details afterwards from the Invoices tab.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          
+          <DialogFooter className="flex-shrink-0 pt-4 border-t mt-4">
+            <Button variant="outline" onClick={() => {
+              setInvoiceRequiredDialogOpen(false);
+              setPendingStatusChange(null);
+            }}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleCreateCustomerAndInvoiceForRequest}
+              disabled={!createCustomerForRequest && !selectedCustomerForRequest}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Create Invoice & Proceed
             </Button>
           </DialogFooter>
         </DialogContent>
