@@ -6058,14 +6058,12 @@ const AccountantDashboard = () => {
                         <SelectTrigger>
                           <SelectValue placeholder="Choose a customer..." />
                         </SelectTrigger>
-                        <SelectContent className="max-h-[200px] overflow-y-auto">
-                          <ScrollArea className="h-[180px]">
-                            {customers.map((customer) => (
-                              <SelectItem key={customer.id} value={customer.id}>
-                                {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
-                              </SelectItem>
-                            ))}
-                          </ScrollArea>
+                        <SelectContent className="max-h-[200px] z-[9999] bg-popover">
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
