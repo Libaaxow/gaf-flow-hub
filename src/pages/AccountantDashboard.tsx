@@ -2476,32 +2476,11 @@ const AccountantDashboard = () => {
       color: 'text-red-600',
     },
     {
-      title: 'Recognized Profit',
-      value: `$${stats.recognizedProfit.toFixed(2)}`,
-      icon: CheckCircle,
-      description: 'Profit from paid invoices',
-      color: 'text-green-600',
-    },
-    {
-      title: 'Pending Profit',
-      value: `$${stats.pendingProfit.toFixed(2)}`,
-      icon: Clock,
-      description: 'Profit from unpaid balance',
-      color: 'text-amber-600',
-    },
-    {
       title: 'Net Profit',
       value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Recognized - Expenses',
+      description: 'Collected - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
-    },
-    {
-      title: 'Total Invoices',
-      value: stats.totalInvoices,
-      icon: FileText,
-      description: 'Invoices created',
-      color: 'text-purple-600',
     },
   ];
 
