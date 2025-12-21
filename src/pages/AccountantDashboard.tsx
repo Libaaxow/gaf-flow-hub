@@ -699,9 +699,8 @@ const AccountantDashboard = () => {
         }
       });
 
-      // Net Profit = Beginning Balance + Recognized Profit - Expenses
-      // Only use recognized profit (from paid invoices) for net profit
-      const profit = beginningBalance + recognizedProfit - totalExpenses;
+      // Net Profit = Beginning Balance + Amount Collected - Expenses
+      const profit = beginningBalance + collectedAmount - totalExpenses;
       
       const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       const paidCommissions = allCommissions?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
@@ -2479,7 +2478,7 @@ const AccountantDashboard = () => {
       title: 'Net Profit',
       value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Opening Balance + Profit - Expenses',
+      description: 'Opening Balance + Collected - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
     },
   ];
