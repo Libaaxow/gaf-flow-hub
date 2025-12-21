@@ -458,7 +458,7 @@ const AccountantDashboard = () => {
         subtotal: 0,
         tax_amount: 0,
         total_amount: 0,
-        status: 'unpaid',
+        status: 'draft',
         notes: `Created from sales request: ${pendingStatusChange.request.description?.substring(0, 100) || 'N/A'}`,
       })
       .select()
