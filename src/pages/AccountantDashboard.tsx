@@ -67,6 +67,9 @@ interface FinancialStats {
   outstandingAmount: number;
   totalExpenses: number;
   profit: number;
+  recognizedProfit: number;
+  pendingProfit: number;
+  totalProfit: number;
   pendingCommissions: number;
   paidCommissions: number;
   totalInvoices: number;
@@ -126,6 +129,9 @@ const AccountantDashboard = () => {
     outstandingAmount: 0,
     totalExpenses: 0,
     profit: 0,
+    recognizedProfit: 0,
+    pendingProfit: 0,
+    totalProfit: 0,
     pendingCommissions: 0,
     paidCommissions: 0,
     totalInvoices: 0,
@@ -494,10 +500,18 @@ const AccountantDashboard = () => {
         .from('orders')
         .select('order_value, amount_paid');
 
-      // Get all invoices for revenue calculation (excluding drafts for accurate debt tracking)
+      // Get all invoices with their items for profit calculation
       const { data: allInvoices } = await supabase
         .from('invoices')
-        .select('total_amount, amount_paid, order_id, is_draft, status');
+        .select(`
+          id,
+          total_amount, 
+          amount_paid, 
+          order_id, 
+          is_draft, 
+          status,
+          invoice_items(line_profit)
+        `);
 
       // Get all commissions
       const { data: allCommissions } = await supabase
@@ -529,8 +543,39 @@ const AccountantDashboard = () => {
       const outstandingAmount = confirmedRevenue - confirmedCollected;
       
       const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
-      // Profit now includes beginning balance
-      const profit = beginningBalance + collectedAmount - totalExpenses;
+
+      // Calculate profit recognition based on payment ratio
+      // Recognized Profit = total_profit × (total_paid / invoice_total)
+      // Pending Profit = total_profit - recognized_profit
+      let totalProfit = 0;
+      let recognizedProfit = 0;
+      let pendingProfit = 0;
+
+      (allInvoices || []).forEach((inv: any) => {
+        // Sum all line profits from invoice items
+        const invoiceProfit = (inv.invoice_items || []).reduce((sum: number, item: any) => 
+          sum + Number(item.line_profit || 0), 0);
+        
+        totalProfit += invoiceProfit;
+
+        const invoiceTotal = Number(inv.total_amount) || 0;
+        const amountPaid = Number(inv.amount_paid) || 0;
+
+        if (invoiceTotal > 0) {
+          // Calculate payment ratio
+          const paymentRatio = Math.min(amountPaid / invoiceTotal, 1);
+          const invoiceRecognizedProfit = invoiceProfit * paymentRatio;
+          const invoicePendingProfit = invoiceProfit - invoiceRecognizedProfit;
+
+          recognizedProfit += invoiceRecognizedProfit;
+          pendingProfit += invoicePendingProfit;
+        }
+      });
+
+      // Net Profit = Beginning Balance + Recognized Profit - Expenses
+      // Only use recognized profit (from paid invoices) for net profit
+      const profit = beginningBalance + recognizedProfit - totalExpenses;
+      
       const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       const paidCommissions = allCommissions?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       
@@ -544,6 +589,9 @@ const AccountantDashboard = () => {
         outstandingAmount,
         totalExpenses,
         profit,
+        recognizedProfit,
+        pendingProfit,
+        totalProfit,
         pendingCommissions,
         paidCommissions,
         totalInvoices: invoiceCount || 0,
@@ -2233,7 +2281,7 @@ const AccountantDashboard = () => {
       title: 'Total Revenue',
       value: `$${stats.totalRevenue.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Total order value',
+      description: 'Total invoice value',
       color: 'text-blue-600',
     },
     {
@@ -2258,10 +2306,24 @@ const AccountantDashboard = () => {
       color: 'text-red-600',
     },
     {
+      title: 'Recognized Profit',
+      value: `$${stats.recognizedProfit.toFixed(2)}`,
+      icon: CheckCircle,
+      description: 'Profit from paid invoices',
+      color: 'text-green-600',
+    },
+    {
+      title: 'Pending Profit',
+      value: `$${stats.pendingProfit.toFixed(2)}`,
+      icon: Clock,
+      description: 'Profit from unpaid balance',
+      color: 'text-amber-600',
+    },
+    {
       title: 'Net Profit',
       value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Revenue - Expenses',
+      description: 'Recognized - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
     },
     {
@@ -2434,7 +2496,7 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => (
             <Card key={stat.title} className="mobile-card">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
@@ -4033,8 +4095,9 @@ const AccountantDashboard = () => {
                       <TableHead className="min-w-[150px]">Customer</TableHead>
                       <TableHead className="min-w-[100px]">Date</TableHead>
                       <TableHead className="min-w-[100px]">Due Date</TableHead>
-                      <TableHead className="min-w-[100px]">Amount</TableHead>
+                      <TableHead className="min-w-[100px]">Total</TableHead>
                       <TableHead className="min-w-[80px]">Paid</TableHead>
+                      <TableHead className="min-w-[80px]">Outstanding</TableHead>
                       <TableHead className="min-w-[100px]">Status</TableHead>
                       <TableHead className="min-w-[100px]">Action</TableHead>
                     </TableRow>
@@ -4044,7 +4107,7 @@ const AccountantDashboard = () => {
                       invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
                     ).length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                        <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                           No invoices found
                         </TableCell>
                       </TableRow>
@@ -4053,7 +4116,9 @@ const AccountantDashboard = () => {
                         .filter(invoice => 
                           invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
                         )
-                        .map((invoice) => (
+                        .map((invoice) => {
+                          const outstanding = invoice.total_amount - invoice.amount_paid;
+                          return (
                           <>
                             <TableRow 
                               key={invoice.id}
@@ -4065,7 +4130,10 @@ const AccountantDashboard = () => {
                               <TableCell>{format(new Date(invoice.invoice_date), 'PP')}</TableCell>
                               <TableCell>{invoice.due_date ? format(new Date(invoice.due_date), 'PP') : '-'}</TableCell>
                               <TableCell>${invoice.total_amount.toFixed(2)}</TableCell>
-                              <TableCell>${invoice.amount_paid.toFixed(2)}</TableCell>
+                              <TableCell className="text-green-600 font-medium">${invoice.amount_paid.toFixed(2)}</TableCell>
+                              <TableCell className={outstanding > 0 ? "text-orange-600 font-medium" : "text-green-600"}>
+                                ${outstanding.toFixed(2)}
+                              </TableCell>
                               <TableCell>
                                 <Badge variant={
                                   invoice.status === 'paid' ? 'default' :
@@ -4169,7 +4237,7 @@ const AccountantDashboard = () => {
                               </TableRow>
                             )}
                           </>
-                        ))
+                        );})
                     )}
                   </TableBody>
                 </Table>
