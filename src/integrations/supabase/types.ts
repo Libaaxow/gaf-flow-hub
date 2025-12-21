@@ -1458,6 +1458,10 @@ export type Database = {
         Returns: boolean
       }
       process_pending_notifications: { Args: never; Returns: undefined }
+      recompute_invoice_payment_status: {
+        Args: { p_invoice_id: string }
+        Returns: undefined
+      }
       send_pending_whatsapp_notifications: { Args: never; Returns: undefined }
       send_whatsapp_notification: {
         Args: {
