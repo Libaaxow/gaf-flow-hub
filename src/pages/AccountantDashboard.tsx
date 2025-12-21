@@ -2479,7 +2479,7 @@ const AccountantDashboard = () => {
       title: 'Net Profit',
       value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Collected - Expenses',
+      description: 'Opening Balance + Profit - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
     },
   ];
