@@ -84,6 +84,18 @@ const FinancialReports = () => {
     fetchPayments();
     fetchExpenses();
     fetchVendors();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('financial-reports-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchPayments)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, fetchVendors)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchPayments = async () => {

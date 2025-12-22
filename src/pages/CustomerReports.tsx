@@ -147,6 +147,20 @@ const CustomerReports = () => {
   // Fetch all customers on mount
   useEffect(() => {
     fetchCustomers();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('customer-reports-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'customers' },
+        () => fetchCustomers()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const generateReport = async () => {

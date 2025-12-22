@@ -201,6 +201,25 @@ const Quotations = () => {
   useEffect(() => {
     fetchQuotations();
     fetchCustomers();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('quotations-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quotations' },
+        () => fetchQuotations()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'quotation_items' },
+        () => fetchQuotations()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchQuotations]);
 
   const resetForm = () => {

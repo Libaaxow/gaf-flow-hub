@@ -42,6 +42,18 @@ const VendorReports = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('vendor-reports-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendor_bills' }, fetchData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'purchase_orders' }, fetchData)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
