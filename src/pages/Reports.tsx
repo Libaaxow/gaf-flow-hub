@@ -45,6 +45,17 @@ const Reports = () => {
 
   useEffect(() => {
     fetchReports();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('reports-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, fetchReports)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchReports)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchReports = async () => {

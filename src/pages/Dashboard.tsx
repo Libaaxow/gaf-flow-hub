@@ -104,6 +104,19 @@ const Dashboard = () => {
     };
 
     fetchStats();
+
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('dashboard-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchStats)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, fetchStats)
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const statCards = [

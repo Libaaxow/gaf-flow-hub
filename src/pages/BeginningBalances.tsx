@@ -40,6 +40,20 @@ const BeginningBalances = () => {
 
   useEffect(() => {
     fetchBalances();
+    
+    // Set up realtime subscription
+    const channel = supabase
+      .channel('beginning-balances-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'beginning_balances' },
+        () => fetchBalances()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchBalances = async () => {
