@@ -331,6 +331,78 @@ const Customers = () => {
     if (!deleteCustomerId) return;
 
     try {
+      // First get all invoices for this customer
+      const { data: customerInvoices } = await supabase
+        .from('invoices')
+        .select('id')
+        .eq('customer_id', deleteCustomerId);
+
+      if (customerInvoices && customerInvoices.length > 0) {
+        const invoiceIds = customerInvoices.map(inv => inv.id);
+
+        // Unlink sales_order_requests from invoices
+        await supabase
+          .from('sales_order_requests')
+          .update({ linked_invoice_id: null })
+          .in('linked_invoice_id', invoiceIds);
+
+        // Delete invoice items first
+        for (const invoiceId of invoiceIds) {
+          await supabase
+            .from('invoice_items')
+            .delete()
+            .eq('invoice_id', invoiceId);
+        }
+
+        // Delete payments linked to invoices
+        await supabase
+          .from('payments')
+          .delete()
+          .in('invoice_id', invoiceIds);
+
+        // Delete invoices
+        await supabase
+          .from('invoices')
+          .delete()
+          .eq('customer_id', deleteCustomerId);
+      }
+
+      // Delete orders for this customer
+      const { data: customerOrders } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('customer_id', deleteCustomerId);
+
+      if (customerOrders && customerOrders.length > 0) {
+        const orderIds = customerOrders.map(ord => ord.id);
+
+        // Delete order files
+        for (const orderId of orderIds) {
+          await supabase.from('order_files').delete().eq('order_id', orderId);
+          await supabase.from('order_comments').delete().eq('order_id', orderId);
+          await supabase.from('order_history').delete().eq('order_id', orderId);
+          await supabase.from('notifications').delete().eq('order_id', orderId);
+          await supabase.from('commissions').delete().eq('order_id', orderId);
+          await supabase.from('payments').delete().eq('order_id', orderId);
+        }
+
+        await supabase.from('orders').delete().eq('customer_id', deleteCustomerId);
+      }
+
+      // Delete quotations
+      const { data: customerQuotations } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('customer_id', deleteCustomerId);
+
+      if (customerQuotations && customerQuotations.length > 0) {
+        for (const quotation of customerQuotations) {
+          await supabase.from('quotation_items').delete().eq('quotation_id', quotation.id);
+        }
+        await supabase.from('quotations').delete().eq('customer_id', deleteCustomerId);
+      }
+
+      // Finally delete the customer
       const { error } = await supabase
         .from('customers')
         .delete()
@@ -340,7 +412,7 @@ const Customers = () => {
 
       toast({
         title: 'Success',
-        description: 'Customer deleted successfully',
+        description: 'Customer and all related data deleted successfully',
       });
 
       setIsDeleteDialogOpen(false);
