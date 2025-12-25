@@ -131,13 +131,26 @@ export default function AdminDashboard() {
   
   // Invoice items state
   interface InvoiceItem {
+    id?: string;
     description: string;
     quantity: number;
     unit_price: number;
     amount: number;
+
+    // Preserve advanced invoice item fields created elsewhere (do not wipe on edit)
+    product_id?: string | null;
+    sale_type?: string;
+    width_m?: number | null;
+    height_m?: number | null;
+    area_m2?: number | null;
+    rate_per_m2?: number | null;
+    retail_unit?: string | null;
+    cost_per_unit?: number | null;
+    line_cost?: number | null;
+    line_profit?: number | null;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, unit_price: 0, amount: 0 }
+    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
   ]);
   
   // Payment states
@@ -454,7 +467,10 @@ export default function AdminDashboard() {
   };
 
   const addInvoiceItem = () => {
-    setInvoiceItems([...invoiceItems, { description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+    setInvoiceItems([
+      ...invoiceItems,
+      { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
+    ]);
   };
 
   const removeInvoiceItem = (index: number) => {
@@ -463,15 +479,18 @@ export default function AdminDashboard() {
     }
   };
 
-  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number) => {
+  const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number | null) => {
     const newItems = [...invoiceItems];
-    newItems[index] = { ...newItems[index], [field]: value };
-    
-    // Auto-calculate amount
-    if (field === 'quantity' || field === 'unit_price') {
-      newItems[index].amount = newItems[index].quantity * newItems[index].unit_price;
+    newItems[index] = { ...newItems[index], [field]: value } as InvoiceItem;
+
+    // Auto-calculate amount ONLY for unit-based items when qty or unit price changes.
+    const item = newItems[index];
+    if ((field === 'quantity' || field === 'unit_price') && (item.sale_type ?? 'unit') === 'unit') {
+      const qty = Number(item.quantity) || 0;
+      const unitPrice = Number(item.unit_price) || 0;
+      newItems[index].amount = qty * unitPrice;
     }
-    
+
     setInvoiceItems(newItems);
   };
 
@@ -558,7 +577,7 @@ export default function AdminDashboard() {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
       
       fetchAllData();
     } catch (error: any) {
@@ -670,26 +689,42 @@ export default function AdminDashboard() {
     setInvoiceCustomer(invoice.customer_id);
     setInvoiceOrder(invoice.order_id || '');
     setInvoiceDueDate(invoice.due_date || '');
-    setInvoiceTax(invoice.tax_amount.toString());
+    setInvoiceTax(`${invoice.tax_amount ?? 0}`);
     setInvoiceNotes(invoice.notes || '');
     setInvoiceProjectName(invoice.project_name || '');
-    
-    // Load invoice items
+
+    // Load invoice items (keep IDs + advanced fields so edits don't wipe existing data)
     if (invoice.invoice_items && invoice.invoice_items.length > 0) {
-      setInvoiceItems(invoice.invoice_items.map((item: any) => ({
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
-      })));
+      setInvoiceItems(
+        invoice.invoice_items.map((item: any) => ({
+          id: item.id,
+          description: item.description ?? '',
+          quantity: Number(item.quantity ?? 1),
+          unit_price: Number(item.unit_price ?? 0),
+          amount: Number(item.amount ?? 0),
+
+          product_id: item.product_id ?? null,
+          sale_type: item.sale_type ?? 'unit',
+          width_m: item.width_m ?? null,
+          height_m: item.height_m ?? null,
+          area_m2: item.area_m2 ?? null,
+          rate_per_m2: item.rate_per_m2 ?? null,
+          retail_unit: item.retail_unit ?? null,
+          cost_per_unit: item.cost_per_unit ?? null,
+          line_cost: item.line_cost ?? null,
+          line_profit: item.line_profit ?? null,
+        }))
+      );
     } else {
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
     }
-    
+
     setEditInvoiceDialogOpen(true);
   };
 
   const handleUpdateInvoice = async () => {
+    if (!editingInvoice) return;
+
     if (!invoiceNumber || !invoiceCustomer || invoiceItems.length === 0) {
       toast({
         title: 'Validation Error',
@@ -699,7 +734,7 @@ export default function AdminDashboard() {
       return;
     }
 
-    const hasEmptyDescriptions = invoiceItems.some(item => !item.description.trim());
+    const hasEmptyDescriptions = invoiceItems.some(item => !String(item.description || '').trim());
     if (hasEmptyDescriptions) {
       toast({
         title: 'Validation Error',
@@ -732,28 +767,59 @@ export default function AdminDashboard() {
 
       if (invoiceError) throw invoiceError;
 
-      // Delete existing invoice items
-      const { error: deleteError } = await supabase
-        .from('invoice_items')
-        .delete()
-        .eq('invoice_id', editingInvoice.id);
+      // Update items WITHOUT wiping extra columns (product_id, area fields, retail_unit, cost/profit, etc.)
+      const previousIds = new Set<string>((editingInvoice.invoice_items || []).map((it: any) => it.id).filter(Boolean));
+      const currentIds = new Set<string>(invoiceItems.map(it => it.id).filter(Boolean) as string[]);
 
-      if (deleteError) throw deleteError;
+      const removedIds = Array.from(previousIds).filter(id => !currentIds.has(id));
+      if (removedIds.length > 0) {
+        const { error: removeErr } = await supabase
+          .from('invoice_items')
+          .delete()
+          .in('id', removedIds);
+        if (removeErr) throw removeErr;
+      }
 
-      // Insert new invoice items
-      const itemsToInsert = invoiceItems.map(item => ({
-        invoice_id: editingInvoice.id,
-        description: item.description,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        amount: item.amount,
-      }));
+      const existingItems = invoiceItems.filter(it => !!it.id);
+      for (const it of existingItems) {
+        const { error: updErr } = await supabase
+          .from('invoice_items')
+          .update({
+            description: it.description,
+            quantity: Number(it.quantity) || 0,
+            unit_price: Number(it.unit_price) || 0,
+            amount: Number(it.amount) || 0,
+          })
+          .eq('id', it.id as string);
+        if (updErr) throw updErr;
+      }
 
-      const { error: itemsError } = await supabase
-        .from('invoice_items')
-        .insert(itemsToInsert);
-
-      if (itemsError) throw itemsError;
+      const newItems = invoiceItems.filter(it => !it.id);
+      if (newItems.length > 0) {
+        const { error: insErr } = await supabase
+          .from('invoice_items')
+          .insert(
+            newItems.map(it => ({
+              invoice_id: editingInvoice.id,
+              description: it.description,
+              quantity: Number(it.quantity) || 0,
+              unit_price: Number(it.unit_price) || 0,
+              amount: Number(it.amount) || 0,
+              // keep defaults but allow preserving if present
+              product_id: it.product_id ?? null,
+              sale_type: it.sale_type ?? 'unit',
+              width_m: it.width_m ?? null,
+              height_m: it.height_m ?? null,
+              area_m2: it.area_m2 ?? null,
+              rate_per_m2: it.rate_per_m2 ?? null,
+              retail_unit: it.retail_unit ?? null,
+              cost_per_unit: it.cost_per_unit ?? null,
+              line_cost: it.line_cost ?? null,
+              line_profit: it.line_profit ?? null,
+            }))
+          );
+        if (insErr) throw insErr;
+      }
 
       toast({
         title: 'Success',
@@ -769,8 +835,8 @@ export default function AdminDashboard() {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0 }]);
-      
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
+
       fetchAllData();
     } catch (error: any) {
       toast({
@@ -1998,6 +2064,16 @@ export default function AdminDashboard() {
               onChange={(e) => setInvoiceDueDate(e.target.value)}
             />
           </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="edit-project-name">Project Name</Label>
+            <Input
+              id="edit-project-name"
+              value={invoiceProjectName}
+              onChange={(e) => setInvoiceProjectName(e.target.value)}
+              placeholder="Project / job name"
+            />
+          </div>
           {/* Invoice Items */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
@@ -2043,9 +2119,10 @@ export default function AdminDashboard() {
                       <Label>Amount</Label>
                       <Input
                         type="number"
-                        value={item.amount.toFixed(2)}
-                        disabled
-                        className="bg-muted"
+                        min="0"
+                        step="0.01"
+                        value={Number.isFinite(item.amount) ? item.amount : 0}
+                        onChange={(e) => updateInvoiceItem(index, 'amount', parseFloat(e.target.value) || 0)}
                       />
                     </div>
                   </div>
