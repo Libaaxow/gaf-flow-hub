@@ -59,10 +59,25 @@ interface Customer {
   created_at: string;
 }
 
+interface Product {
+  id: string;
+  name: string;
+  product_code: string;
+  retail_unit: string;
+  selling_price: number;
+  cost_per_retail_unit: number | null;
+  stock_quantity: number;
+  sale_type: string;
+  selling_price_per_m2: number | null;
+  cost_per_m2: number | null;
+  total_roll_area: number | null;
+}
+
 interface Invoice {
   id: string;
   invoice_number: string;
-  customer: { name: string };
+  customer_id?: string;
+  customer: { name: string; email?: string; phone?: string };
   invoice_date: string;
   due_date: string | null;
   total_amount: number;
@@ -75,7 +90,20 @@ interface Invoice {
     quantity: number;
     unit_price: number;
     amount: number;
+    product_id?: string | null;
+    sale_type?: string;
+    width_m?: number | null;
+    height_m?: number | null;
+    area_m2?: number | null;
+    rate_per_m2?: number | null;
+    retail_unit?: string | null;
+    cost_per_unit?: number | null;
+    line_cost?: number | null;
+    line_profit?: number | null;
+    product?: { id: string; name: string } | null;
   }>;
+  notes?: string | null;
+  project_name?: string | null;
   subtotal?: number;
   tax_amount?: number;
 }
@@ -150,8 +178,9 @@ export default function AdminDashboard() {
     line_profit?: number | null;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
+    { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }
   ]);
+  const [products, setProducts] = useState<Product[]>([]);
   
   // Payment states
   const [payments, setPayments] = useState<any[]>([]);
@@ -349,6 +378,15 @@ export default function AdminDashboard() {
       
       setInvoices(invoicesData || []);
 
+      // Fetch active products for product selection in invoice items
+      const { data: productsData } = await supabase
+        .from('products')
+        .select('id, name, product_code, retail_unit, selling_price, cost_per_retail_unit, stock_quantity, sale_type, selling_price_per_m2, cost_per_m2, total_roll_area')
+        .eq('status', 'active')
+        .order('name');
+
+      setProducts(productsData || []);
+
       // Fetch ALL payments (accessible to both admin and accountant via RLS)
       const { data: paymentsData } = await supabase
         .from('payments')
@@ -469,7 +507,7 @@ export default function AdminDashboard() {
   const addInvoiceItem = () => {
     setInvoiceItems([
       ...invoiceItems,
-      { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }
+      { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }
     ]);
   };
 
@@ -479,23 +517,116 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleProductSelect = (index: number, productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    const newItems = [...invoiceItems];
+    const isAreaBased = product.sale_type === 'area';
+
+    if (isAreaBased) {
+      const defaultWidth = 1;
+      const defaultHeight = 1;
+      const area = defaultWidth * defaultHeight;
+      const ratePerM2 = product.selling_price_per_m2 || product.selling_price || 0;
+      const costPerM2 = product.cost_per_m2 || 0;
+      const lineAmount = area * ratePerM2;
+      const lineCost = area * costPerM2;
+      const lineProfit = lineAmount - lineCost;
+
+      newItems[index] = {
+        ...newItems[index],
+        product_id: product.id,
+        description: product.name,
+        retail_unit: 'm²',
+        unit_price: ratePerM2,
+        cost_per_unit: costPerM2,
+        line_cost: lineCost,
+        line_profit: lineProfit,
+        amount: lineAmount,
+        sale_type: 'area',
+        width_m: defaultWidth,
+        height_m: defaultHeight,
+        area_m2: area,
+        quantity: 1,
+      };
+    } else {
+      const costPerUnit = product.cost_per_retail_unit || 0;
+      const lineAmount = product.selling_price * 1;
+      const lineCost = costPerUnit * 1;
+      const lineProfit = lineAmount - lineCost;
+
+      newItems[index] = {
+        ...newItems[index],
+        product_id: product.id,
+        description: product.name,
+        retail_unit: product.retail_unit,
+        unit_price: product.selling_price,
+        quantity: 1,
+        cost_per_unit: costPerUnit,
+        line_cost: lineCost,
+        line_profit: lineProfit,
+        amount: lineAmount,
+        sale_type: 'unit',
+        width_m: null,
+        height_m: null,
+        area_m2: null,
+      };
+    }
+    setInvoiceItems(newItems);
+  };
+
   const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number | null) => {
     const newItems = [...invoiceItems];
     newItems[index] = { ...newItems[index], [field]: value } as InvoiceItem;
 
-    // Auto-calculate amount ONLY for unit-based items when qty or unit price changes.
     const item = newItems[index];
-    if ((field === 'quantity' || field === 'unit_price') && (item.sale_type ?? 'unit') === 'unit') {
-      const qty = Number(item.quantity) || 0;
-      const unitPrice = Number(item.unit_price) || 0;
-      newItems[index].amount = qty * unitPrice;
+    const isAreaBased = item.sale_type === 'area';
+
+    if (isAreaBased) {
+      // Auto-calculate area, amount and profit for area-based items (quantity × width × height × rate)
+      if (field === 'width_m' || field === 'height_m' || field === 'unit_price' || field === 'quantity') {
+        const width = field === 'width_m' ? Number(value) || 0 : item.width_m || 0;
+        const height = field === 'height_m' ? Number(value) || 0 : item.height_m || 0;
+        const quantity = field === 'quantity' ? Number(value) || 1 : item.quantity || 1;
+        const area = width * height;
+        const totalArea = area * quantity;
+        const rate = item.unit_price || 0;
+        const costPerUnit = item.cost_per_unit || 0;
+        
+        newItems[index].area_m2 = area;
+        newItems[index].amount = totalArea * rate;
+        newItems[index].line_cost = totalArea * costPerUnit;
+        newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
+      }
+    } else {
+      // Auto-calculate amount for unit-based items
+      if (field === 'quantity' || field === 'unit_price') {
+        const qty = field === 'quantity' ? Number(value) || 0 : item.quantity || 0;
+        const unitPrice = field === 'unit_price' ? Number(value) || 0 : item.unit_price || 0;
+        const costPerUnit = item.cost_per_unit || 0;
+        newItems[index].amount = qty * unitPrice;
+        newItems[index].line_cost = qty * costPerUnit;
+        newItems[index].line_profit = newItems[index].amount - (newItems[index].line_cost || 0);
+      }
     }
 
     setInvoiceItems(newItems);
   };
 
   const calculateInvoiceSubtotal = () => {
-    return invoiceItems.reduce((sum, item) => sum + item.amount, 0);
+    return invoiceItems.reduce((sum, item) => {
+      if (item.sale_type === 'area') {
+        const area = (item.width_m || 0) * (item.height_m || 0);
+        const quantity = item.quantity || 1;
+        return sum + (area * quantity * item.unit_price);
+      }
+      return sum + item.amount;
+    }, 0);
+  };
+
+  const calculateTotalProfit = () => {
+    return invoiceItems.reduce((sum, item) => sum + (item.line_profit || 0), 0);
   };
 
   const handleCreateInvoice = async () => {
@@ -577,7 +708,7 @@ export default function AdminDashboard() {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       
       fetchAllData();
     } catch (error: any) {
@@ -716,7 +847,7 @@ export default function AdminDashboard() {
         }))
       );
     } else {
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
     }
 
     setEditInvoiceDialogOpen(true);
@@ -782,13 +913,34 @@ export default function AdminDashboard() {
 
       const existingItems = invoiceItems.filter(it => !!it.id);
       for (const it of existingItems) {
+        const isAreaBased = it.sale_type === 'area';
+        const area = isAreaBased ? (it.width_m || 0) * (it.height_m || 0) : null;
+        const quantity = it.quantity || 1;
+        const lineAmount = isAreaBased 
+          ? (area || 0) * quantity * (it.unit_price || 0)
+          : (it.quantity || 0) * (it.unit_price || 0);
+        const lineCost = isAreaBased 
+          ? (area || 0) * quantity * (it.cost_per_unit || 0)
+          : (it.quantity || 0) * (it.cost_per_unit || 0);
+        const lineProfit = lineAmount - lineCost;
+
         const { error: updErr } = await supabase
           .from('invoice_items')
           .update({
             description: it.description,
-            quantity: Number(it.quantity) || 0,
+            quantity: isAreaBased ? quantity : Number(it.quantity) || 0,
             unit_price: Number(it.unit_price) || 0,
-            amount: Number(it.amount) || 0,
+            amount: lineAmount,
+            product_id: it.product_id ?? null,
+            sale_type: it.sale_type ?? 'unit',
+            width_m: isAreaBased ? it.width_m : null,
+            height_m: isAreaBased ? it.height_m : null,
+            area_m2: area,
+            rate_per_m2: isAreaBased ? it.unit_price : null,
+            retail_unit: it.retail_unit ?? 'piece',
+            cost_per_unit: it.cost_per_unit ?? null,
+            line_cost: lineCost,
+            line_profit: lineProfit,
           })
           .eq('id', it.id as string);
         if (updErr) throw updErr;
@@ -799,24 +951,36 @@ export default function AdminDashboard() {
         const { error: insErr } = await supabase
           .from('invoice_items')
           .insert(
-            newItems.map(it => ({
-              invoice_id: editingInvoice.id,
-              description: it.description,
-              quantity: Number(it.quantity) || 0,
-              unit_price: Number(it.unit_price) || 0,
-              amount: Number(it.amount) || 0,
-              // keep defaults but allow preserving if present
-              product_id: it.product_id ?? null,
-              sale_type: it.sale_type ?? 'unit',
-              width_m: it.width_m ?? null,
-              height_m: it.height_m ?? null,
-              area_m2: it.area_m2 ?? null,
-              rate_per_m2: it.rate_per_m2 ?? null,
-              retail_unit: it.retail_unit ?? null,
-              cost_per_unit: it.cost_per_unit ?? null,
-              line_cost: it.line_cost ?? null,
-              line_profit: it.line_profit ?? null,
-            }))
+            newItems.map(it => {
+              const isAreaBased = it.sale_type === 'area';
+              const area = isAreaBased ? (it.width_m || 0) * (it.height_m || 0) : null;
+              const quantity = it.quantity || 1;
+              const lineAmount = isAreaBased 
+                ? (area || 0) * quantity * (it.unit_price || 0)
+                : (it.quantity || 0) * (it.unit_price || 0);
+              const lineCost = isAreaBased 
+                ? (area || 0) * quantity * (it.cost_per_unit || 0)
+                : (it.quantity || 0) * (it.cost_per_unit || 0);
+              const lineProfit = lineAmount - lineCost;
+
+              return {
+                invoice_id: editingInvoice.id,
+                description: it.description,
+                quantity: isAreaBased ? quantity : Number(it.quantity) || 0,
+                unit_price: Number(it.unit_price) || 0,
+                amount: lineAmount,
+                product_id: it.product_id ?? null,
+                sale_type: it.sale_type ?? 'unit',
+                width_m: isAreaBased ? it.width_m : null,
+                height_m: isAreaBased ? it.height_m : null,
+                area_m2: area,
+                rate_per_m2: isAreaBased ? it.unit_price : null,
+                retail_unit: it.retail_unit ?? 'piece',
+                cost_per_unit: it.cost_per_unit ?? null,
+                line_cost: lineCost,
+                line_profit: lineProfit,
+              };
+            })
           );
         if (insErr) throw insErr;
       }
@@ -835,7 +999,7 @@ export default function AdminDashboard() {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
-      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit' }]);
+      setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
 
       fetchAllData();
     } catch (error: any) {
@@ -2074,75 +2238,161 @@ export default function AdminDashboard() {
               placeholder="Project / job name"
             />
           </div>
-          {/* Invoice Items */}
+          {/* Invoice Items - Table Format with Area Support */}
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <Label>Invoice Items</Label>
+              <Label>Invoice Items (with Product & Dimensions)</Label>
               <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
                 <Plus className="h-4 w-4 mr-1" />
                 Add Item
               </Button>
             </div>
             
-            {invoiceItems.map((item, index) => (
-              <Card key={index} className="p-4">
-                <div className="grid gap-3">
-                  <div className="grid gap-2">
-                    <Label>Description *</Label>
-                    <Input
-                      value={item.description}
-                      onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
-                      placeholder="Item description"
-                    />
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="grid gap-2">
-                      <Label>Quantity *</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Unit Price *</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.unit_price}
-                        onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Amount</Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={Number.isFinite(item.amount) ? item.amount : 0}
-                        onChange={(e) => updateInvoiceItem(index, 'amount', parseFloat(e.target.value) || 0)}
-                      />
-                    </div>
-                  </div>
-                  {invoiceItems.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeInvoiceItem(index)}
-                    >
-                      Remove Item
-                    </Button>
-                  )}
-                </div>
-              </Card>
-            ))}
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[22%]">Product</TableHead>
+                    <TableHead className="w-[20%]">Description</TableHead>
+                    <TableHead className="w-[7%]">Unit</TableHead>
+                    <TableHead className="w-[6%]">Qty</TableHead>
+                    <TableHead className="w-[18%]">Size (Area)</TableHead>
+                    <TableHead className="w-[10%]">Rate</TableHead>
+                    <TableHead className="w-[12%]">Total</TableHead>
+                    <TableHead className="w-[5%]"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {invoiceItems.map((item, index) => {
+                    const isAreaBased = item.sale_type === 'area';
+                    const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                    const quantity = item.quantity || 1;
+                    const lineTotal = isAreaBased 
+                      ? calculatedArea * quantity * item.unit_price 
+                      : item.quantity * item.unit_price;
+                    
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Select
+                            value={item.product_id || ''}
+                            onValueChange={(value) => handleProductSelect(index, value)}
+                          >
+                            <SelectTrigger className="bg-background">
+                              <SelectValue placeholder="Select product" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-background z-50">
+                              {products.map((product) => (
+                                <SelectItem key={product.id} value={product.id}>
+                                  {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            value={item.description}
+                            onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                            placeholder="Description"
+                            required
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={item.quantity}
+                            onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                            className="w-16"
+                            required
+                          />
+                        </TableCell>
+                        <TableCell>
+                          {isAreaBased ? (
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center gap-1">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  value={item.width_m || ''}
+                                  onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
+                                  placeholder="W"
+                                  className="w-14"
+                                  required
+                                />
+                                <span className="text-xs text-muted-foreground">×</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  value={item.height_m || ''}
+                                  onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
+                                  placeholder="H"
+                                  className="w-14"
+                                  required
+                                />
+                                <span className="text-xs text-muted-foreground">m</span>
+                              </div>
+                              <span className="text-xs text-primary font-medium">
+                                = {calculatedArea.toFixed(2)} m² × {quantity} = {(calculatedArea * quantity).toFixed(2)} m²
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-col">
+                            <Input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="min-w-[70px]"
+                              value={item.unit_price}
+                              onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                              required
+                            />
+                            {isAreaBased && (
+                              <span className="text-xs text-muted-foreground">/m²</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-semibold">
+                          ${lineTotal.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {invoiceItems.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeInvoiceItem(index)}
+                            >
+                              ×
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
 
-            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-              <span className="font-semibold">Subtotal:</span>
-              <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+            <div className="space-y-2">
+              <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+                <span className="font-semibold">Subtotal:</span>
+                <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 bg-green-500/10 rounded-lg">
+                <span className="text-sm text-green-600 font-medium">Est. Profit (internal):</span>
+                <span className="text-green-600 font-bold">${calculateTotalProfit().toFixed(2)}</span>
+              </div>
             </div>
           </div>
 
