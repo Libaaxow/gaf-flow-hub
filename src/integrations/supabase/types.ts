@@ -1266,6 +1266,47 @@ export type Database = {
           },
         ]
       }
+      user_wallets: {
+        Row: {
+          advance_balance: number
+          created_at: string
+          current_balance: number
+          id: string
+          last_daily_credit_date: string | null
+          monthly_salary: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          advance_balance?: number
+          created_at?: string
+          current_balance?: number
+          id?: string
+          last_daily_credit_date?: string | null
+          monthly_salary?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          advance_balance?: number
+          created_at?: string
+          current_balance?: number
+          id?: string
+          last_daily_credit_date?: string | null
+          monthly_salary?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_wallets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendor_bills: {
         Row: {
           amount_paid: number
@@ -1437,6 +1478,51 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          transaction_type: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          transaction_type: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          transaction_type?: Database["public"]["Enums"]["wallet_transaction_type"]
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wallet_transactions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -1457,6 +1543,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_daily_salary_credits: { Args: never; Returns: undefined }
       process_pending_notifications: { Args: never; Returns: undefined }
       recompute_invoice_payment_status: {
         Args: { p_invoice_id: string }
@@ -1527,6 +1614,13 @@ export type Database = {
         | "expired"
         | "cancelled"
       vendor_bill_status: "unpaid" | "partially_paid" | "paid"
+      wallet_transaction_type:
+        | "daily_credit"
+        | "penalty"
+        | "advance"
+        | "advance_deduction"
+        | "bonus"
+        | "adjustment"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1714,6 +1808,14 @@ export const Constants = {
         "cancelled",
       ],
       vendor_bill_status: ["unpaid", "partially_paid", "paid"],
+      wallet_transaction_type: [
+        "daily_credit",
+        "penalty",
+        "advance",
+        "advance_deduction",
+        "bonus",
+        "adjustment",
+      ],
     },
   },
 } as const
