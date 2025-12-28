@@ -10,6 +10,7 @@ import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
 import BoardDashboard from './BoardDashboard';
+import UserWallet from '@/components/UserWallet';
 
 interface DashboardStats {
   totalSales: number;
@@ -238,6 +239,9 @@ const Dashboard = () => {
             );
           })}
         </div>
+
+        {/* User Wallet */}
+        <UserWallet />
 
         <Card>
           <CardHeader>

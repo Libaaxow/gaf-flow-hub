@@ -18,6 +18,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import UserWallet from '@/components/UserWallet';
 
 interface OrderRequest {
   id: string;
@@ -405,6 +406,9 @@ const SalesDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* User Wallet */}
+        <UserWallet />
 
         {/* Info Card */}
         <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
