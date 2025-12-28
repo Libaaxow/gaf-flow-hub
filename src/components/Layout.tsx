@@ -47,6 +47,7 @@ const navItems: NavItem[] = [
   { href: '/customer-reports', label: 'Customer Reports', icon: FileText, roles: ['admin', 'accountant', 'board'] },
   { href: '/financial-reports', label: 'Financial Reports', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
   { href: '/beginning-balances', label: 'Beginning Balances', icon: Wallet, roles: ['admin', 'accountant'] },
+  { href: '/wallet-management', label: 'Wallet Management', icon: Wallet, roles: ['admin'] },
   { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
   { href: '/users', label: 'Users', icon: UserCog, roles: ['admin'] },
   { href: '/settings', label: 'Settings', icon: Settings },
