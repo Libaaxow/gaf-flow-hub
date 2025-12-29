@@ -257,6 +257,8 @@ const AccountantDashboard = () => {
   const [newCustomerPhone, setNewCustomerPhone] = useState('');
   const [newCustomerCompany, setNewCustomerCompany] = useState('');
   const [selectedCustomerForRequest, setSelectedCustomerForRequest] = useState('');
+  const [linkExistingInvoice, setLinkExistingInvoice] = useState(false);
+  const [selectedExistingInvoice, setSelectedExistingInvoice] = useState('');
 
   // Invoice payment form states
   const [invoicePaymentAmount, setInvoicePaymentAmount] = useState('');
@@ -483,6 +485,65 @@ const AccountantDashboard = () => {
     
     // Open the invoice creation dialog
     setCreateInvoiceDialogOpen(true);
+  };
+
+  // Handle linking an existing invoice to a sales request
+  const handleLinkExistingInvoiceToRequest = async () => {
+    if (!pendingStatusChange || !selectedExistingInvoice) return;
+    
+    try {
+      // Link the invoice to the sales request
+      const { error: linkError } = await supabase
+        .from('sales_order_requests')
+        .update({ linked_invoice_id: selectedExistingInvoice })
+        .eq('id', pendingStatusChange.requestId);
+      
+      if (linkError) throw linkError;
+      
+      // Update the status
+      const finalStatus = pendingStatusChange.newStatus === 'collected' ? 'completed' : pendingStatusChange.newStatus;
+      
+      const updateData: any = { 
+        status: finalStatus,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (['processed', 'in_design', 'in_print', 'printed', 'collected', 'completed'].includes(pendingStatusChange.newStatus)) {
+        updateData.processed_at = new Date().toISOString();
+      }
+
+      const { error: statusError } = await supabase
+        .from('sales_order_requests')
+        .update(updateData)
+        .eq('id', pendingStatusChange.requestId);
+
+      if (statusError) throw statusError;
+      
+      toast({
+        title: 'Success',
+        description: `Invoice linked and status updated to ${finalStatus.replace('_', ' ')}`,
+      });
+      
+      // Reset all states
+      setInvoiceRequiredDialogOpen(false);
+      setPendingStatusChange(null);
+      setSelectedExistingInvoice('');
+      setLinkExistingInvoice(false);
+      setNewCustomerName('');
+      setNewCustomerEmail('');
+      setNewCustomerPhone('');
+      setNewCustomerCompany('');
+      setSelectedCustomerForRequest('');
+      setCreateCustomerForRequest(false);
+      
+      fetchSalesRequests();
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleAssignDesignerToRequest = async (requestId: string, designerId: string) => {
@@ -5964,6 +6025,8 @@ const AccountantDashboard = () => {
           setNewCustomerCompany('');
           setSelectedCustomerForRequest('');
           setCreateCustomerForRequest(false);
+          setLinkExistingInvoice(false);
+          setSelectedExistingInvoice('');
         }
       }}>
         <DialogContent className="sm:max-w-[600px] max-h-[90vh] flex flex-col">
@@ -5973,7 +6036,7 @@ const AccountantDashboard = () => {
               Invoice Required
             </DialogTitle>
             <DialogDescription>
-              Before processing this request, you must create an invoice and link a customer.
+              Before processing this request, you must link or create an invoice.
             </DialogDescription>
           </DialogHeader>
           
@@ -6005,113 +6068,172 @@ const AccountantDashboard = () => {
                 </div>
               )}
 
-              {/* Customer Selection */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-sm flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Step 1: Select or Create Customer
-                  </h4>
-                </div>
-                
-                {!createCustomerForRequest ? (
-                  <div className="space-y-3">
-                    <div className="grid gap-2">
-                      <Label>Select Existing Customer</Label>
-                      <Select value={selectedCustomerForRequest} onValueChange={setSelectedCustomerForRequest}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a customer..." />
-                        </SelectTrigger>
-                        <SelectContent className="max-h-[200px] z-[9999] bg-popover">
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="text-center text-sm text-muted-foreground">— or —</div>
-                    
-                    <Button 
-                      variant="outline" 
-                      className="w-full"
-                      onClick={() => setCreateCustomerForRequest(true)}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create New Customer
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3 rounded-xl border bg-card/50 p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <Label className="text-sm font-semibold">New Customer Details</Label>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => setCreateCustomerForRequest(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                    <div className="grid gap-3">
-                      <div className="grid gap-1">
-                        <Label htmlFor="new-cust-name" className="text-xs">Name *</Label>
-                        <Input
-                          id="new-cust-name"
-                          value={newCustomerName}
-                          onChange={(e) => setNewCustomerName(e.target.value)}
-                          placeholder="Customer name"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-1">
-                          <Label htmlFor="new-cust-email" className="text-xs">Email</Label>
-                          <Input
-                            id="new-cust-email"
-                            type="email"
-                            value={newCustomerEmail}
-                            onChange={(e) => setNewCustomerEmail(e.target.value)}
-                            placeholder="email@example.com"
-                          />
-                        </div>
-                        <div className="grid gap-1">
-                          <Label htmlFor="new-cust-phone" className="text-xs">Phone</Label>
-                          <Input
-                            id="new-cust-phone"
-                            value={newCustomerPhone}
-                            onChange={(e) => setNewCustomerPhone(e.target.value)}
-                            placeholder="+1234567890"
-                          />
-                        </div>
-                      </div>
-                      <div className="grid gap-1">
-                        <Label htmlFor="new-cust-company" className="text-xs">Company Name</Label>
-                        <Input
-                          id="new-cust-company"
-                          value={newCustomerCompany}
-                          onChange={(e) => setNewCustomerCompany(e.target.value)}
-                          placeholder="Company name"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
+              {/* Option Toggle: Link Existing Invoice OR Create New */}
+              <div className="flex gap-2">
+                <Button 
+                  variant={!linkExistingInvoice ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => {
+                    setLinkExistingInvoice(false);
+                    setSelectedExistingInvoice('');
+                  }}
+                >
+                  Create New Invoice
+                </Button>
+                <Button 
+                  variant={linkExistingInvoice ? "default" : "outline"}
+                  className="flex-1"
+                  onClick={() => {
+                    setLinkExistingInvoice(true);
+                    setSelectedCustomerForRequest('');
+                    setCreateCustomerForRequest(false);
+                  }}
+                >
+                  Link Existing Invoice
+                </Button>
               </div>
 
-              {/* Invoice Creation Info */}
-              <div className="space-y-3">
-                <h4 className="font-semibold text-sm flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Step 2: Create Invoice
-                </h4>
-                <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4">
-                  <p className="text-sm text-muted-foreground">
-                    After selecting a customer, you'll be taken to the invoice creation form to enter invoice details, items, and pricing.
-                  </p>
+              {linkExistingInvoice ? (
+                // Link Existing Invoice Section
+                <div className="space-y-4">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Select Existing Invoice
+                    </h4>
+                    <Select value={selectedExistingInvoice} onValueChange={setSelectedExistingInvoice}>
+                      <SelectTrigger className="rounded-xl">
+                        <SelectValue placeholder="Choose an invoice to link..." />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[200px] z-[9999] bg-popover">
+                        {invoices
+                          .filter(inv => !inv.is_draft && inv.invoice_number !== 'PENDING')
+                          .map((invoice) => (
+                            <SelectItem key={invoice.id} value={invoice.id}>
+                              {invoice.invoice_number} - {invoice.customer?.name} (${invoice.total_amount.toFixed(2)})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="rounded-xl border bg-green-500/5 border-green-500/20 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        Linking an existing invoice will use that invoice's customer. No new customer will be created.
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                // Create New Invoice Section
+                <>
+                  {/* Customer Selection */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-sm flex items-center gap-2">
+                        <Users className="h-4 w-4" />
+                        Step 1: Select or Create Customer
+                      </h4>
+                    </div>
+                    
+                    {!createCustomerForRequest ? (
+                      <div className="space-y-3">
+                        <div className="grid gap-2">
+                          <Label>Select Existing Customer</Label>
+                          <Select value={selectedCustomerForRequest} onValueChange={setSelectedCustomerForRequest}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Choose a customer..." />
+                            </SelectTrigger>
+                            <SelectContent className="max-h-[200px] z-[9999] bg-popover">
+                              {customers.map((customer) => (
+                                <SelectItem key={customer.id} value={customer.id}>
+                                  {customer.name} {customer.company_name ? `(${customer.company_name})` : ''}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        
+                        <div className="text-center text-sm text-muted-foreground">— or —</div>
+                        
+                        <Button 
+                          variant="outline" 
+                          className="w-full"
+                          onClick={() => setCreateCustomerForRequest(true)}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create New Customer
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 rounded-xl border bg-card/50 p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-sm font-semibold">New Customer Details</Label>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setCreateCustomerForRequest(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        <div className="grid gap-3">
+                          <div className="grid gap-1">
+                            <Label htmlFor="new-cust-name" className="text-xs">Name *</Label>
+                            <Input
+                              id="new-cust-name"
+                              value={newCustomerName}
+                              onChange={(e) => setNewCustomerName(e.target.value)}
+                              placeholder="Customer name"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-1">
+                              <Label htmlFor="new-cust-email" className="text-xs">Email</Label>
+                              <Input
+                                id="new-cust-email"
+                                type="email"
+                                value={newCustomerEmail}
+                                onChange={(e) => setNewCustomerEmail(e.target.value)}
+                                placeholder="email@example.com"
+                              />
+                            </div>
+                            <div className="grid gap-1">
+                              <Label htmlFor="new-cust-phone" className="text-xs">Phone</Label>
+                              <Input
+                                id="new-cust-phone"
+                                value={newCustomerPhone}
+                                onChange={(e) => setNewCustomerPhone(e.target.value)}
+                                placeholder="+1234567890"
+                              />
+                            </div>
+                          </div>
+                          <div className="grid gap-1">
+                            <Label htmlFor="new-cust-company" className="text-xs">Company Name</Label>
+                            <Input
+                              id="new-cust-company"
+                              value={newCustomerCompany}
+                              onChange={(e) => setNewCustomerCompany(e.target.value)}
+                              placeholder="Company name"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Invoice Creation Info */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Step 2: Create Invoice
+                    </h4>
+                    <div className="rounded-xl border bg-blue-500/5 border-blue-500/20 p-4">
+                      <p className="text-sm text-muted-foreground">
+                        After selecting a customer, you'll be taken to the invoice creation form to enter invoice details, items, and pricing.
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </ScrollArea>
           
@@ -6119,16 +6241,28 @@ const AccountantDashboard = () => {
             <Button variant="outline" onClick={() => {
               setInvoiceRequiredDialogOpen(false);
               setPendingStatusChange(null);
+              setLinkExistingInvoice(false);
+              setSelectedExistingInvoice('');
             }}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateCustomerAndInvoiceForRequest}
-              disabled={!createCustomerForRequest && !selectedCustomerForRequest}
-            >
-              <FileText className="h-4 w-4 mr-2" />
-              Proceed to Invoice Form
-            </Button>
+            {linkExistingInvoice ? (
+              <Button 
+                onClick={handleLinkExistingInvoiceToRequest}
+                disabled={!selectedExistingInvoice}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Link Invoice & Update Status
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleCreateCustomerAndInvoiceForRequest}
+                disabled={!createCustomerForRequest && !selectedCustomerForRequest}
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Proceed to Invoice Form
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
