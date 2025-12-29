@@ -12,7 +12,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Layout } from '@/components/Layout';
-import { Wallet, Plus, Edit, DollarSign, TrendingDown, TrendingUp, History, RefreshCw } from 'lucide-react';
+import { Wallet, Plus, Edit, DollarSign, TrendingDown, TrendingUp, History, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { format } from 'date-fns';
 
 interface Profile {
@@ -50,6 +51,7 @@ const WalletManagement = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingDaily, setProcessingDaily] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   
   // Create wallet dialog
   const [createOpen, setCreateOpen] = useState(false);
@@ -73,9 +75,22 @@ const WalletManagement = () => {
   const [historyWallet, setHistoryWallet] = useState<WalletData | null>(null);
   const [walletHistory, setWalletHistory] = useState<WalletTransaction[]>([]);
 
+  const isAdmin = userRole === 'admin';
+
   useEffect(() => {
     fetchData();
-  }, []);
+    // Fetch user role
+    if (user) {
+      supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single()
+        .then(({ data }) => {
+          if (data) setUserRole(data.role);
+        });
+    }
+  }, [user]);
 
   const fetchData = async () => {
     try {
@@ -275,6 +290,32 @@ const WalletManagement = () => {
       return;
     }
     setWalletHistory((data || []) as WalletTransaction[]);
+  };
+
+  const handleDeleteWallet = async (wallet: WalletData) => {
+    try {
+      // First delete all transactions for this wallet
+      const { error: txError } = await supabase
+        .from('wallet_transactions')
+        .delete()
+        .eq('user_id', wallet.user_id);
+
+      if (txError) throw txError;
+
+      // Then delete the wallet
+      const { error: walletError } = await supabase
+        .from('user_wallets')
+        .delete()
+        .eq('id', wallet.id);
+
+      if (walletError) throw walletError;
+
+      toast.success('Wallet and all transactions deleted successfully');
+      fetchData();
+    } catch (error: any) {
+      console.error('Error deleting wallet:', error);
+      toast.error(error.message || 'Failed to delete wallet');
+    }
   };
 
   const getTransactionBadge = (type: string) => {
@@ -496,6 +537,38 @@ const WalletManagement = () => {
                         >
                           <History className="h-4 w-4" />
                         </Button>
+                        {isAdmin && (
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Wallet</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete the wallet for {wallet.profiles?.full_name}? 
+                                  This will permanently delete the wallet and all associated transaction history. 
+                                  This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteWallet(wallet)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
