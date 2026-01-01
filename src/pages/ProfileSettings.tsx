@@ -10,7 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User, Lock, Camera } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { User, Lock, Camera, Bell } from 'lucide-react';
 import { z } from 'zod';
 
 const profileSchema = z.object({
@@ -35,6 +36,7 @@ const ProfileSettings = () => {
   const [profile, setProfile] = useState<any>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [emailNotificationsEnabled, setEmailNotificationsEnabled] = useState(true);
 
   useEffect(() => {
     if (!user) {
@@ -55,6 +57,7 @@ const ProfileSettings = () => {
       if (error) throw error;
       setProfile(data);
       setAvatarUrl(data?.avatar_url);
+      setEmailNotificationsEnabled(data?.email_notifications_enabled ?? true);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -255,14 +258,18 @@ const ProfileSettings = () => {
 
         {/* Tabs for Profile Info and Password */}
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="profile">
               <User className="mr-2 h-4 w-4" />
-              Profile Information
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="notifications">
+              <Bell className="mr-2 h-4 w-4" />
+              Notifications
             </TabsTrigger>
             <TabsTrigger value="password">
               <Lock className="mr-2 h-4 w-4" />
-              Change Password
+              Password
             </TabsTrigger>
           </TabsList>
 
@@ -310,6 +317,61 @@ const ProfileSettings = () => {
                     {loading ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Notification Preferences</CardTitle>
+                <CardDescription>Manage how you receive notifications</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="email-notifications" className="text-base">Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Receive email alerts when you are assigned to new jobs
+                    </p>
+                  </div>
+                  <Switch
+                    id="email-notifications"
+                    checked={emailNotificationsEnabled}
+                    onCheckedChange={async (checked) => {
+                      try {
+                        const { error } = await supabase
+                          .from('profiles')
+                          .update({ email_notifications_enabled: checked })
+                          .eq('id', user?.id);
+                        
+                        if (error) throw error;
+                        
+                        setEmailNotificationsEnabled(checked);
+                        toast({
+                          title: 'Success',
+                          description: `Email notifications ${checked ? 'enabled' : 'disabled'}`,
+                        });
+                      } catch (error: any) {
+                        toast({
+                          title: 'Error',
+                          description: error.message || 'Failed to update notification settings',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  />
+                </div>
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground">
+                    Note: In-app notifications will always be enabled. Email notifications are sent when:
+                  </p>
+                  <ul className="list-disc list-inside text-sm text-muted-foreground mt-2 space-y-1">
+                    <li>You are assigned as a designer to a job</li>
+                    <li>You are assigned as a print operator to a job</li>
+                    <li>Important job status changes occur</li>
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
