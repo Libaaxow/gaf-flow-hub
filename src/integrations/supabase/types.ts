@@ -372,6 +372,9 @@ export type Database = {
       notifications: {
         Row: {
           created_at: string
+          email_error: string | null
+          email_sent_at: string | null
+          email_status: string | null
           id: string
           message: string
           notification_type: string
@@ -382,6 +385,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           message: string
           notification_type: string
@@ -392,6 +398,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email_error?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
           id?: string
           message?: string
           notification_type?: string
@@ -821,6 +830,7 @@ export type Database = {
           commission_percentage: number | null
           created_at: string | null
           email: string
+          email_notifications_enabled: boolean
           full_name: string
           id: string
           phone: string | null
@@ -832,6 +842,7 @@ export type Database = {
           commission_percentage?: number | null
           created_at?: string | null
           email: string
+          email_notifications_enabled?: boolean
           full_name: string
           id: string
           phone?: string | null
@@ -843,6 +854,7 @@ export type Database = {
           commission_percentage?: number | null
           created_at?: string | null
           email?: string
+          email_notifications_enabled?: boolean
           full_name?: string
           id?: string
           phone?: string | null
