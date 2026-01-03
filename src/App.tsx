@@ -30,7 +30,7 @@ import CustomerOrderHistory from "./pages/CustomerOrderHistory";
 import CustomerAnalytics from "./pages/CustomerAnalytics";
 import Quotations from "./pages/Quotations";
 import BeginningBalances from "./pages/BeginningBalances";
-import WalletManagement from "./pages/WalletManagement";
+
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -226,14 +226,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BeginningBalances />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/wallet-management"
-              element={
-                <ProtectedRoute>
-                  <WalletManagement />
                 </ProtectedRoute>
               }
             />

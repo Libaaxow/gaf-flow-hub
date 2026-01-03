@@ -15,7 +15,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import UserWallet from '@/components/UserWallet';
+
 
 interface Order {
   id: string;
@@ -444,8 +444,6 @@ const PrintOperatorDashboard = () => {
           </Card>
         </div>
 
-        {/* User Wallet */}
-        <UserWallet />
 
         <Tabs defaultValue="sales-requests" className="w-full">
           <TabsList className="flex-wrap h-auto gap-1">
