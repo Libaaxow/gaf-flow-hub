@@ -35,6 +35,7 @@ import { format, startOfMonth, endOfMonth, subMonths, startOfYear, endOfYear, su
 import { cn } from '@/lib/utils';
 import { ChartContainer } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell, Tooltip } from 'recharts';
+import { CommissionPanel } from '@/components/CommissionPanel';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -510,6 +511,9 @@ const BoardDashboard = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Commission Panel */}
+        <CommissionPanel />
 
         {/* Business Metrics */}
         <div className="grid gap-4 md:grid-cols-4">
