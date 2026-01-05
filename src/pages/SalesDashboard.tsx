@@ -18,6 +18,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+import { CommissionPanel } from '@/components/CommissionPanel';
 
 
 interface OrderRequest {
@@ -406,6 +407,9 @@ const SalesDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Commission Panel */}
+        <CommissionPanel />
 
 
         {/* Info Card */}

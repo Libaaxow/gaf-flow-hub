@@ -60,6 +60,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
+import { CommissionPanel } from '@/components/CommissionPanel';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -2719,6 +2720,9 @@ const AccountantDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Commission Panel */}
+        <CommissionPanel />
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="sales-requests" className="space-y-3 sm:space-y-4 w-full">

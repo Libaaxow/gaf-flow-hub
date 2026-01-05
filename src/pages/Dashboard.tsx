@@ -10,7 +10,7 @@ import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
 import BoardDashboard from './BoardDashboard';
-
+import { CommissionPanel } from '@/components/CommissionPanel';
 
 interface DashboardStats {
   totalSales: number;
@@ -240,6 +240,8 @@ const Dashboard = () => {
           })}
         </div>
 
+        {/* Commission Panel */}
+        <CommissionPanel />
 
         <Card>
           <CardHeader>

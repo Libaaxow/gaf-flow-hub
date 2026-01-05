@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, sanitizeStorageFilename } from '@/lib/utils';
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
+import { CommissionPanel } from '@/components/CommissionPanel';
 
 
 interface SalesRequest {
@@ -516,6 +517,8 @@ const DesignerDashboard = () => {
           </Card>
         </div>
 
+        {/* Commission Panel */}
+        <CommissionPanel />
 
         {/* Tabs for Jobs and Commissions */}
         <Tabs defaultValue="jobs" className="w-full">
