@@ -122,7 +122,8 @@ export type Database = {
           commission_type: string
           created_at: string | null
           id: string
-          order_id: string
+          invoice_id: string | null
+          order_id: string | null
           paid_at: string | null
           paid_by: string | null
           paid_status: string | null
@@ -134,7 +135,8 @@ export type Database = {
           commission_type?: string
           created_at?: string | null
           id?: string
-          order_id: string
+          invoice_id?: string | null
+          order_id?: string | null
           paid_at?: string | null
           paid_by?: string | null
           paid_status?: string | null
@@ -146,13 +148,21 @@ export type Database = {
           commission_type?: string
           created_at?: string | null
           id?: string
-          order_id?: string
+          invoice_id?: string | null
+          order_id?: string | null
           paid_at?: string | null
           paid_by?: string | null
           paid_status?: string | null
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "commissions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "commissions_order_id_fkey"
             columns: ["order_id"]
