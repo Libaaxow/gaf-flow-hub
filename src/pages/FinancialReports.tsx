@@ -285,13 +285,13 @@ const FinancialReports = () => {
 
       (invoicesData || []).forEach((inv: { customer_id: string; total_amount: number; amount_paid: number; status: string }) => {
         const existing = balanceMap.get(inv.customer_id) || { totalBilled: 0, totalPaid: 0, outstanding: 0, invoiceCount: 0 };
-        existing.totalBilled += Number(inv.total_amount) || 0;
-        existing.totalPaid += Number(inv.amount_paid) || 0;
-        // Only count non-draft invoices for outstanding
+        // Only count non-draft invoices for financial calculations
         if (inv.status !== 'draft') {
-          existing.outstanding += (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0);
+          existing.totalBilled += Number(inv.total_amount) || 0;
+          existing.totalPaid += Number(inv.amount_paid) || 0;
+          existing.outstanding = existing.totalBilled - existing.totalPaid;
+          existing.invoiceCount += 1;
         }
-        existing.invoiceCount += 1;
         balanceMap.set(inv.customer_id, existing);
       });
 
