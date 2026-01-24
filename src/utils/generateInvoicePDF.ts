@@ -40,13 +40,14 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
       orientation: "portrait",
       unit: "mm",
       format: "a4",
+      compress: true, // Enable compression for smaller file size
     });
 
     const pageWidth = 210;
     const leftMargin = 15;
     const rightMargin = 195;
 
-    // Header with Blue Bar and Logo
+    // Header with Blue Bar and Logo - reduced image size for smaller PDF
     pdf.setFillColor(30, 64, 175); // Blue color
     pdf.rect(leftMargin, 10, 60, 12, "F");
     pdf.setFontSize(16);
@@ -54,26 +55,26 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     pdf.setFont("helvetica", "bold");
     pdf.text("BAIDOA", leftMargin + 30, 18, { align: "center" });
 
-    // Logo on right
-    pdf.addImage(logoImg, "PNG", 140, 5, 55, 35);
+    // Logo on right - reduced size for smaller file
+    pdf.addImage(logoImg, "JPEG", 145, 8, 45, 28, undefined, "FAST");
 
     // Invoice Title - Centered
-    pdf.setFontSize(20);
+    pdf.setFontSize(18);
     pdf.setTextColor(30, 64, 175);
     pdf.setFont("helvetica", "bold");
-    pdf.text("QAANSHEEG", pageWidth / 2, 55, { align: "center" });
+    pdf.text("QAANSHEEG", pageWidth / 2, 52, { align: "center" });
     
-    pdf.setFontSize(10);
+    pdf.setFontSize(9);
     pdf.setTextColor(220, 38, 38);
-    pdf.text("INVOICE", pageWidth / 2, 61, { align: "center" });
+    pdf.text("INVOICE", pageWidth / 2, 58, { align: "center" });
 
     // Two Column Layout for Customer and Invoice Info
-    const infoStartY = 70;
+    const infoStartY = 65;
     const labelColor = [30, 64, 175];
     const grayColor = [128, 128, 128];
     const blackColor = [51, 51, 51];
 
-    pdf.setFontSize(8);
+    pdf.setFontSize(7);
 
     // Left Column - Customer Info
     const leftCol = leftMargin;
@@ -85,17 +86,16 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
       pdf.text(somaliLabel, leftCol, leftY);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-      pdf.text(`(${englishLabel}):`, leftCol + 25, leftY);
+      pdf.text(`(${englishLabel}):`, leftCol + 22, leftY);
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
-      pdf.text(value, leftCol + 50, leftY);
-      leftY += 5;
+      pdf.text(value.substring(0, 30), leftCol + 45, leftY);
+      leftY += 4;
     };
 
     addLeftRow("Macmiilka", "Customer", data.customerName);
-    addLeftRow("Wakiilka", "Contact Person", data.customerName);
-    addLeftRow("Lambarka", "Telephone", data.customerContact || "-");
+    addLeftRow("Lambarka", "Tel", data.customerContact || "-");
     addLeftRow("Emailka", "Email", data.customerEmail || "-");
-    addLeftRow("Cinwaanka", "Address", data.customerAddress || "Baidoa, Somalia");
+    addLeftRow("Cinwaanka", "Address", data.customerAddress || "Baidoa");
 
     // Right Column - Invoice Info
     const rightCol = 110;
@@ -107,37 +107,33 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
       pdf.text(somaliLabel, rightCol, rightY);
       pdf.setFont("helvetica", "normal");
       pdf.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-      pdf.text(`(${englishLabel}):`, rightCol + 30, rightY);
+      pdf.text(`(${englishLabel}):`, rightCol + 25, rightY);
       pdf.setTextColor(blackColor[0], blackColor[1], blackColor[2]);
-      pdf.text(value, rightCol + 55, rightY);
-      rightY += 5;
+      pdf.text(value.substring(0, 25), rightCol + 48, rightY);
+      rightY += 4;
     };
 
-    addRightRow("Taariikhada", "Invoice Date", data.invoiceDate);
-    addRightRow("Iibiyaha", "Salesperson", data.salesperson || "-");
+    addRightRow("Taariikhada", "Date", data.invoiceDate);
+    addRightRow("Iibiyaha", "Sales", data.salesperson || "-");
     addRightRow("Tixraaca", "Invoice#", data.invoiceNumber);
     if (data.projectName) {
       addRightRow("Mashruuca", "Project", data.projectName);
     }
-    addRightRow("Xarunta", "Branch", "Baidoa");
-    addRightRow("Nooca Bixinta", "Payment Method", data.paymentMethod || "Cash");
+    addRightRow("Bixinta", "Payment", data.paymentMethod || "Cash");
 
     // Items Table with dimension support
-    const tableStartY = 100;
+    const tableStartY = 88;
     const tableData = data.items.map(item => {
       const isAreaBased = item.saleType === 'area' || (item.areaM2 && item.areaM2 > 0);
       
       // Format description with product name as label
       const displayName = item.productName || item.description;
-      const hasWorkDescription = item.productName && item.description && item.description !== item.productName;
-      const descriptionText = hasWorkDescription 
-        ? `${displayName}\n${item.description}`
-        : displayName;
+      const descriptionText = displayName.substring(0, 40);
       
       // Format quantity/size column
       const quantity = item.quantity || 1;
       const qtySize = isAreaBased 
-        ? `${quantity} × ${(item.widthM || 0).toFixed(2)} × ${(item.heightM || 0).toFixed(2)} m\n${((item.areaM2 || 0) * quantity).toFixed(2)} m² total`
+        ? `${quantity}×${(item.widthM || 0).toFixed(1)}×${(item.heightM || 0).toFixed(1)}m`
         : item.quantity.toString();
       
       // Format rate column
@@ -156,16 +152,16 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     autoTable(pdf, {
       startY: tableStartY,
       head: [[
-        { content: 'Faah faahin (Description)', styles: { halign: 'left' } },
-        { content: 'Tirada/Cabir (Qty/Size)', styles: { halign: 'center' } },
+        { content: 'Faah faahin (Desc)', styles: { halign: 'left' } },
+        { content: 'Tirada (Qty)', styles: { halign: 'center' } },
         { content: 'Qiimaha (Rate)', styles: { halign: 'right' } },
-        { content: 'Wadarta (Amount)', styles: { halign: 'right' } }
+        { content: 'Wadarta (Amt)', styles: { halign: 'right' } }
       ]],
       body: tableData,
       theme: 'plain',
       styles: {
-        fontSize: 8,
-        cellPadding: 3,
+        fontSize: 7,
+        cellPadding: 2,
         textColor: [51, 51, 51],
         lineColor: [200, 200, 200],
         lineWidth: 0.1,
@@ -174,63 +170,60 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
         fillColor: [30, 64, 175],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
-        fontSize: 7,
-        cellPadding: 4,
+        fontSize: 6,
+        cellPadding: 3,
       },
       bodyStyles: {
         textColor: [220, 38, 38],
       },
       columnStyles: {
-        0: { cellWidth: 70, textColor: [220, 38, 38] },
-        1: { cellWidth: 35, halign: 'center', textColor: [51, 51, 51] },
-        2: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
-        3: { cellWidth: 35, halign: 'right', textColor: [51, 51, 51] },
+        0: { cellWidth: 75, textColor: [220, 38, 38] },
+        1: { cellWidth: 30, halign: 'center', textColor: [51, 51, 51] },
+        2: { cellWidth: 32, halign: 'right', textColor: [51, 51, 51] },
+        3: { cellWidth: 32, halign: 'right', textColor: [51, 51, 51] },
       },
     });
 
     // Footer Section
-    const finalY = (pdf as any).lastAutoTable.finalY + 10;
+    const finalY = (pdf as any).lastAutoTable.finalY + 8;
     const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0);
     const total = data.totalAmount ?? subtotal;
     const amountPaid = data.amountPaid ?? 0;
     const amountDue = total - amountPaid;
 
-    // QR Code Section
-    pdf.addImage(qrCodeImg, "PNG", leftMargin, finalY, 25, 25);
+    // QR Code Section - smaller size for reduced file size
+    pdf.addImage(qrCodeImg, "JPEG", leftMargin, finalY, 20, 20, undefined, "FAST");
     
-    pdf.setFontSize(8);
+    pdf.setFontSize(7);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(30, 64, 175);
-    pdf.text("FADLAN HALKAAN ISKAANGAREE", leftMargin + 30, finalY + 8);
-    pdf.text("SI AAD U HUBISO", leftMargin + 30, finalY + 13);
+    pdf.text("SCAN SI AAD U HUBISO", leftMargin + 23, finalY + 8);
     pdf.setFont("helvetica", "italic");
     pdf.setTextColor(128, 128, 128);
-    pdf.text("Please Scan Here To Verify", leftMargin + 30, finalY + 20);
+    pdf.text("Scan To Verify", leftMargin + 23, finalY + 13);
 
     // Totals Section - Right side
     const totalsX = 130;
     let totalsY = finalY;
 
     const addTotalRow = (somaliLabel: string, englishLabel: string, value: string, isBold = false) => {
-      pdf.setFontSize(8);
+      pdf.setFontSize(7);
       pdf.setFont("helvetica", isBold ? "bold" : "normal");
       pdf.setTextColor(51, 51, 51);
       pdf.text(`${somaliLabel} (${englishLabel}):`, totalsX, totalsY);
       pdf.text(value, rightMargin, totalsY, { align: "right" });
       pdf.setDrawColor(200, 200, 200);
-      pdf.line(totalsX, totalsY + 2, rightMargin, totalsY + 2);
-      totalsY += 7;
+      pdf.line(totalsX, totalsY + 1.5, rightMargin, totalsY + 1.5);
+      totalsY += 5;
     };
 
-    addTotalRow("Wadarta Guud", "Total Amount", `$${total.toFixed(2)}`);
-    addTotalRow("Canshuurta Kahor", "Untaxed Amount", `$${subtotal.toFixed(2)}`);
-    addTotalRow("Canshuurta", "VAT", "$0.00");
-    addTotalRow("Lacagta La Bixiyey", "Amount Paid", `$${amountPaid.toFixed(2)}`);
+    addTotalRow("Wadarta", "Total", `$${total.toFixed(2)}`);
+    addTotalRow("La Bixiyey", "Paid", `$${amountPaid.toFixed(2)}`);
     
     // Amount Due - Highlighted
-    pdf.setFontSize(10);
+    pdf.setFontSize(9);
     pdf.setFont("helvetica", "bold");
-    pdf.text("Haraa (Amount Due):", totalsX, totalsY);
+    pdf.text("Haraa (Due):", totalsX, totalsY);
     if (amountDue > 0) {
       pdf.setTextColor(220, 38, 38);
     } else {
@@ -239,24 +232,24 @@ export const generateInvoicePDF = (invoiceNumber: string, data: InvoiceData) => 
     pdf.text(`$${amountDue.toFixed(2)}`, rightMargin, totalsY, { align: "right" });
 
     // Status Badge at bottom
-    const statusY = totalsY + 15;
-    const statusText = data.status === "PAID" ? "PAID / LA BIXIYEY" : 
-                       data.status === "PARTIAL" ? "PARTIAL / QAYB" : 
-                       "UNPAID / LAMA BIXIN";
+    const statusY = totalsY + 10;
+    const statusText = data.status === "PAID" ? "PAID" : 
+                       data.status === "PARTIAL" ? "PARTIAL" : 
+                       "UNPAID";
     const statusColor = data.status === "PAID" ? [34, 197, 94] : 
                         data.status === "PARTIAL" ? [234, 179, 8] : 
                         [220, 38, 38];
     
     pdf.setFillColor(statusColor[0], statusColor[1], statusColor[2]);
-    const statusWidth = 45;
-    pdf.roundedRect(pageWidth / 2 - statusWidth / 2, statusY - 4, statusWidth, 8, 2, 2, "F");
-    pdf.setFontSize(8);
+    const statusWidth = 30;
+    pdf.roundedRect(pageWidth / 2 - statusWidth / 2, statusY - 3, statusWidth, 6, 1, 1, "F");
+    pdf.setFontSize(7);
     pdf.setTextColor(255, 255, 255);
     pdf.setFont("helvetica", "bold");
     pdf.text(statusText, pageWidth / 2, statusY + 1, { align: "center" });
 
     console.log("PDF generation complete, initiating download...");
-    const filename = `Invoice-${invoiceNumber}.pdf`;
+    const filename = `INV-${invoiceNumber}.pdf`;
     pdf.save(filename);
     console.log("PDF download triggered successfully:", filename);
     return true;
