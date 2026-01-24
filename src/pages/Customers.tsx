@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,13 +7,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Search, ChevronDown, ChevronUp, FileText, Package, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, ChevronDown, ChevronUp, FileText, Package, Pencil, Trash2, DollarSign, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface Customer {
   id: string;
@@ -21,6 +22,24 @@ interface Customer {
   phone: string | null;
   company_name: string | null;
   created_at: string;
+}
+
+interface CustomerBalance {
+  customerId: string;
+  totalBilled: number;
+  totalPaid: number;
+  outstanding: number;
+}
+
+interface UnpaidInvoice {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  amount_paid: number;
+  outstanding: number;
+  status: string;
+  is_draft: boolean;
 }
 
 const customerSchema = z.object({
@@ -32,6 +51,7 @@ const customerSchema = z.object({
 const Customers = () => {
   const navigate = useNavigate();
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customerBalances, setCustomerBalances] = useState<Map<string, CustomerBalance>>(new Map());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -50,6 +70,10 @@ const Customers = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [balanceDialogOpen, setBalanceDialogOpen] = useState(false);
+  const [selectedCustomerForBalance, setSelectedCustomerForBalance] = useState<Customer | null>(null);
+  const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([]);
+  const [loadingUnpaidInvoices, setLoadingUnpaidInvoices] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -100,6 +124,9 @@ const Customers = () => {
 
       if (error) throw error;
       setCustomers(data || []);
+      
+      // Fetch all invoices to calculate balances
+      await fetchCustomerBalances(data || []);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -109,6 +136,80 @@ const Customers = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchCustomerBalances = async (customerList: Customer[]) => {
+    try {
+      const { data: invoices, error } = await supabase
+        .from('invoices')
+        .select('customer_id, total_amount, amount_paid, is_draft')
+        .eq('is_draft', false);
+
+      if (error) throw error;
+
+      const balancesMap = new Map<string, CustomerBalance>();
+
+      // Initialize all customers with zero balances
+      customerList.forEach(customer => {
+        balancesMap.set(customer.id, {
+          customerId: customer.id,
+          totalBilled: 0,
+          totalPaid: 0,
+          outstanding: 0,
+        });
+      });
+
+      // Calculate balances from invoices
+      invoices?.forEach(invoice => {
+        const existing = balancesMap.get(invoice.customer_id);
+        if (existing) {
+          existing.totalBilled += invoice.total_amount || 0;
+          existing.totalPaid += invoice.amount_paid || 0;
+          existing.outstanding = existing.totalBilled - existing.totalPaid;
+        }
+      });
+
+      setCustomerBalances(balancesMap);
+    } catch (error: any) {
+      console.error('Error fetching customer balances:', error);
+    }
+  };
+
+  const fetchUnpaidInvoices = async (customerId: string) => {
+    setLoadingUnpaidInvoices(true);
+    try {
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('id, invoice_number, invoice_date, total_amount, amount_paid, status, is_draft')
+        .eq('customer_id', customerId)
+        .eq('is_draft', false)
+        .order('invoice_date', { ascending: true });
+
+      if (error) throw error;
+
+      const unpaid = (data || [])
+        .map(inv => ({
+          ...inv,
+          outstanding: (inv.total_amount || 0) - (inv.amount_paid || 0),
+        }))
+        .filter(inv => inv.outstanding > 0);
+
+      setUnpaidInvoices(unpaid);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingUnpaidInvoices(false);
+    }
+  };
+
+  const handleBalanceClick = async (customer: Customer) => {
+    setSelectedCustomerForBalance(customer);
+    setBalanceDialogOpen(true);
+    await fetchUnpaidInvoices(customer.id);
   };
 
   const handlePhoneCheck = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -566,16 +667,23 @@ const Customers = () => {
                         <td className="px-6 py-4 text-muted-foreground">{customer.phone || '-'}</td>
                         <td className="px-6 py-4 text-muted-foreground">{customer.company_name || '-'}</td>
                         <td className="px-6 py-4">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => navigate(`/customers/${customer.id}/analytics`)}
-                              className="gap-2"
-                            >
-                              <Package className="h-4 w-4" />
-                              Analytics
-                            </Button>
+                          <div className="flex gap-2 items-center">
+                            {/* Customer Balance Display */}
+                            {(() => {
+                              const balance = customerBalances.get(customer.id);
+                              const outstanding = balance?.outstanding || 0;
+                              return (
+                                <Button
+                                  variant={outstanding > 0 ? "destructive" : "outline"}
+                                  size="sm"
+                                  onClick={() => handleBalanceClick(customer)}
+                                  className="gap-2 min-w-[120px]"
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                  ${outstanding.toFixed(2)}
+                                </Button>
+                              );
+                            })()}
                             <Button
                               variant="outline"
                               size="sm"
@@ -785,6 +893,106 @@ const Customers = () => {
               Delete
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Balance / Unpaid Invoices Dialog */}
+      <Dialog open={balanceDialogOpen} onOpenChange={setBalanceDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              {selectedCustomerForBalance?.name} - Outstanding Balance
+            </DialogTitle>
+          </DialogHeader>
+          
+          {loadingUnpaidInvoices ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Summary */}
+              {selectedCustomerForBalance && (
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground">Total Billed</p>
+                    <p className="text-xl font-bold">
+                      ${customerBalances.get(selectedCustomerForBalance.id)?.totalBilled.toFixed(2) || '0.00'}
+                    </p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground">Total Paid</p>
+                    <p className="text-xl font-bold text-green-600">
+                      ${customerBalances.get(selectedCustomerForBalance.id)?.totalPaid.toFixed(2) || '0.00'}
+                    </p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-sm text-muted-foreground">Outstanding</p>
+                    <p className="text-xl font-bold text-destructive">
+                      ${customerBalances.get(selectedCustomerForBalance.id)?.outstanding.toFixed(2) || '0.00'}
+                    </p>
+                  </Card>
+                </div>
+              )}
+
+              {/* Unpaid Invoices List */}
+              <div>
+                <h4 className="font-semibold mb-3 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  Invoices to Pay ({unpaidInvoices.length})
+                </h4>
+                
+                {unpaidInvoices.length > 0 ? (
+                  <ScrollArea className="h-[300px]">
+                    <div className="space-y-2">
+                      {unpaidInvoices.map((invoice) => (
+                        <div 
+                          key={invoice.id}
+                          className="p-4 bg-muted/30 rounded-lg border cursor-pointer hover:border-primary transition-colors"
+                          onClick={async () => {
+                            // Fetch full invoice data
+                            const { data } = await supabase
+                              .from('invoices')
+                              .select(`*, invoice_items(*)`)
+                              .eq('id', invoice.id)
+                              .maybeSingle();
+                            if (data) {
+                              setSelectedInvoice(data);
+                              setInvoiceDialogOpen(true);
+                            }
+                          }}
+                        >
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium">{invoice.invoice_number}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {format(new Date(invoice.invoice_date), 'MMM d, yyyy')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm text-muted-foreground">Outstanding</p>
+                              <p className="font-bold text-destructive">${invoice.outstanding.toFixed(2)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-2 flex justify-between text-sm text-muted-foreground">
+                            <span>Total: ${invoice.total_amount.toFixed(2)}</span>
+                            <span>Paid: ${invoice.amount_paid.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <DollarSign className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                    <p>No outstanding invoices</p>
+                    <p className="text-sm">This customer has paid all invoices</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Layout>
