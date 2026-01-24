@@ -30,6 +30,7 @@ import CustomerOrderHistory from "./pages/CustomerOrderHistory";
 import CustomerAnalytics from "./pages/CustomerAnalytics";
 import Quotations from "./pages/Quotations";
 import BeginningBalances from "./pages/BeginningBalances";
+import FinancialAnalyst from "./pages/FinancialAnalyst";
 
 import NotFound from "./pages/NotFound";
 
@@ -218,6 +219,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BeginningBalances />
+                </ProtectedRoute>
+              }
+              />
+            <Route
+              path="/financial-analyst"
+              element={
+                <ProtectedRoute>
+                  <FinancialAnalyst />
                 </ProtectedRoute>
               }
             />
