@@ -9,7 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
-import { CalendarIcon, Download, DollarSign, TrendingDown, TrendingUp, Building2 } from 'lucide-react';
+import { CalendarIcon, Download, DollarSign, TrendingDown, TrendingUp, Building2, Users } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
@@ -65,6 +66,18 @@ interface VendorReport {
   transactionCount: number;
 }
 
+interface CustomerBalance {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  company_name?: string;
+  totalBilled: number;
+  totalPaid: number;
+  outstanding: number;
+  invoiceCount: number;
+}
+
 const FinancialReports = () => {
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
@@ -75,6 +88,9 @@ const FinancialReports = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [vendorReports, setVendorReports] = useState<VendorReport[]>([]);
+  const [customerBalances, setCustomerBalances] = useState<CustomerBalance[]>([]);
+  const [customerSearch, setCustomerSearch] = useState('');
+  const [balanceFilter, setBalanceFilter] = useState<string>('all');
   const [loading, setLoading] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(false);
   const [activeTab, setActiveTab] = useState('payments');
@@ -84,6 +100,7 @@ const FinancialReports = () => {
     fetchPayments();
     fetchExpenses();
     fetchVendors();
+    fetchCustomerBalances();
 
     // Set up realtime subscription
     const channel = supabase
@@ -91,6 +108,8 @@ const FinancialReports = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchPayments)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchExpenses)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'vendors' }, fetchVendors)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, fetchCustomerBalances)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, fetchCustomerBalances)
       .subscribe();
 
     return () => {
@@ -244,6 +263,52 @@ const FinancialReports = () => {
     }
   };
 
+  const fetchCustomerBalances = async () => {
+    try {
+      // Fetch all customers
+      const { data: customersData, error: customersError } = await supabase
+        .from('customers')
+        .select('id, name, email, phone, company_name')
+        .order('name');
+
+      if (customersError) throw customersError;
+
+      // Fetch all invoices (excluding drafts for outstanding calculation)
+      const { data: invoicesData, error: invoicesError } = await supabase
+        .from('invoices')
+        .select('customer_id, total_amount, amount_paid, status');
+
+      if (invoicesError) throw invoicesError;
+
+      // Calculate balances per customer
+      const balanceMap = new Map<string, { totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }>();
+
+      (invoicesData || []).forEach((inv: { customer_id: string; total_amount: number; amount_paid: number; status: string }) => {
+        const existing = balanceMap.get(inv.customer_id) || { totalBilled: 0, totalPaid: 0, outstanding: 0, invoiceCount: 0 };
+        existing.totalBilled += Number(inv.total_amount) || 0;
+        existing.totalPaid += Number(inv.amount_paid) || 0;
+        // Only count non-draft invoices for outstanding
+        if (inv.status !== 'draft') {
+          existing.outstanding += (Number(inv.total_amount) || 0) - (Number(inv.amount_paid) || 0);
+        }
+        existing.invoiceCount += 1;
+        balanceMap.set(inv.customer_id, existing);
+      });
+
+      const balances: CustomerBalance[] = (customersData || []).map((customer) => ({
+        ...customer,
+        totalBilled: balanceMap.get(customer.id)?.totalBilled || 0,
+        totalPaid: balanceMap.get(customer.id)?.totalPaid || 0,
+        outstanding: balanceMap.get(customer.id)?.outstanding || 0,
+        invoiceCount: balanceMap.get(customer.id)?.invoiceCount || 0,
+      }));
+
+      setCustomerBalances(balances);
+    } catch (error) {
+      console.error('Error fetching customer balances:', error);
+    }
+  };
+
   const handleExportPaymentsPDF = async () => {
     if (!payments.length) return;
 
@@ -302,6 +367,23 @@ const FinancialReports = () => {
   const totalDiscounts = payments.reduce((sum, p) => sum + Number(p.discount_amount || 0), 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
   const netIncome = totalPayments - totalExpenses;
+
+  // Filter customer balances
+  const filteredCustomerBalances = customerBalances.filter((customer) => {
+    const matchesSearch = customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customer.company_name?.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customer.phone?.includes(customerSearch);
+    
+    if (balanceFilter === 'with_balance') {
+      return matchesSearch && customer.outstanding > 0;
+    } else if (balanceFilter === 'no_balance') {
+      return matchesSearch && customer.outstanding <= 0;
+    }
+    return matchesSearch;
+  });
+
+  const totalOutstanding = filteredCustomerBalances.reduce((sum, c) => sum + c.outstanding, 0);
+  const customersWithBalance = filteredCustomerBalances.filter(c => c.outstanding > 0).length;
 
   return (
     <Layout>
@@ -363,9 +445,10 @@ const FinancialReports = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="payments">Payments</TabsTrigger>
             <TabsTrigger value="expenses">Expenses</TabsTrigger>
+            <TabsTrigger value="customers">Customers</TabsTrigger>
           </TabsList>
 
           <TabsContent value="payments" className="space-y-4">
@@ -672,6 +755,153 @@ const FinancialReports = () => {
               <Card>
                 <CardContent className="py-8">
                   <p className="text-center text-muted-foreground">No expense records found</p>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="customers" className="space-y-4">
+            {/* Customer Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Customers</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{filteredCustomerBalances.length}</div>
+                  <p className="text-xs text-muted-foreground">In current filter</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
+                  <TrendingDown className="h-4 w-4 text-destructive" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-destructive">${totalOutstanding.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">Accounts receivable</p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">With Balance</CardTitle>
+                  <DollarSign className="h-4 w-4 text-orange-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-500">{customersWithBalance}</div>
+                  <p className="text-xs text-muted-foreground">Customers owing money</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Filters */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Filter Customers</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Search Customer</Label>
+                    <Input
+                      placeholder="Search by name, company, or phone..."
+                      value={customerSearch}
+                      onChange={(e) => setCustomerSearch(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Balance Status</Label>
+                    <Select value={balanceFilter} onValueChange={setBalanceFilter}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Customers</SelectItem>
+                        <SelectItem value="with_balance">With Outstanding Balance</SelectItem>
+                        <SelectItem value="no_balance">Fully Paid</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Button onClick={fetchCustomerBalances} disabled={loading}>
+                  {loading ? 'Refreshing...' : 'Refresh Report'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Customer Balances Table */}
+            {filteredCustomerBalances.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Customer Outstanding Balances</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left py-3 px-2">Customer</th>
+                          <th className="text-left py-3 px-2">Contact</th>
+                          <th className="text-center py-3 px-2">Invoices</th>
+                          <th className="text-right py-3 px-2">Total Billed</th>
+                          <th className="text-right py-3 px-2">Total Paid</th>
+                          <th className="text-right py-3 px-2">Outstanding</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredCustomerBalances
+                          .sort((a, b) => b.outstanding - a.outstanding)
+                          .map((customer) => (
+                            <tr key={customer.id} className="border-b hover:bg-muted/50">
+                              <td className="py-3 px-2">
+                                <div className="font-medium">{customer.name}</div>
+                                {customer.company_name && (
+                                  <div className="text-sm text-muted-foreground">{customer.company_name}</div>
+                                )}
+                              </td>
+                              <td className="py-3 px-2">
+                                <div className="text-sm">{customer.phone || '-'}</div>
+                                <div className="text-sm text-muted-foreground">{customer.email || ''}</div>
+                              </td>
+                              <td className="py-3 px-2 text-center">{customer.invoiceCount}</td>
+                              <td className="py-3 px-2 text-right">${customer.totalBilled.toFixed(2)}</td>
+                              <td className="py-3 px-2 text-right text-success">${customer.totalPaid.toFixed(2)}</td>
+                              <td className={cn(
+                                "py-3 px-2 text-right font-semibold",
+                                customer.outstanding > 0 ? "text-destructive" : "text-success"
+                              )}>
+                                ${customer.outstanding.toFixed(2)}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t font-bold bg-muted/30">
+                          <td colSpan={3} className="py-3 px-2 text-right">Total:</td>
+                          <td className="py-3 px-2 text-right">
+                            ${filteredCustomerBalances.reduce((sum, c) => sum + c.totalBilled, 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 text-right text-success">
+                            ${filteredCustomerBalances.reduce((sum, c) => sum + c.totalPaid, 0).toFixed(2)}
+                          </td>
+                          <td className="py-3 px-2 text-right text-destructive">
+                            ${totalOutstanding.toFixed(2)}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-center text-muted-foreground">No customers found</p>
                 </CardContent>
               </Card>
             )}
