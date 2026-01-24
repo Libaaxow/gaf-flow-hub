@@ -59,69 +59,56 @@ export const generateCustomerReportPDF = (
       orientation: "portrait",
       unit: "mm",
       format: "a4",
+      compress: true, // Enable compression for smaller file size
     });
 
-    // Add company logo
-    pdf.addImage(logoImg, "PNG", 20, 15, 50, 20);
+    // Add company logo - reduced size for smaller file
+    pdf.addImage(logoImg, "JPEG", 20, 15, 40, 16, undefined, "FAST");
 
     // Company Details - Right aligned
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setTextColor(51, 51, 51);
     pdf.setFont(undefined, "bold");
-    pdf.text("GAF MEDIA", 210 - 20, 20, { align: "right" });
+    pdf.text("GAF MEDIA", 210 - 20, 18, { align: "right" });
     pdf.setFont(undefined, "normal");
     pdf.setTextColor(102, 102, 102);
-    pdf.text("Shanemo Shatrale Baidoa Somalia", 210 - 20, 25, { align: "right" });
-    pdf.text("Phone: 0619130707", 210 - 20, 30, { align: "right" });
-    pdf.text("Email: gafmedia02@gmail.com", 210 - 20, 35, { align: "right" });
+    pdf.text("Baidoa, Somalia | 0619130707", 210 - 20, 23, { align: "right" });
 
     // Separator line
     pdf.setDrawColor(230, 230, 230);
-    pdf.setLineWidth(0.5);
-    pdf.line(20, 42, 190, 42);
+    pdf.setLineWidth(0.3);
+    pdf.line(20, 35, 190, 35);
 
     // Report Title
-    pdf.setFontSize(24);
+    pdf.setFontSize(18);
     pdf.setTextColor(41, 98, 255);
     pdf.setFont(undefined, "bold");
-    pdf.text("CUSTOMER REPORT", 20, 54);
+    pdf.text("CUSTOMER REPORT", 20, 45);
 
     // Report Date
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     pdf.setTextColor(102, 102, 102);
     pdf.setFont(undefined, "normal");
-    pdf.text(`Generated: ${format(new Date(), "MMMM dd, yyyy")}`, 210 - 20, 54, { align: "right" });
+    pdf.text(`${format(new Date(), "dd MMM yyyy")}`, 210 - 20, 45, { align: "right" });
 
-    // Customer Summary Section
-    let yPos = 65;
+    // Customer Summary Section - compact
+    let yPos = 52;
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20, yPos, 170, 35, 2, 2, "F");
-
-    pdf.setFontSize(12);
-    pdf.setFont(undefined, "bold");
-    pdf.setTextColor(41, 98, 255);
-    pdf.text("Customer Information", 25, yPos + 7);
+    pdf.roundedRect(20, yPos, 170, 22, 1, 1, "F");
 
     pdf.setFontSize(10);
-    pdf.setTextColor(51, 51, 51);
-    pdf.text(customer.name, 25, yPos + 15);
+    pdf.setFont(undefined, "bold");
+    pdf.setTextColor(41, 98, 255);
+    pdf.text("Customer: " + customer.name, 25, yPos + 6);
 
-    let infoYPos = yPos + 21;
-    if (customer.company_name) {
-      pdf.setFontSize(9);
-      pdf.setTextColor(102, 102, 102);
-      pdf.text(`Company: ${customer.company_name}`, 25, infoYPos);
-      infoYPos += 5;
-    }
-    if (customer.email) {
-      pdf.setFontSize(9);
-      pdf.text(`Email: ${customer.email}`, 25, infoYPos);
-      infoYPos += 5;
-    }
-    if (customer.phone) {
-      pdf.setFontSize(9);
-      pdf.text(`Phone: ${customer.phone}`, 25, infoYPos);
-    }
+    pdf.setFontSize(8);
+    pdf.setTextColor(51, 51, 51);
+    pdf.setFont(undefined, "normal");
+    let infoText = [];
+    if (customer.company_name) infoText.push(customer.company_name);
+    if (customer.phone) infoText.push(customer.phone);
+    if (customer.email) infoText.push(customer.email);
+    pdf.text(infoText.join(" | ").substring(0, 80), 25, yPos + 12);
 
     // Calculate totals
     const totalInvoices = invoices.length;
@@ -129,110 +116,58 @@ export const generateCustomerReportPDF = (
     const totalPaid = invoices.reduce((sum, inv) => sum + Number(inv.amount_paid), 0);
     const outstanding = totalBilled - totalPaid;
 
-    // Statistics Section
-    yPos = 108;
-    const statWidth = 40;
-    const statHeight = 22;
-    const statGap = 3;
-    
-    // Total Invoices
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20, yPos, statWidth, statHeight, 2, 2, "F");
-    pdf.setFontSize(8);
-    pdf.setTextColor(102, 102, 102);
-    pdf.text("Total Invoices", 40, yPos + 6, { align: "center" });
-    pdf.setFontSize(14);
-    pdf.setFont(undefined, "bold");
-    pdf.setTextColor(51, 51, 51);
-    pdf.text(totalInvoices.toString(), 40, yPos + 15, { align: "center" });
+    // Compact stats on same line
+    pdf.setFontSize(7);
+    pdf.text(`Invoices: ${totalInvoices}  |  Billed: $${totalBilled.toFixed(2)}  |  Paid: $${totalPaid.toFixed(2)}  |  Outstanding: $${outstanding.toFixed(2)}`, 25, yPos + 18);
 
-    // Total Billed
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20 + statWidth + statGap, yPos, statWidth, statHeight, 2, 2, "F");
-    pdf.setFontSize(8);
-    pdf.setFont(undefined, "normal");
-    pdf.setTextColor(102, 102, 102);
-    pdf.text("Total Billed", 40 + statWidth + statGap, yPos + 6, { align: "center" });
-    pdf.setFontSize(14);
-    pdf.setFont(undefined, "bold");
-    pdf.setTextColor(41, 98, 255);
-    pdf.text(`$${totalBilled.toFixed(2)}`, 40 + statWidth + statGap, yPos + 15, { align: "center" });
+    yPos = 78;
 
-    // Total Paid
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20 + (statWidth + statGap) * 2, yPos, statWidth, statHeight, 2, 2, "F");
-    pdf.setFontSize(8);
-    pdf.setFont(undefined, "normal");
-    pdf.setTextColor(102, 102, 102);
-    pdf.text("Total Paid", 40 + (statWidth + statGap) * 2, yPos + 6, { align: "center" });
-    pdf.setFontSize(14);
-    pdf.setFont(undefined, "bold");
-    pdf.setTextColor(34, 197, 94);
-    pdf.text(`$${totalPaid.toFixed(2)}`, 40 + (statWidth + statGap) * 2, yPos + 15, { align: "center" });
-
-    // Outstanding
-    pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(20 + (statWidth + statGap) * 3, yPos, statWidth, statHeight, 2, 2, "F");
-    pdf.setFontSize(8);
-    pdf.setFont(undefined, "normal");
-    pdf.setTextColor(102, 102, 102);
-    pdf.text("Outstanding", 40 + (statWidth + statGap) * 3, yPos + 6, { align: "center" });
-    pdf.setFontSize(14);
-    pdf.setFont(undefined, "bold");
-    pdf.setTextColor(239, 68, 68);
-    pdf.text(`$${outstanding.toFixed(2)}`, 40 + (statWidth + statGap) * 3, yPos + 15, { align: "center" });
-
-    // Filter Information (if any filters applied)
-    yPos = 138;
+    // Filter Information (if any filters applied) - compact
     if (filters.dateFrom || filters.dateTo || (filters.invoiceStatus && filters.invoiceStatus !== 'all')) {
-      pdf.setFontSize(9);
-      pdf.setFont(undefined, "bold");
-      pdf.setTextColor(102, 102, 102);
-      pdf.text("Applied Filters:", 20, yPos);
-      
+      pdf.setFontSize(7);
       pdf.setFont(undefined, "normal");
-      let filterText = [];
-      if (filters.dateFrom) filterText.push(`From: ${format(filters.dateFrom, "MMM dd, yyyy")}`);
-      if (filters.dateTo) filterText.push(`To: ${format(filters.dateTo, "MMM dd, yyyy")}`);
+      pdf.setTextColor(102, 102, 102);
+      let filterText = ["Filters:"];
+      if (filters.dateFrom) filterText.push(`From: ${format(filters.dateFrom, "dd/MM/yy")}`);
+      if (filters.dateTo) filterText.push(`To: ${format(filters.dateTo, "dd/MM/yy")}`);
       if (filters.invoiceStatus && filters.invoiceStatus !== 'all') filterText.push(`Status: ${filters.invoiceStatus}`);
-      
-      pdf.text(filterText.join(" | "), 50, yPos);
-      yPos += 8;
+      pdf.text(filterText.join(" "), 20, yPos);
+      yPos += 5;
     }
 
     // Invoice Table Header
-    pdf.setFontSize(11);
+    pdf.setFontSize(9);
     pdf.setFont(undefined, "bold");
     pdf.setTextColor(41, 98, 255);
     pdf.text("Invoice Details", 20, yPos);
-
-    yPos += 5;
+    yPos += 4;
 
     // Generate detailed invoice tables with items
     let currentY = yPos;
     
-    invoices.forEach((invoice, index) => {
+    invoices.forEach((invoice) => {
       // Check if we need a new page
-      if (currentY > 240) {
+      if (currentY > 250) {
         pdf.addPage();
-        currentY = 20;
+        currentY = 15;
       }
 
-      // Invoice header table
+      // Compact invoice header
       autoTable(pdf, {
         startY: currentY,
-        head: [["Invoice #", "Date", "Order", "Status", "Total"]],
+        head: [["Invoice#", "Date", "Status", "Total", "Paid", "Due"]],
         body: [[
           invoice.invoice_number,
-          format(new Date(invoice.invoice_date), "MMM dd, yyyy"),
-          invoice.order?.job_title || "N/A",
+          format(new Date(invoice.invoice_date), "dd/MM/yy"),
           invoice.status.toUpperCase(),
           `$${invoice.total_amount.toFixed(2)}`,
+          `$${invoice.amount_paid.toFixed(2)}`,
+          `$${(invoice.total_amount - invoice.amount_paid).toFixed(2)}`,
         ]],
         theme: "plain",
         styles: {
-          fontSize: 8,
-          cellPadding: 3,
+          fontSize: 7,
+          cellPadding: 2,
           textColor: [51, 51, 51],
           lineColor: [230, 230, 230],
           lineWidth: 0.1,
@@ -241,25 +176,26 @@ export const generateCustomerReportPDF = (
           fillColor: [41, 98, 255],
           textColor: [255, 255, 255],
           fontStyle: "bold",
-          fontSize: 9,
-          cellPadding: 4,
+          fontSize: 6,
+          cellPadding: 2,
         },
         columnStyles: {
-          0: { cellWidth: 32 },
-          1: { cellWidth: 32 },
-          2: { cellWidth: 48 },
-          3: { cellWidth: 23, halign: "center" },
-          4: { cellWidth: 23, halign: "right" },
+          0: { cellWidth: 28 },
+          1: { cellWidth: 22 },
+          2: { cellWidth: 22, halign: "center" },
+          3: { cellWidth: 28, halign: "right" },
+          4: { cellWidth: 28, halign: "right" },
+          5: { cellWidth: 28, halign: "right" },
         },
         margin: { left: 20, right: 20 },
       });
 
       currentY = (pdf as any).lastAutoTable.finalY;
 
-      // Invoice items table
+      // Invoice items table - compact
       if (invoice.invoice_items && invoice.invoice_items.length > 0) {
         const itemsData = invoice.invoice_items.map((item) => [
-          item.description,
+          item.description.substring(0, 35),
           item.quantity.toString(),
           `$${item.unit_price.toFixed(2)}`,
           `$${item.amount.toFixed(2)}`,
@@ -267,12 +203,12 @@ export const generateCustomerReportPDF = (
 
         autoTable(pdf, {
           startY: currentY,
-          head: [["Description", "Qty", "Unit Price", "Amount"]],
+          head: [["Description", "Qty", "Price", "Amount"]],
           body: itemsData,
           theme: "plain",
           styles: {
-            fontSize: 8,
-            cellPadding: 3,
+            fontSize: 6,
+            cellPadding: 1.5,
             textColor: [51, 51, 51],
             lineColor: [230, 230, 230],
             lineWidth: 0.1,
@@ -281,17 +217,14 @@ export const generateCustomerReportPDF = (
             fillColor: [248, 250, 252],
             textColor: [102, 102, 102],
             fontStyle: "bold",
-            fontSize: 8,
-            cellPadding: 3,
-          },
-          alternateRowStyles: {
-            fillColor: [252, 252, 253],
+            fontSize: 6,
+            cellPadding: 1.5,
           },
           columnStyles: {
-            0: { cellWidth: 85 },
-            1: { cellWidth: 18, halign: "center" },
-            2: { cellWidth: 28, halign: "right" },
-            3: { cellWidth: 28, halign: "right" },
+            0: { cellWidth: 90 },
+            1: { cellWidth: 15, halign: "center" },
+            2: { cellWidth: 25, halign: "right" },
+            3: { cellWidth: 25, halign: "right" },
           },
           margin: { left: 20, right: 20 },
         });
@@ -299,130 +232,37 @@ export const generateCustomerReportPDF = (
         currentY = (pdf as any).lastAutoTable.finalY;
       }
 
-      // Add invoice totals
-      autoTable(pdf, {
-        startY: currentY,
-        body: [
-          ["Subtotal:", `$${invoice.subtotal.toFixed(2)}`],
-          ["Tax:", `$${invoice.tax_amount.toFixed(2)}`],
-          ["Total:", `$${invoice.total_amount.toFixed(2)}`],
-          ["Paid:", `$${invoice.amount_paid.toFixed(2)}`],
-        ],
-        theme: "plain",
-        styles: {
-          fontSize: 8,
-          cellPadding: 2,
-          textColor: [51, 51, 51],
-        },
-        columnStyles: {
-          0: { cellWidth: 140, halign: "right", fontStyle: "bold" },
-          1: { cellWidth: 30, halign: "right" },
-        },
-        margin: { left: 25 },
-      });
-
-      currentY = (pdf as any).lastAutoTable.finalY;
-
-      // Add payment history if exists
-      if (invoice.order?.payments && invoice.order.payments.length > 0) {
-        currentY += 3;
-
-        // Check if we need a new page
-        if (currentY > 240) {
-          pdf.addPage();
-          currentY = 20;
-        }
-
-        const paymentsData = invoice.order.payments.map((payment) => [
-          format(new Date(payment.payment_date), "MMM dd, yyyy"),
-          payment.payment_method.replace('_', ' ').toUpperCase(),
-          `$${payment.amount.toFixed(2)}`,
-          payment.reference_number || '-',
-        ]);
-
-        autoTable(pdf, {
-          startY: currentY,
-          head: [["Payment Date", "Method", "Amount", "Reference"]],
-          body: paymentsData,
-          theme: "plain",
-          styles: {
-            fontSize: 7,
-            cellPadding: 2,
-            textColor: [51, 51, 51],
-            lineColor: [230, 230, 230],
-            lineWidth: 0.1,
-          },
-          headStyles: {
-            fillColor: [248, 250, 252],
-            textColor: [34, 197, 94],
-            fontStyle: "bold",
-            fontSize: 7,
-            cellPadding: 2,
-          },
-          columnStyles: {
-            0: { cellWidth: 32 },
-            1: { cellWidth: 38 },
-            2: { cellWidth: 28, halign: "right", textColor: [34, 197, 94], fontStyle: "bold" },
-            3: { cellWidth: 32 },
-          },
-          margin: { left: 20, right: 20 },
-        });
-
-        currentY = (pdf as any).lastAutoTable.finalY;
-      }
-
-      currentY += 5;
+      currentY += 3;
     });
 
-    // Summary section at the bottom
-    let finalY = (pdf as any).lastAutoTable.finalY + 10;
+    // Compact summary at bottom
+    let finalY = (pdf as any).lastAutoTable.finalY + 5;
     
-    // Check if we need a new page for summary
-    if (finalY > 230) {
+    if (finalY > 260) {
       pdf.addPage();
-      finalY = 20;
+      finalY = 15;
     }
     
     pdf.setFillColor(248, 250, 252);
-    pdf.roundedRect(120, finalY, 70, 30, 2, 2, "F");
+    pdf.roundedRect(120, finalY, 70, 18, 1, 1, "F");
 
-    pdf.setFontSize(9);
+    pdf.setFontSize(7);
     pdf.setFont(undefined, "normal");
     pdf.setTextColor(102, 102, 102);
-    pdf.text("Total Amount Billed:", 125, finalY + 7);
-    pdf.text(`$${totalBilled.toFixed(2)}`, 185, finalY + 7, { align: "right" });
+    pdf.text("Billed:", 125, finalY + 5);
+    pdf.text(`$${totalBilled.toFixed(2)}`, 185, finalY + 5, { align: "right" });
 
-    pdf.text("Total Amount Paid:", 125, finalY + 14);
     pdf.setTextColor(34, 197, 94);
-    pdf.text(`$${totalPaid.toFixed(2)}`, 185, finalY + 14, { align: "right" });
+    pdf.text("Paid:", 125, finalY + 10);
+    pdf.text(`$${totalPaid.toFixed(2)}`, 185, finalY + 10, { align: "right" });
 
-    pdf.setDrawColor(230, 230, 230);
-    pdf.line(125, finalY + 17, 185, finalY + 17);
-
-    pdf.setFontSize(11);
     pdf.setFont(undefined, "bold");
     pdf.setTextColor(239, 68, 68);
-    pdf.text("Outstanding Balance:", 125, finalY + 24);
-    pdf.text(`$${outstanding.toFixed(2)}`, 185, finalY + 24, { align: "right" });
+    pdf.text("Outstanding:", 125, finalY + 15);
+    pdf.text(`$${outstanding.toFixed(2)}`, 185, finalY + 15, { align: "right" });
 
-    // Footer
-    const footerY = 270;
-    pdf.setDrawColor(230, 230, 230);
-    pdf.line(20, footerY - 5, 190, footerY - 5);
-    
-    pdf.setFontSize(8);
-    pdf.setTextColor(102, 102, 102);
-    pdf.setFont(undefined, "normal");
-    pdf.text("Thank you for your business!", 105, footerY, { align: "center" });
-    pdf.text(
-      "For any questions, please contact us at gafmedia02@gmail.com or call 0619130707",
-      105,
-      footerY + 5,
-      { align: "center" }
-    );
-
-    // Save PDF
-    const filename = `Customer-Report-${customer.name.replace(/\s+/g, "-")}-${format(new Date(), "yyyy-MM-dd")}.pdf`;
+    // Save PDF with short filename
+    const filename = `Report-${customer.name.replace(/\s+/g, "-").substring(0, 15)}.pdf`;
     pdf.save(filename);
 
     return true;
