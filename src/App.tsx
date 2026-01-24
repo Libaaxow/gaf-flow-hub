@@ -20,7 +20,7 @@ import Orders from "./pages/Orders";
 import OrderDetail from "./pages/OrderDetail";
 import Reports from "./pages/Reports";
 import CustomerReports from "./pages/CustomerReports";
-import FinancialReports from "./pages/FinancialReports";
+
 import Users from "./pages/Users";
 import PrintOperatorDashboard from "./pages/PrintOperatorDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -178,14 +178,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CustomerReports />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/financial-reports"
-              element={
-                <ProtectedRoute>
-                  <FinancialReports />
                 </ProtectedRoute>
               }
             />
