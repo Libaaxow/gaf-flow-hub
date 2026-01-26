@@ -43,6 +43,7 @@ interface FinancialData {
   expensesByCategory: Record<string, number>;
   monthlyTrend: Array<{ month: string; revenue: number; expenses: number; profit: number }>;
   topCustomers: Array<{ name: string; totalSpent: number; outstanding: number }>;
+  customersWithOutstanding: Array<{ name: string; outstanding: number }>;
   recentTransactions: Array<{ date: string; type: string; amount: number; description: string }>;
 }
 
@@ -181,6 +182,12 @@ const FinancialAnalyst = () => {
         .sort((a, b) => b.totalSpent - a.totalSpent)
         .slice(0, 10);
 
+      // All customers with outstanding balances (complete list for AI)
+      const customersWithOutstanding = Object.values(customerSpending)
+        .filter(c => c.outstanding > 0)
+        .map(c => ({ name: c.name, outstanding: c.outstanding }))
+        .sort((a, b) => b.outstanding - a.outstanding);
+
       // Recent transactions (payments and expenses)
       const recentTransactions: Array<{ date: string; type: string; amount: number; description: string }> = [];
       
@@ -220,6 +227,7 @@ const FinancialAnalyst = () => {
         expensesByCategory,
         monthlyTrend,
         topCustomers,
+        customersWithOutstanding,
         recentTransactions: recentTransactions.slice(0, 15)
       });
     } catch (error) {
