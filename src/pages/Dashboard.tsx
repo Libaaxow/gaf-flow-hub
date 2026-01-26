@@ -10,13 +10,11 @@ import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
 import BoardDashboard from './BoardDashboard';
-import { CommissionPanel } from '@/components/CommissionPanel';
 
 interface DashboardStats {
   totalSales: number;
   pendingJobs: number;
   completedJobs: number;
-  totalCommissions: number;
   totalExpenses: number;
   netIncome: number;
 }
@@ -27,7 +25,6 @@ const Dashboard = () => {
     totalSales: 0,
     pendingJobs: 0,
     completedJobs: 0,
-    totalCommissions: 0,
     totalExpenses: 0,
     netIncome: 0,
   });
@@ -81,19 +78,10 @@ const Dashboard = () => {
         // Calculate net income
         const netIncome = totalSales - totalExpenses;
 
-        // Get user's commissions
-        const { data: commissions } = await supabase
-          .from('commissions')
-          .select('commission_amount')
-          .eq('user_id', user?.id);
-
-        const totalCommissions = commissions?.reduce((sum, c) => sum + Number(c.commission_amount || 0), 0) || 0;
-
         setStats({
           totalSales,
           pendingJobs,
           completedJobs,
-          totalCommissions,
           totalExpenses,
           netIncome,
         });
@@ -112,7 +100,6 @@ const Dashboard = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, fetchStats)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, fetchStats)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, fetchStats)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'commissions' }, fetchStats)
       .subscribe();
 
     return () => {
@@ -155,13 +142,6 @@ const Dashboard = () => {
       icon: CheckCircle,
       description: 'Delivered orders',
       color: 'text-success',
-    },
-    {
-      title: 'My Commissions',
-      value: `$${stats.totalCommissions.toFixed(2)}`,
-      icon: Package,
-      description: 'Your earnings',
-      color: 'text-primary',
     },
   ];
 
@@ -239,9 +219,6 @@ const Dashboard = () => {
             );
           })}
         </div>
-
-        {/* Commission Panel */}
-        <CommissionPanel />
 
         <Card>
           <CardHeader>
