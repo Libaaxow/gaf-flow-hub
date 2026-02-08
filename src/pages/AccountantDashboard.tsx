@@ -198,7 +198,17 @@ const AccountantDashboard = () => {
   const [expenseCustomStartDate, setExpenseCustomStartDate] = useState<Date>(subMonths(new Date(), 3));
   const [expenseCustomEndDate, setExpenseCustomEndDate] = useState<Date>(new Date());
 
-  // Customer form states
+  // Customer filter states
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+
+  // Payment filter states
+  const [allPayments, setAllPayments] = useState<any[]>([]);
+  const [paymentFilterMode, setPaymentFilterMode] = useState<'global' | 'custom' | 'all'>('global');
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState('');
+  const [paymentFilterMethod, setPaymentFilterMethod] = useState('all');
+  const [paymentCustomStartDate, setPaymentCustomStartDate] = useState<Date>(subMonths(new Date(), 3));
+  const [paymentCustomEndDate, setPaymentCustomEndDate] = useState<Date>(new Date());
+
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -332,6 +342,7 @@ const AccountantDashboard = () => {
       fetchProducts(),
       fetchSalesRequests(),
       fetchAllExpenses(),
+      fetchAllPayments(),
     ]);
   };
 
@@ -345,6 +356,34 @@ const AccountantDashboard = () => {
       setAllExpenses(data || []);
     } catch (error: any) {
       console.error('Error fetching all expenses:', error);
+    }
+  };
+
+  const fetchAllPayments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          id,
+          amount,
+          payment_method,
+          payment_date,
+          reference_number,
+          notes,
+          order:orders(
+            job_title,
+            customer:customers(name)
+          ),
+          invoice:invoices(
+            invoice_number,
+            customer:customers(name)
+          )
+        `)
+        .order('payment_date', { ascending: false });
+      if (error) throw error;
+      setAllPayments(data || []);
+    } catch (error: any) {
+      console.error('Error fetching all payments:', error);
     }
   };
 
@@ -1701,6 +1740,7 @@ const AccountantDashboard = () => {
       fetchFilteredData();
       fetchInvoices();
       fetchSalesRequests();
+      fetchAllPayments();
     } catch (error: any) {
       console.error('Invoice payment recording error:', error);
       toast({
@@ -4561,44 +4601,74 @@ const AccountantDashboard = () => {
                   </Dialog>
                 </div>
               </CardHeader>
-              <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[150px]">Name</TableHead>
-                      <TableHead className="min-w-[180px]">Email</TableHead>
-                      <TableHead className="min-w-[130px]">Phone</TableHead>
-                      <TableHead className="min-w-[150px]">Company</TableHead>
-                      <TableHead className="min-w-[100px]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                          No customers found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      customers.map((customer) => (
-                        <TableRow key={customer.id}>
-                          <TableCell className="font-medium">{customer.name}</TableCell>
-                          <TableCell>{customer.email}</TableCell>
-                          <TableCell>{customer.phone || '-'}</TableCell>
-                          <TableCell>{customer.company_name || '-'}</TableCell>
-                          <TableCell>
-                            <Button size="sm" variant="outline">
-                              <Eye className="mr-2 h-4 w-4" />
-                              View
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent className="space-y-4 p-4 sm:p-6 sm:pt-0">
+                {/* Customer Search Filter */}
+                <div className="p-4 bg-muted/50 rounded-lg">
+                  <Input
+                    placeholder="Search customers by name, email, phone, or company..."
+                    value={customerSearchQuery}
+                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
+                    className="h-9"
+                  />
                 </div>
+
+                {(() => {
+                  let filteredCustomers = customers;
+                  if (customerSearchQuery.trim()) {
+                    const query = customerSearchQuery.toLowerCase();
+                    filteredCustomers = customers.filter((c) =>
+                      (c.name || '').toLowerCase().includes(query) ||
+                      (c.email || '').toLowerCase().includes(query) ||
+                      (c.phone || '').toLowerCase().includes(query) ||
+                      (c.company_name || '').toLowerCase().includes(query)
+                    );
+                  }
+
+                  return (
+                    <>
+                      <div className="text-sm text-muted-foreground px-1">
+                        {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} found
+                      </div>
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[150px]">Name</TableHead>
+                              <TableHead className="min-w-[180px]">Email</TableHead>
+                              <TableHead className="min-w-[130px]">Phone</TableHead>
+                              <TableHead className="min-w-[150px]">Company</TableHead>
+                              <TableHead className="min-w-[100px]">Action</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredCustomers.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                                  No customers found
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              filteredCustomers.map((customer) => (
+                                <TableRow key={customer.id}>
+                                  <TableCell className="font-medium">{customer.name}</TableCell>
+                                  <TableCell>{customer.email}</TableCell>
+                                  <TableCell>{customer.phone || '-'}</TableCell>
+                                  <TableCell>{customer.company_name || '-'}</TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline">
+                                      <Eye className="mr-2 h-4 w-4" />
+                                      View
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
@@ -4617,9 +4687,15 @@ const AccountantDashboard = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        generatePaymentsReportPDF(payments, {
-                          dateFrom: startDate,
-                          dateTo: endDate,
+                        const paymentsToExport = paymentFilterMode === 'global' ? payments :
+                          paymentFilterMode === 'all' ? allPayments :
+                          allPayments.filter((p: any) => {
+                            const pDate = new Date(p.payment_date);
+                            return pDate >= paymentCustomStartDate && pDate <= paymentCustomEndDate;
+                          });
+                        generatePaymentsReportPDF(paymentsToExport, {
+                          dateFrom: paymentFilterMode === 'global' ? startDate : paymentFilterMode === 'custom' ? paymentCustomStartDate : undefined,
+                          dateTo: paymentFilterMode === 'global' ? endDate : paymentFilterMode === 'custom' ? paymentCustomEndDate : undefined,
                         });
                         toast({
                           title: 'Success',
@@ -4629,7 +4705,7 @@ const AccountantDashboard = () => {
                       className="shrink-0"
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Download All
+                      Download
                     </Button>
                     <Button 
                       onClick={() => {
@@ -4646,45 +4722,181 @@ const AccountantDashboard = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-0 sm:p-6 sm:pt-0 relative z-10">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="min-w-[100px]">Date</TableHead>
-                        <TableHead className="min-w-[150px]">Order</TableHead>
-                        <TableHead className="min-w-[150px]">Customer</TableHead>
-                        <TableHead className="min-w-[100px]">Amount</TableHead>
-                        <TableHead className="min-w-[120px]">Method</TableHead>
-                        <TableHead className="min-w-[120px]">Receipt #</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payments.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            No payments recorded
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        payments.map((payment) => (
-                          <TableRow key={payment.id}>
-                            <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
-                            <TableCell>
-                              {payment.order?.job_title || payment.invoice?.invoice_number || 'N/A'}
-                            </TableCell>
-                            <TableCell>
-                              {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
-                            </TableCell>
-                            <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                            <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
-                            <TableCell>{payment.reference_number || '-'}</TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+              <CardContent className="space-y-4 p-4 sm:p-6 sm:pt-0 relative z-10">
+                {/* Payment Filters */}
+                <div className="flex flex-col gap-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={paymentFilterMode === 'global' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentFilterMode('global')}
+                    >
+                      Dashboard Range
+                    </Button>
+                    <Button
+                      variant={paymentFilterMode === 'custom' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentFilterMode('custom')}
+                    >
+                      Custom Range
+                    </Button>
+                    <Button
+                      variant={paymentFilterMode === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPaymentFilterMode('all')}
+                    >
+                      All Time
+                    </Button>
+                  </div>
+
+                  {paymentFilterMode === 'custom' && (
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs">From</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal", !paymentCustomStartDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                              {paymentCustomStartDate ? format(paymentCustomStartDate, 'PP') : 'Start date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={paymentCustomStartDate}
+                              onSelect={(date) => date && setPaymentCustomStartDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs">To</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal", !paymentCustomEndDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                              {paymentCustomEndDate ? format(paymentCustomEndDate, 'PP') : 'End date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={paymentCustomEndDate}
+                              onSelect={(date) => date && setPaymentCustomEndDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="flex-1 min-w-[200px]">
+                      <Input
+                        placeholder="Search payments by customer, order, receipt..."
+                        value={paymentSearchQuery}
+                        onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="min-w-[150px]">
+                      <Select value={paymentFilterMethod} onValueChange={setPaymentFilterMethod}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All Methods" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Methods</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                          <SelectItem value="card">Card</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Payments Table */}
+                {(() => {
+                  let basePayments = paymentFilterMode === 'global' ? payments :
+                    paymentFilterMode === 'all' ? allPayments :
+                    allPayments.filter((p: any) => {
+                      const pDate = new Date(p.payment_date);
+                      return pDate >= paymentCustomStartDate && pDate <= endOfDay(paymentCustomEndDate);
+                    });
+
+                  // Apply method filter
+                  if (paymentFilterMethod !== 'all') {
+                    basePayments = basePayments.filter((p: any) => p.payment_method === paymentFilterMethod);
+                  }
+
+                  // Apply search filter
+                  if (paymentSearchQuery.trim()) {
+                    const query = paymentSearchQuery.toLowerCase();
+                    basePayments = basePayments.filter((p: any) =>
+                      (p.order?.job_title || '').toLowerCase().includes(query) ||
+                      (p.order?.customer?.name || '').toLowerCase().includes(query) ||
+                      (p.invoice?.invoice_number || '').toLowerCase().includes(query) ||
+                      (p.invoice?.customer?.name || '').toLowerCase().includes(query) ||
+                      (p.reference_number || '').toLowerCase().includes(query) ||
+                      (p.notes || '').toLowerCase().includes(query)
+                    );
+                  }
+
+                  const filteredTotal = basePayments.reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+                        <span>{basePayments.length} payment{basePayments.length !== 1 ? 's' : ''} found</span>
+                        <span className="font-medium text-foreground">Total: ${filteredTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[100px]">Date</TableHead>
+                              <TableHead className="min-w-[150px]">Order</TableHead>
+                              <TableHead className="min-w-[150px]">Customer</TableHead>
+                              <TableHead className="min-w-[100px]">Amount</TableHead>
+                              <TableHead className="min-w-[120px]">Method</TableHead>
+                              <TableHead className="min-w-[120px]">Receipt #</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {basePayments.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                  No payments found for the selected filters
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              basePayments.map((payment: any) => (
+                                <TableRow key={payment.id}>
+                                  <TableCell>{format(new Date(payment.payment_date), 'PP')}</TableCell>
+                                  <TableCell>
+                                    {payment.order?.job_title || payment.invoice?.invoice_number || 'N/A'}
+                                  </TableCell>
+                                  <TableCell>
+                                    {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
+                                  </TableCell>
+                                  <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                                  <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
+                                  <TableCell>{payment.reference_number || '-'}</TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
