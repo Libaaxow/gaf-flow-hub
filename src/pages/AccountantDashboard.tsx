@@ -190,6 +190,14 @@ const AccountantDashboard = () => {
   const [expenseSupplier, setExpenseSupplier] = useState('');
   const [expenseNotes, setExpenseNotes] = useState('');
 
+  // Expense filter states
+  const [allExpenses, setAllExpenses] = useState<any[]>([]);
+  const [expenseFilterMode, setExpenseFilterMode] = useState<'global' | 'custom' | 'all'>('global');
+  const [expenseSearchQuery, setExpenseSearchQuery] = useState('');
+  const [expenseFilterCategory, setExpenseFilterCategory] = useState('all');
+  const [expenseCustomStartDate, setExpenseCustomStartDate] = useState<Date>(subMonths(new Date(), 3));
+  const [expenseCustomEndDate, setExpenseCustomEndDate] = useState<Date>(new Date());
+
   // Customer form states
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
@@ -323,7 +331,21 @@ const AccountantDashboard = () => {
       fetchInvoices(),
       fetchProducts(),
       fetchSalesRequests(),
+      fetchAllExpenses(),
     ]);
+  };
+
+  const fetchAllExpenses = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('expense_date', { ascending: false });
+      if (error) throw error;
+      setAllExpenses(data || []);
+    } catch (error: any) {
+      console.error('Error fetching all expenses:', error);
+    }
   };
 
   const fetchSalesRequests = async () => {
@@ -1733,6 +1755,7 @@ const AccountantDashboard = () => {
       
       fetchActualStats();
       fetchFilteredData();
+      fetchAllExpenses();
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -4933,9 +4956,15 @@ const AccountantDashboard = () => {
                     <Button
                       variant="outline"
                       onClick={() => {
-                        generateExpensesReportPDF(expenses, {
-                          dateFrom: startDate,
-                          dateTo: endDate,
+                        const expensesToExport = expenseFilterMode === 'global' ? expenses : 
+                          expenseFilterMode === 'all' ? allExpenses :
+                          allExpenses.filter(e => {
+                            const eDate = new Date(e.expense_date);
+                            return eDate >= expenseCustomStartDate && eDate <= expenseCustomEndDate;
+                          });
+                        generateExpensesReportPDF(expensesToExport, {
+                          dateFrom: expenseFilterMode === 'global' ? startDate : expenseFilterMode === 'custom' ? expenseCustomStartDate : undefined,
+                          dateTo: expenseFilterMode === 'global' ? endDate : expenseFilterMode === 'custom' ? expenseCustomEndDate : undefined,
                         });
                         toast({
                           title: 'Success',
@@ -4944,7 +4973,7 @@ const AccountantDashboard = () => {
                       }}
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Download All
+                      Download
                     </Button>
                     <Dialog>
                       <DialogTrigger asChild>
@@ -5039,47 +5068,180 @@ const AccountantDashboard = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="p-0 sm:p-6 sm:pt-0">
-                <div className="overflow-x-auto -mx-4 sm:mx-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="min-w-[100px]">Date</TableHead>
-                      <TableHead className="min-w-[120px]">Category</TableHead>
-                      <TableHead className="min-w-[180px]">Description</TableHead>
-                      <TableHead className="min-w-[150px]">Supplier</TableHead>
-                      <TableHead className="min-w-[100px]">Amount</TableHead>
-                      <TableHead className="min-w-[120px]">Method</TableHead>
-                      <TableHead className="min-w-[100px]">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {expenses.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No expenses recorded
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      expenses.map((expense) => (
-                        <TableRow key={expense.id}>
-                          <TableCell>{format(new Date(expense.expense_date), 'PP')}</TableCell>
-                          <TableCell>{expense.category}</TableCell>
-                          <TableCell>{expense.description}</TableCell>
-                          <TableCell>{expense.supplier_name || '-'}</TableCell>
-                          <TableCell className="font-medium">${expense.amount.toFixed(2)}</TableCell>
-                          <TableCell className="capitalize">{expense.payment_method.replace('_', ' ')}</TableCell>
-                          <TableCell>
-                            <Badge variant={expense.approval_status === 'approved' ? 'default' : 'secondary'}>
-                              {expense.approval_status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+              <CardContent className="space-y-4">
+                {/* Expense Filters */}
+                <div className="flex flex-col gap-3 p-4 bg-muted/50 rounded-lg">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant={expenseFilterMode === 'global' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setExpenseFilterMode('global')}
+                    >
+                      Dashboard Range
+                    </Button>
+                    <Button
+                      variant={expenseFilterMode === 'custom' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setExpenseFilterMode('custom')}
+                    >
+                      Custom Range
+                    </Button>
+                    <Button
+                      variant={expenseFilterMode === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setExpenseFilterMode('all')}
+                    >
+                      All Time
+                    </Button>
+                  </div>
+                  
+                  {expenseFilterMode === 'custom' && (
+                    <div className="flex flex-wrap gap-3 items-end">
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs">From</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal", !expenseCustomStartDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                              {expenseCustomStartDate ? format(expenseCustomStartDate, 'PP') : 'Start date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={expenseCustomStartDate}
+                              onSelect={(date) => date && setExpenseCustomStartDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      <div className="grid gap-1.5">
+                        <Label className="text-xs">To</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className={cn("w-[140px] justify-start text-left font-normal", !expenseCustomEndDate && "text-muted-foreground")}>
+                              <CalendarIcon className="mr-2 h-3.5 w-3.5" />
+                              {expenseCustomEndDate ? format(expenseCustomEndDate, 'PP') : 'End date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={expenseCustomEndDate}
+                              onSelect={(date) => date && setExpenseCustomEndDate(date)}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-3 items-end">
+                    <div className="flex-1 min-w-[200px]">
+                      <Input
+                        placeholder="Search expenses..."
+                        value={expenseSearchQuery}
+                        onChange={(e) => setExpenseSearchQuery(e.target.value)}
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="min-w-[150px]">
+                      <Select value={expenseFilterCategory} onValueChange={setExpenseFilterCategory}>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="All Categories" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Categories</SelectItem>
+                          {[...new Set((expenseFilterMode === 'global' ? expenses : allExpenses).map((e: any) => e.category).filter(Boolean))].sort().map((cat: string) => (
+                            <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </div>
+
+                {/* Expenses Table */}
+                {(() => {
+                  // Determine base expenses based on filter mode
+                  let baseExpenses = expenseFilterMode === 'global' ? expenses : 
+                    expenseFilterMode === 'all' ? allExpenses :
+                    allExpenses.filter(e => {
+                      const eDate = new Date(e.expense_date);
+                      return eDate >= expenseCustomStartDate && eDate <= endOfDay(expenseCustomEndDate);
+                    });
+
+                  // Apply category filter
+                  if (expenseFilterCategory !== 'all') {
+                    baseExpenses = baseExpenses.filter((e: any) => e.category === expenseFilterCategory);
+                  }
+
+                  // Apply search filter
+                  if (expenseSearchQuery.trim()) {
+                    const query = expenseSearchQuery.toLowerCase();
+                    baseExpenses = baseExpenses.filter((e: any) =>
+                      (e.description || '').toLowerCase().includes(query) ||
+                      (e.category || '').toLowerCase().includes(query) ||
+                      (e.supplier_name || '').toLowerCase().includes(query) ||
+                      (e.notes || '').toLowerCase().includes(query)
+                    );
+                  }
+
+                  const filteredTotal = baseExpenses.reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+
+                  return (
+                    <>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground px-1">
+                        <span>{baseExpenses.length} expense{baseExpenses.length !== 1 ? 's' : ''} found</span>
+                        <span className="font-medium text-foreground">Total: ${filteredTotal.toFixed(2)}</span>
+                      </div>
+                      <div className="overflow-x-auto -mx-4 sm:mx-0">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[100px]">Date</TableHead>
+                              <TableHead className="min-w-[120px]">Category</TableHead>
+                              <TableHead className="min-w-[180px]">Description</TableHead>
+                              <TableHead className="min-w-[150px]">Supplier</TableHead>
+                              <TableHead className="min-w-[100px]">Amount</TableHead>
+                              <TableHead className="min-w-[120px]">Method</TableHead>
+                              <TableHead className="min-w-[100px]">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseExpenses.length === 0 ? (
+                              <TableRow>
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                  No expenses found for the selected filters
+                                </TableCell>
+                              </TableRow>
+                            ) : (
+                              baseExpenses.map((expense: any) => (
+                                <TableRow key={expense.id}>
+                                  <TableCell>{format(new Date(expense.expense_date), 'PP')}</TableCell>
+                                  <TableCell>{expense.category}</TableCell>
+                                  <TableCell>{expense.description}</TableCell>
+                                  <TableCell>{expense.supplier_name || '-'}</TableCell>
+                                  <TableCell className="font-medium">${expense.amount.toFixed(2)}</TableCell>
+                                  <TableCell className="capitalize">{expense.payment_method.replace('_', ' ')}</TableCell>
+                                  <TableCell>
+                                    <Badge variant={expense.approval_status === 'approved' ? 'default' : 'secondary'}>
+                                      {expense.approval_status}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
