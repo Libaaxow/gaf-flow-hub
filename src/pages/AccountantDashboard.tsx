@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils';
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
+import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -265,6 +266,7 @@ const AccountantDashboard = () => {
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [activatingDraftInvoice, setActivatingDraftInvoice] = useState<any>(null);
   const [assignNumberDialogOpen, setAssignNumberDialogOpen] = useState(false);
+  const [outstandingDebtsDialogOpen, setOutstandingDebtsDialogOpen] = useState(false);
   
   // Invoice required dialog states
   const [invoiceRequiredDialogOpen, setInvoiceRequiredDialogOpen] = useState(false);
@@ -2577,6 +2579,7 @@ const AccountantDashboard = () => {
       icon: DollarSign,
       description: 'Total invoice value',
       color: 'text-blue-600',
+      onClick: undefined as (() => void) | undefined,
     },
     {
       title: 'Amount Collected',
@@ -2584,13 +2587,15 @@ const AccountantDashboard = () => {
       icon: TrendingUp,
       description: 'Payments received',
       color: 'text-green-600',
+      onClick: undefined as (() => void) | undefined,
     },
     {
       title: 'Outstanding',
       value: `$${stats.outstandingAmount.toFixed(2)}`,
       icon: Clock,
-      description: 'Pending payments',
+      description: 'Pending payments — Click to view debtors',
       color: 'text-orange-600',
+      onClick: () => setOutstandingDebtsDialogOpen(true),
     },
     {
       title: 'Total Expenses',
@@ -2598,6 +2603,7 @@ const AccountantDashboard = () => {
       icon: TrendingDown,
       description: 'Operational costs',
       color: 'text-red-600',
+      onClick: undefined as (() => void) | undefined,
     },
     {
       title: 'Net Profit',
@@ -2605,6 +2611,7 @@ const AccountantDashboard = () => {
       icon: DollarSign,
       description: 'Opening Balance + Collected - Expenses',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
+      onClick: undefined as (() => void) | undefined,
     },
   ];
 
@@ -2771,7 +2778,11 @@ const AccountantDashboard = () => {
         {/* Stats Grid */}
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat) => (
-            <Card key={stat.title} className="mobile-card">
+            <Card
+              key={stat.title}
+              className={`mobile-card ${stat.onClick ? 'cursor-pointer hover:shadow-md hover:border-primary/30 transition-all' : ''}`}
+              onClick={stat.onClick}
+            >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-4 sm:p-6">
                 <CardTitle className="text-xs sm:text-sm font-medium">{stat.title}</CardTitle>
                 <stat.icon className={`h-4 w-4 ${stat.color}`} />
@@ -2783,6 +2794,12 @@ const AccountantDashboard = () => {
             </Card>
           ))}
         </div>
+
+        {/* Outstanding Debts Dialog */}
+        <OutstandingDebtsDialog
+          open={outstandingDebtsDialogOpen}
+          onOpenChange={setOutstandingDebtsDialogOpen}
+        />
 
         {/* Commission Panel */}
         <CommissionPanel />
