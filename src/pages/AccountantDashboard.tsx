@@ -1546,7 +1546,7 @@ const AccountantDashboard = () => {
 
         // Update invoice amount_paid and status (include discount as credit)
         const newAmountPaid = invoice.amount_paid + totalCredited;
-        const invoiceStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partial';
+        const invoiceStatus = newAmountPaid >= invoice.total_amount ? 'paid' : 'partially_paid';
 
         const { error: invoiceError } = await supabase
           .from('invoices')
