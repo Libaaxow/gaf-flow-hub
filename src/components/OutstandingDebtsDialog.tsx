@@ -18,7 +18,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Phone, Mail, Search, Building2 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { Phone, Mail, Search, Building2, ChevronDown, ChevronRight } from 'lucide-react';
+
+interface InvoiceDebt {
+  id: string;
+  invoice_number: string;
+  total_amount: number;
+  amount_paid: number;
+  outstanding: number;
+  status: string;
+  invoice_date: string;
+}
 
 interface CustomerDebt {
   id: string;
@@ -29,7 +44,7 @@ interface CustomerDebt {
   totalBilled: number;
   totalPaid: number;
   outstanding: number;
-  invoiceCount: number;
+  invoices: InvoiceDebt[];
 }
 
 interface OutstandingDebtsDialogProps {
@@ -41,10 +56,12 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
   const [customerDebts, setCustomerDebts] = useState<CustomerDebt[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [expandedCustomers, setExpandedCustomers] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
       fetchCustomerDebts();
+      setExpandedCustomers(new Set());
     }
   }, [open]);
 
@@ -55,8 +72,11 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
         .from('invoices')
         .select(`
           id,
+          invoice_number,
           total_amount,
           amount_paid,
+          status,
+          invoice_date,
           is_draft,
           customer:customers(id, name, email, phone, company_name)
         `)
@@ -64,7 +84,6 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
 
       if (error) throw error;
 
-      // Aggregate by customer
       const customerMap: Record<string, CustomerDebt> = {};
 
       (invoices || []).forEach((inv: any) => {
@@ -74,6 +93,9 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
         const totalAmount = Number(inv.total_amount || 0);
         const amountPaid = Number(inv.amount_paid || 0);
         const outstanding = totalAmount - amountPaid;
+
+        // Only include invoices that still have outstanding balance
+        if (outstanding <= 0.01) return;
 
         if (!customerMap[customer.id]) {
           customerMap[customer.id] = {
@@ -85,17 +107,24 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
             totalBilled: 0,
             totalPaid: 0,
             outstanding: 0,
-            invoiceCount: 0,
+            invoices: [],
           };
         }
 
         customerMap[customer.id].totalBilled += totalAmount;
         customerMap[customer.id].totalPaid += amountPaid;
         customerMap[customer.id].outstanding += outstanding;
-        customerMap[customer.id].invoiceCount += 1;
+        customerMap[customer.id].invoices.push({
+          id: inv.id,
+          invoice_number: inv.invoice_number,
+          total_amount: totalAmount,
+          amount_paid: amountPaid,
+          outstanding,
+          status: inv.status,
+          invoice_date: inv.invoice_date,
+        });
       });
 
-      // Filter only customers with outstanding > 0 and sort by outstanding desc
       const debts = Object.values(customerMap)
         .filter(c => c.outstanding > 0.01)
         .sort((a, b) => b.outstanding - a.outstanding);
@@ -106,6 +135,22 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleCustomer = (customerId: string) => {
+    setExpandedCustomers(prev => {
+      const next = new Set(prev);
+      if (next.has(customerId)) next.delete(customerId);
+      else next.add(customerId);
+      return next;
+    });
+  };
+
+  const getInvoiceStatusBadge = (inv: InvoiceDebt) => {
+    if (inv.amount_paid > 0 && inv.outstanding > 0) {
+      return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 text-[10px]">Partially Paid</Badge>;
+    }
+    return <Badge className="bg-red-100 text-red-800 hover:bg-red-100 text-[10px]">Unpaid</Badge>;
   };
 
   const filteredDebts = customerDebts.filter(c => {
@@ -119,10 +164,11 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
   });
 
   const totalOutstanding = filteredDebts.reduce((sum, c) => sum + c.outstanding, 0);
+  const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[85vh]">
+      <DialogContent className="max-w-4xl max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-orange-600">
             <Phone className="h-5 w-5" />
@@ -130,9 +176,8 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
           </DialogTitle>
           <DialogDescription>
             {filteredDebts.length} customer{filteredDebts.length !== 1 ? 's' : ''} with outstanding balance totaling{' '}
-            <span className="font-semibold text-orange-600">
-              ${totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </span>
+            <span className="font-semibold text-orange-600">${fmt(totalOutstanding)}</span>
+            {' · '}Click a row to see invoice details.
           </DialogDescription>
         </DialogHeader>
 
@@ -159,6 +204,7 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-8"></TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead className="text-right">Total Billed</TableHead>
@@ -167,58 +213,99 @@ export const OutstandingDebtsDialog = ({ open, onOpenChange }: OutstandingDebtsD
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredDebts.map((customer) => (
-                  <TableRow key={customer.id}>
-                    <TableCell>
-                      <div>
-                        <p className="font-medium">{customer.name}</p>
-                        {customer.company_name && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Building2 className="h-3 w-3" />
-                            {customer.company_name}
-                          </p>
-                        )}
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          {customer.invoiceCount} invoice{customer.invoiceCount !== 1 ? 's' : ''}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1">
-                        {customer.phone && (
-                          <a
-                            href={`tel:${customer.phone}`}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                          >
-                            <Phone className="h-3 w-3" />
-                            {customer.phone}
-                          </a>
-                        )}
-                        {customer.email && (
-                          <a
-                            href={`mailto:${customer.email}`}
-                            className="flex items-center gap-1.5 text-xs text-primary hover:underline"
-                          >
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </a>
-                        )}
-                        {!customer.phone && !customer.email && (
-                          <span className="text-xs text-muted-foreground">No contact info</span>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      ${customer.totalBilled.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-green-600">
-                      ${customer.totalPaid.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold text-red-600">
-                      ${customer.outstanding.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredDebts.map((customer) => {
+                  const isExpanded = expandedCustomers.has(customer.id);
+                  return (
+                    <Collapsible key={customer.id} open={isExpanded} onOpenChange={() => toggleCustomer(customer.id)} asChild>
+                      <>
+                        <CollapsibleTrigger asChild>
+                          <TableRow className="cursor-pointer hover:bg-muted/50">
+                            <TableCell className="w-8 px-2">
+                              {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                            </TableCell>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{customer.name}</p>
+                                {customer.company_name && (
+                                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Building2 className="h-3 w-3" />
+                                    {customer.company_name}
+                                  </p>
+                                )}
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {customer.invoices.length} invoice{customer.invoices.length !== 1 ? 's' : ''}
+                                </Badge>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="space-y-1">
+                                {customer.phone && (
+                                  <a
+                                    href={`tel:${customer.phone}`}
+                                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Phone className="h-3 w-3" />
+                                    {customer.phone}
+                                  </a>
+                                )}
+                                {customer.email && (
+                                  <a
+                                    href={`mailto:${customer.email}`}
+                                    className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <Mail className="h-3 w-3" />
+                                    {customer.email}
+                                  </a>
+                                )}
+                                {!customer.phone && !customer.email && (
+                                  <span className="text-xs text-muted-foreground">No contact info</span>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              ${fmt(customer.totalBilled)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm text-green-600">
+                              ${fmt(customer.totalPaid)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-sm font-semibold text-red-600">
+                              ${fmt(customer.outstanding)}
+                            </TableCell>
+                          </TableRow>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent asChild>
+                          <>
+                            {customer.invoices
+                              .sort((a, b) => b.outstanding - a.outstanding)
+                              .map((inv) => (
+                                <TableRow key={inv.id} className="bg-muted/30">
+                                  <TableCell></TableCell>
+                                  <TableCell colSpan={2}>
+                                    <div className="flex items-center gap-2 pl-2">
+                                      <span className="text-xs font-mono text-muted-foreground">{inv.invoice_number}</span>
+                                      {getInvoiceStatusBadge(inv)}
+                                      <span className="text-[10px] text-muted-foreground">{inv.invoice_date}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-xs">
+                                    ${fmt(inv.total_amount)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-xs text-green-600">
+                                    -${fmt(inv.amount_paid)}
+                                  </TableCell>
+                                  <TableCell className="text-right font-mono text-xs font-semibold text-red-600">
+                                    ${fmt(inv.outstanding)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </>
+                        </CollapsibleContent>
+                      </>
+                    </Collapsible>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
