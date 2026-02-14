@@ -225,6 +225,7 @@ const AccountantDashboard = () => {
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceTerms, setInvoiceTerms] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
+  const [invoiceAmountPaid, setInvoiceAmountPaid] = useState('');
 
   // Invoice items state with area-based support
   interface InvoiceItem {
@@ -2191,11 +2192,12 @@ const AccountantDashboard = () => {
           subtotal: subtotal,
           tax_amount: tax,
           total_amount: total,
+          amount_paid: parseFloat(invoiceAmountPaid) || 0,
           notes: invoiceNotes || null,
           terms: invoiceTerms || null,
           project_name: invoiceProjectName || null,
           created_by: user?.id,
-          status: 'draft',
+          status: (parseFloat(invoiceAmountPaid) || 0) >= total ? 'paid' : (parseFloat(invoiceAmountPaid) || 0) > 0 ? 'partially_paid' : 'draft',
         }])
         .select()
         .single();
@@ -2238,6 +2240,21 @@ const AccountantDashboard = () => {
         .insert(itemsToInsert);
 
       if (itemsError) throw itemsError;
+
+      // If amount paid was entered, create a payment record
+      const paidAmount = parseFloat(invoiceAmountPaid) || 0;
+      if (paidAmount > 0) {
+        await supabase
+          .from('payments')
+          .insert({
+            invoice_id: invoiceData.id,
+            order_id: invoiceOrder || null,
+            amount: paidAmount,
+            payment_method: 'cash' as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
+            notes: `Initial payment recorded at invoice creation for ${invoiceNumber}`,
+            recorded_by: user?.id,
+          });
+      }
 
       // If there's a pending sales request link, link the invoice and update status
       if (pendingSalesRequestLink) {
@@ -2294,6 +2311,7 @@ const AccountantDashboard = () => {
       setInvoiceNotes('');
       setInvoiceTerms('');
       setInvoiceProjectName('');
+      setInvoiceAmountPaid('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       setCreateInvoiceDialogOpen(false);
       
@@ -3859,6 +3877,29 @@ const AccountantDashboard = () => {
                                       </div>
                                       
                                       <div className="grid gap-2">
+                                        <Label htmlFor="workflow-amount-paid" className="flex items-center gap-2">
+                                          Amount Paid
+                                          <span className="text-xs text-muted-foreground">(if already paid)</span>
+                                        </Label>
+                                        <Input
+                                          id="workflow-amount-paid"
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={invoiceAmountPaid}
+                                          onChange={(e) => setInvoiceAmountPaid(e.target.value)}
+                                          placeholder="0.00"
+                                        />
+                                        {parseFloat(invoiceAmountPaid) > 0 && (
+                                          <p className="text-xs text-muted-foreground">
+                                            Status: <span className="font-semibold">
+                                              {(parseFloat(invoiceAmountPaid) || 0) >= (calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)) ? 'Paid' : 'Partially Paid'}
+                                            </span>
+                                          </p>
+                                        )}
+                                      </div>
+                                      
+                                      <div className="grid gap-2">
                                         <Label htmlFor="workflow-project-name">Project Name</Label>
                                         <Input
                                           id="workflow-project-name"
@@ -4453,6 +4494,33 @@ const AccountantDashboard = () => {
                           <span className="text-2xl font-bold">
                             ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
                           </span>
+                        </div>
+                        
+                        <div className="grid gap-2">
+                          <Label htmlFor="amount-paid" className="flex items-center gap-2">
+                            Amount Paid
+                            <span className="text-xs text-muted-foreground">(if already paid)</span>
+                          </Label>
+                          <Input
+                            id="amount-paid"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max={(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0))}
+                            value={invoiceAmountPaid}
+                            onChange={(e) => setInvoiceAmountPaid(e.target.value)}
+                            placeholder="0.00"
+                          />
+                          {parseFloat(invoiceAmountPaid) > 0 && (
+                            <p className="text-xs text-muted-foreground">
+                              Status will be: <span className="font-semibold">
+                                {(parseFloat(invoiceAmountPaid) || 0) >= (calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)) ? 'Paid' : 'Partially Paid'}
+                              </span>
+                              {' · '}Outstanding: <span className="font-semibold text-orange-600">
+                                ${((calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)) - (parseFloat(invoiceAmountPaid) || 0)).toFixed(2)}
+                              </span>
+                            </p>
+                          )}
                         </div>
                         
                         <div className="grid gap-2">
