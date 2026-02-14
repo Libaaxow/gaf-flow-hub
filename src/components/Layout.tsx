@@ -226,8 +226,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6 lg:p-8">
-          <div className="max-w-full overflow-x-hidden">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-2 sm:p-4 md:p-6 lg:p-8">
+          <div className="w-full max-w-full overflow-hidden">
             {children}
           </div>
         </main>
