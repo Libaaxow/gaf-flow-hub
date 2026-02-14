@@ -2758,7 +2758,7 @@ const AccountantDashboard = () => {
 
   return (
     <Layout>
-      <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full overflow-x-hidden">
+      <div className="space-y-4 sm:space-y-6 lg:space-y-8 w-full max-w-full overflow-hidden">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
@@ -2904,7 +2904,7 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-5">
           {statCards.map((stat) => (
             <Card
               key={stat.title}
