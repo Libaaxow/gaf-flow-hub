@@ -1614,8 +1614,37 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
+      // Fetch fresh invoice data from DB to prevent stale state issues
+      const { data: freshInvoice, error: fetchError } = await supabase
+        .from('invoices')
+        .select('id, total_amount, amount_paid, status')
+        .eq('id', selectedInvoiceForPayment.id)
+        .single();
+      
+      if (fetchError || !freshInvoice) {
+        toast({
+          title: 'Error',
+          description: 'Could not verify invoice status. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      // Check if invoice is already fully paid
+      if (freshInvoice.status === 'paid' || freshInvoice.amount_paid >= freshInvoice.total_amount) {
+        toast({
+          title: 'Invoice Already Paid',
+          description: `Invoice ${selectedInvoiceForPayment.invoice_number} is already fully paid.`,
+          variant: 'destructive',
+        });
+        setInvoicePaymentDialogOpen(false);
+        fetchInvoices();
+        return;
+      }
+      
       const paymentAmountNum = parseFloat(invoicePaymentAmount);
-      const invoice = selectedInvoiceForPayment;
+      // Use fresh data for calculations
+      const invoice = { ...selectedInvoiceForPayment, amount_paid: freshInvoice.amount_paid, total_amount: freshInvoice.total_amount, status: freshInvoice.status };
       
       // Calculate discount amount
       const discountValue = parseFloat(invoicePaymentDiscountValue) || 0;
@@ -1750,6 +1779,87 @@ const AccountantDashboard = () => {
         description: error.message,
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleMarkInvoiceAsPaid = async (invoice: any) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Fetch fresh data
+      const { data: freshInvoice, error: fetchError } = await supabase
+        .from('invoices')
+        .select('id, total_amount, amount_paid, status, order_id, invoice_number')
+        .eq('id', invoice.id)
+        .single();
+      
+      if (fetchError || !freshInvoice) {
+        toast({ title: 'Error', description: 'Could not fetch invoice.', variant: 'destructive' });
+        return;
+      }
+      
+      if (freshInvoice.status === 'paid') {
+        toast({ title: 'Already Paid', description: 'This invoice is already marked as paid.' });
+        return;
+      }
+
+      const remaining = freshInvoice.total_amount - freshInvoice.amount_paid;
+      
+      // Record a payment for the remaining amount if any
+      if (remaining > 0) {
+        const { error: paymentError } = await supabase
+          .from('payments')
+          .insert({
+            invoice_id: freshInvoice.id,
+            order_id: freshInvoice.order_id || null,
+            amount: remaining,
+            payment_method: 'cash' as 'cash' | 'bank_transfer' | 'mobile_money' | 'cheque' | 'card',
+            notes: `Marked as paid - remaining balance for ${freshInvoice.invoice_number}`,
+            recorded_by: user?.id,
+          });
+        if (paymentError) throw paymentError;
+      }
+
+      // Update invoice status to paid
+      const { error: invoiceError } = await supabase
+        .from('invoices')
+        .update({ amount_paid: freshInvoice.total_amount, status: 'paid' })
+        .eq('id', freshInvoice.id);
+      if (invoiceError) throw invoiceError;
+
+      // Update linked order if exists
+      if (freshInvoice.order_id) {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('amount_paid, order_value')
+          .eq('id', freshInvoice.order_id)
+          .single();
+        if (orderData) {
+          const orderNewPaid = Number(orderData.amount_paid || 0) + remaining;
+          await supabase
+            .from('orders')
+            .update({
+              amount_paid: orderNewPaid,
+              payment_status: orderNewPaid >= orderData.order_value ? 'paid' : orderNewPaid > 0 ? 'partial' : 'unpaid',
+            })
+            .eq('id', freshInvoice.order_id);
+        }
+      }
+
+      // Update linked sales requests
+      await supabase
+        .from('sales_order_requests')
+        .update({ payment_status: 'paid' })
+        .eq('linked_invoice_id', freshInvoice.id);
+
+      toast({ title: 'Success', description: `Invoice ${freshInvoice.invoice_number} marked as paid.` });
+      fetchActualStats();
+      fetchFilteredData();
+      fetchInvoices();
+      fetchSalesRequests();
+      fetchAllPayments();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -4471,17 +4581,28 @@ const AccountantDashboard = () => {
                                     Edit
                                   </Button>
                                   {invoice.status !== 'paid' && (
-                                    <Button
-                                      size="sm"
-                                      variant="default"
-                                      onClick={() => {
-                                        setSelectedInvoiceForPayment(invoice);
-                                        setInvoicePaymentDialogOpen(true);
-                                      }}
-                                    >
-                                      <DollarSign className="mr-2 h-4 w-4" />
-                                      Record Payment
-                                    </Button>
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant="default"
+                                        onClick={() => {
+                                          setSelectedInvoiceForPayment(invoice);
+                                          setInvoicePaymentDialogOpen(true);
+                                        }}
+                                      >
+                                        <DollarSign className="mr-2 h-4 w-4" />
+                                        Record Payment
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="text-green-600 border-green-600 hover:bg-green-50"
+                                        onClick={() => handleMarkInvoiceAsPaid(invoice)}
+                                      >
+                                        <CheckCircle className="mr-2 h-4 w-4" />
+                                        Mark Paid
+                                      </Button>
+                                    </>
                                   )}
                                 </div>
                               </TableCell>
