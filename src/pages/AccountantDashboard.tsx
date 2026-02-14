@@ -3449,138 +3449,18 @@ const AccountantDashboard = () => {
           {/* Customers Tab */}
           <TabsContent value="customers" className="space-y-3 sm:space-y-4">
             <Card className="mobile-card">
-              <CardHeader className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
-                  <div>
-                    <CardTitle className="text-base sm:text-lg">Customers</CardTitle>
-                    <CardDescription className="text-xs sm:text-sm">Manage customer database</CardDescription>
-                  </div>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="w-full sm:w-auto">
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add Customer
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[500px]">
-                      <DialogHeader>
-                        <DialogTitle>Add New Customer</DialogTitle>
-                        <DialogDescription>Create a new customer record</DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label htmlFor="customer-name">Name *</Label>
-                          <Input
-                            id="customer-name"
-                            value={customerName}
-                            onChange={(e) => setCustomerName(e.target.value)}
-                            placeholder="Customer name"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="customer-email">Email *</Label>
-                          <Input
-                            id="customer-email"
-                            type="email"
-                            value={customerEmail}
-                            onChange={(e) => setCustomerEmail(e.target.value)}
-                            placeholder="customer@example.com"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="customer-phone">Phone</Label>
-                          <Input
-                            id="customer-phone"
-                            value={customerPhone}
-                            onChange={(e) => setCustomerPhone(e.target.value)}
-                            placeholder="+1234567890"
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label htmlFor="customer-company">Company Name</Label>
-                          <Input
-                            id="customer-company"
-                            value={customerCompany}
-                            onChange={(e) => setCustomerCompany(e.target.value)}
-                            placeholder="Company name"
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button onClick={handleCreateCustomer}>Add Customer</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+              <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
+                <Users className="h-12 w-12 text-muted-foreground" />
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold">Customer Management</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    View, add, edit, and manage all customers with full details
+                  </p>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4 sm:p-6 sm:pt-0">
-                {/* Customer Search Filter */}
-                <div className="p-4 bg-muted/50 rounded-lg">
-                  <Input
-                    placeholder="Search customers by name, email, phone, or company..."
-                    value={customerSearchQuery}
-                    onChange={(e) => setCustomerSearchQuery(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-
-                {(() => {
-                  let filteredCustomers = customers;
-                  if (customerSearchQuery.trim()) {
-                    const query = customerSearchQuery.toLowerCase();
-                    filteredCustomers = customers.filter((c) =>
-                      (c.name || '').toLowerCase().includes(query) ||
-                      (c.email || '').toLowerCase().includes(query) ||
-                      (c.phone || '').toLowerCase().includes(query) ||
-                      (c.company_name || '').toLowerCase().includes(query)
-                    );
-                  }
-
-                  return (
-                    <>
-                      <div className="text-sm text-muted-foreground px-1">
-                        {filteredCustomers.length} customer{filteredCustomers.length !== 1 ? 's' : ''} found
-                      </div>
-                      <div className="overflow-x-auto -mx-4 sm:mx-0">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="min-w-[150px]">Name</TableHead>
-                              <TableHead className="min-w-[180px]">Email</TableHead>
-                              <TableHead className="min-w-[130px]">Phone</TableHead>
-                              <TableHead className="min-w-[150px]">Company</TableHead>
-                              <TableHead className="min-w-[100px]">Action</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {filteredCustomers.length === 0 ? (
-                              <TableRow>
-                                <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
-                                  No customers found
-                                </TableCell>
-                              </TableRow>
-                            ) : (
-                              filteredCustomers.map((customer) => (
-                                <TableRow key={customer.id}>
-                                  <TableCell className="font-medium">{customer.name}</TableCell>
-                                  <TableCell>{customer.email}</TableCell>
-                                  <TableCell>{customer.phone || '-'}</TableCell>
-                                  <TableCell>{customer.company_name || '-'}</TableCell>
-                                  <TableCell>
-                                    <Button size="sm" variant="outline">
-                                      <Eye className="mr-2 h-4 w-4" />
-                                      View
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))
-                            )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    </>
-                  );
-                })()}
+                <Button onClick={() => navigate('/customers')} className="mt-2">
+                  <Users className="mr-2 h-4 w-4" />
+                  Open Customers Page
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>
