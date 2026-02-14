@@ -115,7 +115,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   );
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background overflow-x-hidden">
       {/* Desktop Sidebar */}
       <aside className="hidden w-64 border-r bg-card lg:block">
         <div className="flex h-full flex-col">
@@ -161,7 +161,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
       </aside>
 
       {/* Mobile Header */}
-      <div className="flex flex-1 flex-col">
+      <div className="flex flex-1 flex-col min-w-0">
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
             <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />
