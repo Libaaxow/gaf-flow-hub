@@ -39,16 +39,13 @@ const Reports = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const fetchAllPaginated = async (table: string, select: string, filters?: (q: any) => any) => {
+  const fetchAllPaginated = async (fetchFn: (offset: number, batchSize: number) => Promise<any[]>) => {
     const allData: any[] = [];
     let offset = 0;
     const batchSize = 1000;
     let hasMore = true;
     while (hasMore) {
-      let query = supabase.from(table).select(select).range(offset, offset + batchSize - 1);
-      if (filters) query = filters(query);
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await fetchFn(offset, batchSize);
       if (data && data.length > 0) {
         allData.push(...data);
         offset += batchSize;
@@ -63,10 +60,26 @@ const Reports = () => {
   const fetchAllData = async () => {
     try {
       const [invData, payData, expData, balData] = await Promise.all([
-        fetchAllPaginated('invoices', '*, customers(name)', (q: any) => q.neq('status', 'draft')),
-        fetchAllPaginated('payments', '*, orders(job_title, customers(name)), invoices:invoice_id(invoice_number, customers(name))'),
-        fetchAllPaginated('expenses', '*'),
-        fetchAllPaginated('beginning_balances', '*'),
+        fetchAllPaginated(async (offset, bs) => {
+          const { data, error } = await supabase.from('invoices').select('*, customers(name)').neq('status', 'draft').range(offset, offset + bs - 1);
+          if (error) throw error;
+          return data || [];
+        }),
+        fetchAllPaginated(async (offset, bs) => {
+          const { data, error } = await supabase.from('payments').select('*, orders(job_title, customers(name)), invoices:invoice_id(invoice_number, customers(name))').range(offset, offset + bs - 1);
+          if (error) throw error;
+          return data || [];
+        }),
+        fetchAllPaginated(async (offset, bs) => {
+          const { data, error } = await supabase.from('expenses').select('*').range(offset, offset + bs - 1);
+          if (error) throw error;
+          return data || [];
+        }),
+        fetchAllPaginated(async (offset, bs) => {
+          const { data, error } = await supabase.from('beginning_balances').select('*').range(offset, offset + bs - 1);
+          if (error) throw error;
+          return data || [];
+        }),
       ]);
       setInvoices(invData);
       setPayments(payData);
