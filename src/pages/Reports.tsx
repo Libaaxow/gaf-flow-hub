@@ -188,8 +188,20 @@ const Reports = () => {
   const partialInvoices = filteredInvoices.filter(i => i.status === 'partially_paid');
   const overdueInvoices = filteredInvoices.filter(i => {
     if (i.status === 'paid') return false;
-    if (!i.due_date) return false;
-    return isBefore(parseISO(i.due_date), new Date());
+
+    const now = new Date();
+    const oneMonthAgo = subMonths(now, 1);
+
+    // If due date exists, normal overdue logic
+    if (i.due_date) {
+      return isBefore(parseISO(i.due_date), now);
+    }
+
+    // If no due date, treat invoices older than one month as overdue
+    const invoiceReferenceDate = i.invoice_date || i.created_at;
+    if (!invoiceReferenceDate) return false;
+
+    return isBefore(parseISO(invoiceReferenceDate), oneMonthAgo);
   });
 
   // Cash flow chart data
