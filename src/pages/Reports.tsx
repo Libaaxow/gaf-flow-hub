@@ -39,18 +39,39 @@ const Reports = () => {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
+  const fetchAllPaginated = async (table: string, select: string, filters?: (q: any) => any) => {
+    const allData: any[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+    while (hasMore) {
+      let query = supabase.from(table).select(select).range(offset, offset + batchSize - 1);
+      if (filters) query = filters(query);
+      const { data, error } = await query;
+      if (error) throw error;
+      if (data && data.length > 0) {
+        allData.push(...data);
+        offset += batchSize;
+        hasMore = data.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    return allData;
+  };
+
   const fetchAllData = async () => {
     try {
-      const [invRes, payRes, expRes, balRes] = await Promise.all([
-        supabase.from('invoices').select('*, customers(name)').neq('status', 'draft'),
-        supabase.from('payments').select('*, orders(job_title, customers(name)), invoices:invoice_id(invoice_number, customers(name))'),
-        supabase.from('expenses').select('*'),
-        supabase.from('beginning_balances').select('*'),
+      const [invData, payData, expData, balData] = await Promise.all([
+        fetchAllPaginated('invoices', '*, customers(name)', (q: any) => q.neq('status', 'draft')),
+        fetchAllPaginated('payments', '*, orders(job_title, customers(name)), invoices:invoice_id(invoice_number, customers(name))'),
+        fetchAllPaginated('expenses', '*'),
+        fetchAllPaginated('beginning_balances', '*'),
       ]);
-      setInvoices(invRes.data || []);
-      setPayments(payRes.data || []);
-      setExpenses(expRes.data || []);
-      setBeginningBalances(balRes.data || []);
+      setInvoices(invData);
+      setPayments(payData);
+      setExpenses(expData);
+      setBeginningBalances(balData);
     } catch (e) {
       console.error('Error fetching report data:', e);
     } finally {
@@ -621,14 +642,14 @@ const Reports = () => {
 
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">Recent Overdue Invoices</CardTitle>
+                  <CardTitle className="text-sm">All Overdue Invoices ({overdueInvoices.length})</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 max-h-[250px] overflow-y-auto">
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {overdueInvoices.length === 0 ? (
                       <p className="text-center text-muted-foreground text-sm py-4">No overdue invoices 🎉</p>
                     ) : (
-                      overdueInvoices.slice(0, 10).map(inv => (
+                      overdueInvoices.map(inv => (
                         <div key={inv.id} className="flex items-center justify-between py-1.5 border-b last:border-0">
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{inv.invoice_number}</p>
