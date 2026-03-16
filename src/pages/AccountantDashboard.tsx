@@ -295,7 +295,7 @@ const AccountantDashboard = () => {
   const [debtNotes, setDebtNotes] = useState('');
 
   // Debounce ref to prevent excessive refetches
-  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const debouncedFetchAllData = useCallback(() => {
     if (refetchTimeoutRef.current) {

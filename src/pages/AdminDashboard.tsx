@@ -204,7 +204,7 @@ export default function AdminDashboard() {
   });
 
   // Debounce ref to prevent excessive refetches
-  const refetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const refetchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isFetchingRef = useRef(false);
 
   const debouncedFetchAllData = useCallback(() => {
