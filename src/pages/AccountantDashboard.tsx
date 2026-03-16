@@ -3755,6 +3755,36 @@ const AccountantDashboard = () => {
 
                 {customerInvoices.length > 0 && (
                   <div className="bg-muted p-4 rounded-lg space-y-3">
+                    {/* Quick Allocate */}
+                    <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-2">
+                      <Label className="text-sm font-semibold">Quick Allocate — Enter Amount Received</Label>
+                      <p className="text-xs text-muted-foreground">Enter total amount and it will auto-distribute to oldest invoices first</p>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          placeholder="Enter total amount received"
+                          className="flex-1"
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            if (val > 0) handleQuickAllocate(val);
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0"
+                          onClick={() => {
+                            setPaymentAllocation(prev => prev.map(alloc => ({ ...alloc, selected: false, amount: 0 })));
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </div>
+
                     <h4 className="font-semibold">Select Invoices to Pay</h4>
                     <p className="text-sm text-muted-foreground">Check invoices and enter payment amounts (supports partial payments)</p>
                     {customerInvoices.map((invoice) => {
