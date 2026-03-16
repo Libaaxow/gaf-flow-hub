@@ -1506,6 +1506,37 @@ const AccountantDashboard = () => {
     ));
   };
 
+  const handleQuickAllocate = (totalAmount: number) => {
+    if (totalAmount <= 0 || customerInvoices.length === 0) return;
+
+    // Sort invoices by date (oldest first)
+    const sorted = [...customerInvoices].sort((a, b) => {
+      const dateA = new Date(a.due_date || a.invoice_date || a.created_at).getTime();
+      const dateB = new Date(b.due_date || b.invoice_date || b.created_at).getTime();
+      return dateA - dateB;
+    });
+
+    let remaining = totalAmount;
+    const allocations: Record<string, number> = {};
+
+    for (const inv of sorted) {
+      if (remaining <= 0) break;
+      const outstanding = inv.total_amount - inv.amount_paid;
+      if (outstanding <= 0) continue;
+      const allocated = Math.min(remaining, outstanding);
+      allocations[inv.id] = allocated;
+      remaining -= allocated;
+    }
+
+    setPaymentAllocation(prev => prev.map(alloc => {
+      const allocated = allocations[alloc.invoiceId];
+      if (allocated && allocated > 0) {
+        return { ...alloc, selected: true, amount: Math.round(allocated * 100) / 100 };
+      }
+      return { ...alloc, selected: false, amount: 0 };
+    }));
+  };
+
   const handleRecordPayment = async () => {
     const selectedAllocations = paymentAllocation.filter(alloc => alloc.selected && alloc.amount > 0);
     
