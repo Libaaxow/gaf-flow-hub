@@ -1946,9 +1946,36 @@ export default function AdminDashboard() {
         </Dialog>
       </div>
 
+      {/* Search & Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <Input
+              placeholder="Search invoice #, customer, project..."
+              value={invoiceSearchQuery}
+              onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+              className="sm:col-span-2"
+            />
+            <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>All Invoices</CardTitle>
+          <CardTitle>All Invoices ({filteredInvoices.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -1965,7 +1992,14 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.map((invoice) => (
+              {filteredInvoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    No invoices found
+                  </TableCell>
+                </TableRow>
+              ) : (
+              filteredInvoices.map((invoice) => (
                 <>
                   <TableRow 
                     key={invoice.id} 
