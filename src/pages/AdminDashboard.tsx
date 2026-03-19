@@ -151,11 +151,14 @@ export default function AdminDashboard() {
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
   
   // Invoice items state
   interface InvoiceItem {
@@ -242,6 +245,22 @@ export default function AdminDashboard() {
   useEffect(() => {
     applyFilters();
   }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery, dateFilter]);
+
+  useEffect(() => {
+    let filtered = [...invoices];
+    if (invoiceSearchQuery) {
+      const q = invoiceSearchQuery.toLowerCase();
+      filtered = filtered.filter(inv =>
+        inv.invoice_number.toLowerCase().includes(q) ||
+        inv.customer?.name?.toLowerCase().includes(q) ||
+        inv.project_name?.toLowerCase().includes(q)
+      );
+    }
+    if (invoiceStatusFilter !== 'all') {
+      filtered = filtered.filter(inv => inv.status === invoiceStatusFilter);
+    }
+    setFilteredInvoices(filtered);
+  }, [invoices, invoiceSearchQuery, invoiceStatusFilter]);
 
   const fetchAllData = async () => {
     if (isFetchingRef.current) return;
@@ -1756,10 +1775,10 @@ export default function AdminDashboard() {
     </TabsContent>
 
     <TabsContent value="invoices" className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Invoice Management</h2>
-          <p className="text-muted-foreground">Create and manage invoices</p>
+          <p className="text-muted-foreground">View, search and edit all invoices</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
@@ -1927,9 +1946,36 @@ export default function AdminDashboard() {
         </Dialog>
       </div>
 
+      {/* Search & Filter */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <Input
+              placeholder="Search invoice #, customer, project..."
+              value={invoiceSearchQuery}
+              onChange={(e) => setInvoiceSearchQuery(e.target.value)}
+              className="sm:col-span-2"
+            />
+            <Select value={invoiceStatusFilter} onValueChange={setInvoiceStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="unpaid">Unpaid</SelectItem>
+                <SelectItem value="partial">Partial</SelectItem>
+                <SelectItem value="partially_paid">Partially Paid</SelectItem>
+                <SelectItem value="paid">Paid</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
-          <CardTitle>All Invoices</CardTitle>
+          <CardTitle>All Invoices ({filteredInvoices.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -1946,7 +1992,14 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {invoices.map((invoice) => (
+              {filteredInvoices.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                    No invoices found
+                  </TableCell>
+                </TableRow>
+              ) : (
+              filteredInvoices.map((invoice) => (
                 <>
                   <TableRow 
                     key={invoice.id} 
@@ -2070,7 +2123,8 @@ export default function AdminDashboard() {
                     </TableRow>
                   )}
                 </>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
