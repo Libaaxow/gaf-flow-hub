@@ -151,11 +151,14 @@ export default function AdminDashboard() {
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
+  const [invoiceSearchQuery, setInvoiceSearchQuery] = useState('');
+  const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('all');
   
   // Invoice items state
   interface InvoiceItem {
