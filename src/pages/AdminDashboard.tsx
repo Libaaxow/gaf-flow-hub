@@ -2123,7 +2123,8 @@ export default function AdminDashboard() {
                     </TableRow>
                   )}
                 </>
-              ))}
+              ))
+              )}
             </TableBody>
           </Table>
         </CardContent>
