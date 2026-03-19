@@ -3022,8 +3022,9 @@ const AccountantDashboard = () => {
                           <Input
                             id="invoice-number"
                             value={invoiceNumber}
-                            onChange={(e) => setInvoiceNumber(e.target.value)}
-                            placeholder="INV-00001"
+                            readOnly
+                            className="bg-muted"
+                            placeholder="inv-6445"
                           />
                         </div>
                         <div className="grid gap-2">
