@@ -515,7 +515,7 @@ const AccountantDashboard = () => {
     
     // Generate invoice number
     const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
-    const generatedInvoiceNumber = invoiceNumberData || `INV-${Date.now()}`;
+    const generatedInvoiceNumber = invoiceNumberData || `inv-${Date.now()}`;
     
     // Pre-fill invoice form
     setInvoiceNumber(generatedInvoiceNumber);
