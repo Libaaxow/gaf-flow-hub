@@ -1775,10 +1775,10 @@ export default function AdminDashboard() {
     </TabsContent>
 
     <TabsContent value="invoices" className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold">Invoice Management</h2>
-          <p className="text-muted-foreground">Create and manage invoices</p>
+          <p className="text-muted-foreground">View, search and edit all invoices</p>
         </div>
         <Dialog>
           <DialogTrigger asChild>
