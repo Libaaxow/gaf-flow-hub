@@ -3000,7 +3000,12 @@ const AccountantDashboard = () => {
                         ))}
                       </SelectContent>
                     </Select>
-                  <Button size="sm" className="w-full sm:w-auto" onClick={() => setCreateInvoiceDialogOpen(true)}>
+                  <Button size="sm" className="w-full sm:w-auto" onClick={async () => {
+                        // Auto-generate invoice number
+                        const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+                        setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+                        setCreateInvoiceDialogOpen(true);
+                      }}>
                         <Plus className="mr-2 h-4 w-4" />
                         Create Invoice
                       </Button>
