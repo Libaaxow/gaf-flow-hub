@@ -246,6 +246,22 @@ export default function AdminDashboard() {
     applyFilters();
   }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery, dateFilter]);
 
+  useEffect(() => {
+    let filtered = [...invoices];
+    if (invoiceSearchQuery) {
+      const q = invoiceSearchQuery.toLowerCase();
+      filtered = filtered.filter(inv =>
+        inv.invoice_number.toLowerCase().includes(q) ||
+        inv.customer?.name?.toLowerCase().includes(q) ||
+        inv.project_name?.toLowerCase().includes(q)
+      );
+    }
+    if (invoiceStatusFilter !== 'all') {
+      filtered = filtered.filter(inv => inv.status === invoiceStatusFilter);
+    }
+    setFilteredInvoices(filtered);
+  }, [invoices, invoiceSearchQuery, invoiceStatusFilter]);
+
   const fetchAllData = async () => {
     if (isFetchingRef.current) return;
     isFetchingRef.current = true;
