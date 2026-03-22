@@ -190,6 +190,9 @@ const AccountantDashboard = () => {
   const [expensePaymentMethod, setExpensePaymentMethod] = useState('');
   const [expenseSupplier, setExpenseSupplier] = useState('');
   const [expenseNotes, setExpenseNotes] = useState('');
+  const [expenseTagShareholder, setExpenseTagShareholder] = useState(false);
+  const [expenseShareholderId, setExpenseShareholderId] = useState('');
+  const [shareholders, setShareholders] = useState<{ id: string; full_name: string }[]>([]);
 
   // Expense filter states
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
