@@ -4181,6 +4181,34 @@ const AccountantDashboard = () => {
                             placeholder="Additional notes"
                           />
                         </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="expense-tag-shareholder"
+                            checked={expenseTagShareholder}
+                            onCheckedChange={(checked) => {
+                              setExpenseTagShareholder(!!checked);
+                              if (!checked) setExpenseShareholderId('');
+                            }}
+                          />
+                          <Label htmlFor="expense-tag-shareholder" className="cursor-pointer">
+                            Tag as Shareholder Debt
+                          </Label>
+                        </div>
+                        {expenseTagShareholder && (
+                          <div className="grid gap-2">
+                            <Label>Select Shareholder *</Label>
+                            <Select value={expenseShareholderId} onValueChange={setExpenseShareholderId}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select shareholder" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {shareholders.map(sh => (
+                                  <SelectItem key={sh.id} value={sh.id}>{sh.full_name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button onClick={handleRecordExpense}>Record Expense</Button>
