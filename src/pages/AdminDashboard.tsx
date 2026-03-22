@@ -2217,6 +2217,10 @@ export default function AdminDashboard() {
       </Card>
     </TabsContent>
 
+    <TabsContent value="shareholders" className="space-y-4">
+      <ShareholdersPanel />
+    </TabsContent>
+
     </Tabs>
 
     {selectedInvoice && (
