@@ -1295,6 +1295,104 @@ export type Database = {
           },
         ]
       }
+      shareholder_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          reference_number: string | null
+          shareholder_id: string
+          transaction_date: string
+          transaction_type: Database["public"]["Enums"]["shareholder_transaction_type"]
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_number?: string | null
+          shareholder_id: string
+          transaction_date?: string
+          transaction_type: Database["public"]["Enums"]["shareholder_transaction_type"]
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          reference_number?: string | null
+          shareholder_id?: string
+          transaction_date?: string
+          transaction_type?: Database["public"]["Enums"]["shareholder_transaction_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholder_transactions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shareholder_transactions_shareholder_id_fkey"
+            columns: ["shareholder_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shareholders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email: string | null
+          full_name: string
+          id: string
+          notes: string | null
+          phone: string | null
+          share_percentage: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          share_percentage?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          share_percentage?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shareholders_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tax_settings: {
         Row: {
           id: string
@@ -1695,6 +1793,13 @@ export type Database = {
         | "rejected"
         | "expired"
         | "cancelled"
+      shareholder_transaction_type:
+        | "capital_investment"
+        | "profit_share"
+        | "debt_taken"
+        | "debt_repayment"
+        | "withdrawal"
+        | "adjustment"
       vendor_bill_status: "unpaid" | "partially_paid" | "paid"
       wallet_transaction_type:
         | "daily_credit"
@@ -1888,6 +1993,14 @@ export const Constants = {
         "rejected",
         "expired",
         "cancelled",
+      ],
+      shareholder_transaction_type: [
+        "capital_investment",
+        "profit_share",
+        "debt_taken",
+        "debt_repayment",
+        "withdrawal",
+        "adjustment",
       ],
       vendor_bill_status: ["unpaid", "partially_paid", "paid"],
       wallet_transaction_type: [
