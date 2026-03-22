@@ -349,6 +349,7 @@ const AccountantDashboard = () => {
       fetchSalesRequests(),
       fetchAllExpenses(),
       fetchAllPayments(),
+      fetchShareholders(),
     ]);
   };
 
