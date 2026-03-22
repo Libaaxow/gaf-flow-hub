@@ -190,6 +190,9 @@ const AccountantDashboard = () => {
   const [expensePaymentMethod, setExpensePaymentMethod] = useState('');
   const [expenseSupplier, setExpenseSupplier] = useState('');
   const [expenseNotes, setExpenseNotes] = useState('');
+  const [expenseTagShareholder, setExpenseTagShareholder] = useState(false);
+  const [expenseShareholderId, setExpenseShareholderId] = useState('');
+  const [shareholders, setShareholders] = useState<{ id: string; full_name: string }[]>([]);
 
   // Expense filter states
   const [allExpenses, setAllExpenses] = useState<any[]>([]);
@@ -346,6 +349,7 @@ const AccountantDashboard = () => {
       fetchSalesRequests(),
       fetchAllExpenses(),
       fetchAllPayments(),
+      fetchShareholders(),
     ]);
   };
 
@@ -359,6 +363,20 @@ const AccountantDashboard = () => {
       setAllExpenses(data || []);
     } catch (error: any) {
       console.error('Error fetching all expenses:', error);
+    }
+  };
+
+  const fetchShareholders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shareholders')
+        .select('id, full_name')
+        .eq('status', 'active')
+        .order('full_name');
+      if (error) throw error;
+      setShareholders(data || []);
+    } catch (error: any) {
+      console.error('Error fetching shareholders:', error);
     }
   };
 
@@ -1905,6 +1923,15 @@ const AccountantDashboard = () => {
       return;
     }
 
+    if (expenseTagShareholder && !expenseShareholderId) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please select a shareholder to tag',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -1924,9 +1951,32 @@ const AccountantDashboard = () => {
 
       if (error) throw error;
 
+      // If shareholder is tagged, record a debt_taken transaction
+      if (expenseTagShareholder && expenseShareholderId) {
+        const { error: txError } = await supabase
+          .from('shareholder_transactions')
+          .insert({
+            shareholder_id: expenseShareholderId,
+            transaction_type: 'debt_taken' as any,
+            amount: parseFloat(expenseAmount),
+            description: `Expense: ${expenseDescription}`,
+            reference_number: null,
+            transaction_date: expenseDate,
+            created_by: user?.id,
+          });
+        if (txError) {
+          console.error('Error recording shareholder debt:', txError);
+          toast({
+            title: 'Warning',
+            description: 'Expense recorded but failed to tag shareholder debt: ' + txError.message,
+            variant: 'destructive',
+          });
+        }
+      }
+
       toast({
         title: 'Success',
-        description: 'Expense recorded successfully',
+        description: expenseTagShareholder ? 'Expense recorded & shareholder debt tagged' : 'Expense recorded successfully',
       });
 
       setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
@@ -1936,6 +1986,8 @@ const AccountantDashboard = () => {
       setExpensePaymentMethod('');
       setExpenseSupplier('');
       setExpenseNotes('');
+      setExpenseTagShareholder(false);
+      setExpenseShareholderId('');
       
       fetchActualStats();
       fetchFilteredData();
@@ -2975,7 +3027,6 @@ const AccountantDashboard = () => {
               <TabsTrigger value="reports" className="text-xs sm:text-sm whitespace-nowrap">Reports</TabsTrigger>
             </TabsList>
           </div>
-
 
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3 sm:space-y-4">
@@ -4130,6 +4181,34 @@ const AccountantDashboard = () => {
                             placeholder="Additional notes"
                           />
                         </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="expense-tag-shareholder"
+                            checked={expenseTagShareholder}
+                            onCheckedChange={(checked) => {
+                              setExpenseTagShareholder(!!checked);
+                              if (!checked) setExpenseShareholderId('');
+                            }}
+                          />
+                          <Label htmlFor="expense-tag-shareholder" className="cursor-pointer">
+                            Tag as Shareholder Debt
+                          </Label>
+                        </div>
+                        {expenseTagShareholder && (
+                          <div className="grid gap-2">
+                            <Label>Select Shareholder *</Label>
+                            <Select value={expenseShareholderId} onValueChange={setExpenseShareholderId}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select shareholder" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {shareholders.map(sh => (
+                                  <SelectItem key={sh.id} value={sh.id}>{sh.full_name}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                       <DialogFooter>
                         <Button onClick={handleRecordExpense}>Record Expense</Button>
