@@ -2994,20 +2994,6 @@ const AccountantDashboard = () => {
             </TabsList>
           </div>
 
-  const fetchShareholders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shareholders')
-        .select('id, full_name')
-        .eq('status', 'active')
-        .order('full_name');
-      if (error) throw error;
-      setShareholders(data || []);
-    } catch (error: any) {
-      console.error('Error fetching shareholders:', error);
-    }
-  };
-
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3 sm:space-y-4">
             <Card className="mobile-card">
