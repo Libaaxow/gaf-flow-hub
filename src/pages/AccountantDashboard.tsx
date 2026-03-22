@@ -1923,6 +1923,15 @@ const AccountantDashboard = () => {
       return;
     }
 
+    if (expenseTagShareholder && !expenseShareholderId) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please select a shareholder to tag',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -1942,9 +1951,32 @@ const AccountantDashboard = () => {
 
       if (error) throw error;
 
+      // If shareholder is tagged, record a debt_taken transaction
+      if (expenseTagShareholder && expenseShareholderId) {
+        const { error: txError } = await supabase
+          .from('shareholder_transactions')
+          .insert({
+            shareholder_id: expenseShareholderId,
+            transaction_type: 'debt_taken' as any,
+            amount: parseFloat(expenseAmount),
+            description: `Expense: ${expenseDescription}`,
+            reference_number: null,
+            transaction_date: expenseDate,
+            created_by: user?.id,
+          });
+        if (txError) {
+          console.error('Error recording shareholder debt:', txError);
+          toast({
+            title: 'Warning',
+            description: 'Expense recorded but failed to tag shareholder debt: ' + txError.message,
+            variant: 'destructive',
+          });
+        }
+      }
+
       toast({
         title: 'Success',
-        description: 'Expense recorded successfully',
+        description: expenseTagShareholder ? 'Expense recorded & shareholder debt tagged' : 'Expense recorded successfully',
       });
 
       setExpenseDate(format(new Date(), 'yyyy-MM-dd'));
@@ -1954,6 +1986,8 @@ const AccountantDashboard = () => {
       setExpensePaymentMethod('');
       setExpenseSupplier('');
       setExpenseNotes('');
+      setExpenseTagShareholder(false);
+      setExpenseShareholderId('');
       
       fetchActualStats();
       fetchFilteredData();
