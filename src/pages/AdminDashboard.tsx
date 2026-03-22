@@ -1401,11 +1401,12 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="shareholders">Shareholders</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-4 sm:space-y-6 w-full max-w-full">
