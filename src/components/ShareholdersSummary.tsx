@@ -50,19 +50,6 @@ export function ShareholdersSummary() {
 
   if (loading || shareholders.length === 0) return null;
 
-  const getMoneyBalance = (id: string) => {
-    const shTx = transactions.filter(t => t.shareholder_id === id);
-    let balance = 0;
-    shTx.forEach(t => {
-      if (['capital_investment', 'debt_repayment'].includes(t.transaction_type)) {
-        balance += t.amount;
-      } else {
-        balance -= t.amount;
-      }
-    });
-    return balance;
-  };
-
   const getDebtBalance = (id: string) => {
     const shTx = transactions.filter(t => t.shareholder_id === id);
     let debt = 0;
