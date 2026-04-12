@@ -172,6 +172,50 @@ export type Database = {
           },
         ]
       }
+      company_assets: {
+        Row: {
+          asset_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          quantity: number
+          total_value: number | null
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          asset_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          total_value?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          asset_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          quantity?: number
+          total_value?: number | null
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_assets_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           company_name: string | null
