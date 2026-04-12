@@ -106,35 +106,39 @@ export function ShareholdersSummary() {
             const debt = getDebtBalance(sh.id);
             const receivableShare = totalReceivable * (sh.share_percentage / 100);
             const assetsShare = totalCompanyAssets * (sh.share_percentage / 100);
+            const totalShare = profitShare + receivableShare + assetsShare;
             return (
               <div key={sh.id} className="border rounded-lg p-3 space-y-2">
                 <div className="flex justify-between items-center">
                   <h4 className="font-semibold text-sm">{sh.full_name}</h4>
                   <Badge variant="outline" className="text-xs">{sh.share_percentage}%</Badge>
                 </div>
+
+                {/* Total Share */}
+                <div className="bg-green-50 rounded-lg p-2 flex items-center justify-between">
+                  <span className="text-xs font-medium text-green-700">Your Total Share</span>
+                  <span className={`text-sm font-bold ${totalShare >= 0 ? 'text-green-700' : 'text-red-600'}`}>${fmt(totalShare)}</span>
+                </div>
                 
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Assets */}
-                  <div className="bg-muted/50 rounded p-2">
-                    <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                      <Landmark className="h-3 w-3" />
-                      <span>Assets</span>
-                    </div>
-                    <p className="font-semibold text-sm">${fmt(sh.asset_value)}</p>
-                    {sh.asset_description && (
-                      <p className="text-muted-foreground truncate">{sh.asset_description}</p>
-                    )}
-                  </div>
-                  
                   {/* Money (share of net profit) */}
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
                       <Banknote className="h-3 w-3" />
-                      <span>Money (Net Profit)</span>
+                      <span>Net Profit</span>
                     </div>
                     <p className={`font-semibold text-sm ${profitShare >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       ${fmt(profitShare)}
                     </p>
+                  </div>
+
+                  {/* Receivable share */}
+                  <div className="bg-muted/50 rounded p-2">
+                    <div className="flex items-center gap-1 text-muted-foreground mb-1">
+                      <Receipt className="h-3 w-3" />
+                      <span>Receivable</span>
+                    </div>
+                    <p className="font-semibold text-sm text-orange-600">${fmt(receivableShare)}</p>
                   </div>
                 </div>
 
@@ -142,12 +146,6 @@ export function ShareholdersSummary() {
                 <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
                   <Package className="h-3 w-3" />
                   <span>Company Assets Share: <strong>${fmt(assetsShare)}</strong></span>
-                </div>
-
-                {/* Receivable share */}
-                <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1">
-                  <Receipt className="h-3 w-3" />
-                  <span>Receivable Share: <strong>${fmt(receivableShare)}</strong></span>
                 </div>
 
                 {debt > 0 && (
