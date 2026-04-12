@@ -1348,6 +1348,8 @@ export type Database = {
       }
       shareholders: {
         Row: {
+          asset_description: string | null
+          asset_value: number
           created_at: string
           created_by: string | null
           email: string | null
@@ -1360,6 +1362,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          asset_description?: string | null
+          asset_value?: number
           created_at?: string
           created_by?: string | null
           email?: string | null
@@ -1372,6 +1376,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          asset_description?: string | null
+          asset_value?: number
           created_at?: string
           created_by?: string | null
           email?: string | null
