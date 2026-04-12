@@ -22,6 +22,7 @@ import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { ShareholdersPanel } from '@/components/ShareholdersPanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
+import { CompanyAssetsPanel } from '@/components/CompanyAssetsPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1404,12 +1405,13 @@ export default function AdminDashboard() {
       <div className="space-y-4">
       <ShareholdersSummary />
       <Tabs defaultValue="orders" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="orders">Orders</TabsTrigger>
           <TabsTrigger value="customers">Customers</TabsTrigger>
           <TabsTrigger value="invoices">Invoices</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
           <TabsTrigger value="shareholders">Shareholders</TabsTrigger>
+          <TabsTrigger value="assets">Assets</TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-4 sm:space-y-6 w-full max-w-full">
@@ -2222,6 +2224,10 @@ export default function AdminDashboard() {
 
     <TabsContent value="shareholders" className="space-y-4">
       <ShareholdersPanel />
+    </TabsContent>
+
+    <TabsContent value="assets" className="space-y-4">
+      <CompanyAssetsPanel />
     </TabsContent>
 
     </Tabs>
