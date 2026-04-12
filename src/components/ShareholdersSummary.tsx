@@ -21,16 +21,28 @@ interface Transaction {
 export function ShareholdersSummary() {
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [netProfit, setNetProfit] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [shRes, txRes] = await Promise.all([
+      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage, asset_value, asset_description').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+        supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
+        supabase.from('payments').select('amount'),
+        supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
+        supabase.from('beginning_balances').select('amount, account_type'),
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
+
+      // Calculate net profit: Opening Balance + Collected - Expenses
+      const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+      const collected = (paymentsRes.data || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+      const expenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+      setNetProfit(openingBalance + collected - expenses);
+
       setLoading(false);
     };
     fetchData();
