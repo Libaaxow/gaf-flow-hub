@@ -21,6 +21,8 @@ interface Shareholder {
   share_percentage: number;
   status: string;
   notes: string | null;
+  asset_value: number;
+  asset_description: string | null;
   created_at: string;
 }
 
@@ -60,6 +62,8 @@ export function ShareholdersPanel() {
   const [shEmail, setShEmail] = useState('');
   const [shPercentage, setShPercentage] = useState('');
   const [shNotes, setShNotes] = useState('');
+  const [shAssetValue, setShAssetValue] = useState('');
+  const [shAssetDescription, setShAssetDescription] = useState('');
 
   // Transaction form
   const [txDialogOpen, setTxDialogOpen] = useState(false);
@@ -113,6 +117,7 @@ export function ShareholdersPanel() {
 
   const resetShareholderForm = () => {
     setShName(''); setShPhone(''); setShEmail(''); setShPercentage(''); setShNotes('');
+    setShAssetValue(''); setShAssetDescription('');
     setEditingShareholder(null);
     setShareholderDialogOpen(false);
   };
@@ -128,6 +133,8 @@ export function ShareholdersPanel() {
       email: shEmail || null,
       share_percentage: parseFloat(shPercentage) || 0,
       notes: shNotes || null,
+      asset_value: parseFloat(shAssetValue) || 0,
+      asset_description: shAssetDescription || null,
     };
     if (editingShareholder) {
       const { error } = await supabase.from('shareholders').update(data).eq('id', editingShareholder.id);
@@ -229,6 +236,8 @@ export function ShareholdersPanel() {
                       setShEmail(sh.email || '');
                       setShPercentage(String(sh.share_percentage));
                       setShNotes(sh.notes || '');
+                      setShAssetValue(String(sh.asset_value || 0));
+                      setShAssetDescription(sh.asset_description || '');
                       setShareholderDialogOpen(true);
                     }}>
                       <Pencil className="h-3 w-3" />
@@ -346,6 +355,8 @@ export function ShareholdersPanel() {
             <div><Label>Email</Label><Input type="email" value={shEmail} onChange={e => setShEmail(e.target.value)} /></div>
             <div><Label>Share Percentage (%)</Label><Input type="number" value={shPercentage} onChange={e => setShPercentage(e.target.value)} min="0" max="100" step="0.01" /></div>
             <div><Label>Notes</Label><Input value={shNotes} onChange={e => setShNotes(e.target.value)} /></div>
+            <div><Label>Asset Value ($)</Label><Input type="number" value={shAssetValue} onChange={e => setShAssetValue(e.target.value)} min="0" step="0.01" /></div>
+            <div><Label>Asset Description</Label><Input value={shAssetDescription} onChange={e => setShAssetDescription(e.target.value)} placeholder="e.g. Machine, Equipment" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={resetShareholderForm}>Cancel</Button>
