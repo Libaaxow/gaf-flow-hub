@@ -21,6 +21,7 @@ import { Label } from '@/components/ui/label';
 import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { ShareholdersPanel } from '@/components/ShareholdersPanel';
+import { ShareholdersSummary } from '@/components/ShareholdersSummary';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1400,6 +1401,8 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
+      <div className="space-y-4">
+      <ShareholdersSummary />
       <Tabs defaultValue="orders" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="orders">Orders</TabsTrigger>

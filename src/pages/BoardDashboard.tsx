@@ -36,6 +36,7 @@ import { cn } from '@/lib/utils';
 import { ChartContainer } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell, Tooltip } from 'recharts';
 import { CommissionPanel } from '@/components/CommissionPanel';
+import { ShareholdersSummary } from '@/components/ShareholdersSummary';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -422,6 +423,9 @@ const BoardDashboard = () => {
             </Select>
           </div>
         </div>
+
+        {/* Shareholders Overview */}
+        <ShareholdersSummary />
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
