@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { Plus, Pencil, Trash2, Package } from 'lucide-react';
@@ -17,6 +19,7 @@ interface CompanyAsset {
   unit_price: number;
   total_value: number;
   notes: string | null;
+  status: string;
   created_at: string;
 }
 
@@ -29,6 +32,7 @@ export function CompanyAssetsPanel() {
   const [quantity, setQuantity] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [status, setStatus] = useState('working');
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -50,6 +54,7 @@ export function CompanyAssetsPanel() {
     setQuantity('1');
     setUnitPrice('');
     setNotes('');
+    setStatus('working');
     setEditingAsset(null);
   };
 
@@ -64,6 +69,7 @@ export function CompanyAssetsPanel() {
     setQuantity(String(asset.quantity));
     setUnitPrice(String(asset.unit_price));
     setNotes(asset.notes || '');
+    setStatus(asset.status || 'working');
     setDialogOpen(true);
   };
 
@@ -78,6 +84,7 @@ export function CompanyAssetsPanel() {
       quantity: parseInt(quantity) || 1,
       unit_price: parseFloat(unitPrice) || 0,
       notes: notes || null,
+      status,
     };
 
     if (editingAsset) {
@@ -141,6 +148,7 @@ export function CompanyAssetsPanel() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Machine / Asset Name</TableHead>
+                  <TableHead>Condition</TableHead>
                   <TableHead className="text-right">Qty</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
                   <TableHead className="text-right">Total Value</TableHead>
@@ -152,6 +160,11 @@ export function CompanyAssetsPanel() {
                 {assets.map(asset => (
                   <TableRow key={asset.id}>
                     <TableCell className="font-medium">{asset.asset_name}</TableCell>
+                    <TableCell>
+                      <Badge variant={asset.status === 'working' ? 'default' : 'destructive'}>
+                        {asset.status === 'working' ? 'Working' : 'Not Working'}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">{asset.quantity}</TableCell>
                     <TableCell className="text-right">${fmt(asset.unit_price)}</TableCell>
                     <TableCell className="text-right font-semibold">${fmt(asset.total_value)}</TableCell>
@@ -169,7 +182,7 @@ export function CompanyAssetsPanel() {
                   </TableRow>
                 ))}
                 <TableRow className="bg-muted/50 font-bold">
-                  <TableCell colSpan={3} className="text-right">Grand Total</TableCell>
+                  <TableCell colSpan={4} className="text-right">Grand Total</TableCell>
                   <TableCell className="text-right">${fmt(grandTotal)}</TableCell>
                   <TableCell colSpan={2} />
                 </TableRow>
@@ -198,6 +211,18 @@ export function CompanyAssetsPanel() {
                 <Label>Unit Price ($)</Label>
                 <Input type="number" min="0" step="0.01" value={unitPrice} onChange={e => setUnitPrice(e.target.value)} />
               </div>
+            </div>
+            <div>
+              <Label>Condition</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="working">Working</SelectItem>
+                  <SelectItem value="not_working">Not Working</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label>Notes (optional)</Label>
