@@ -164,7 +164,6 @@ export function ShareholdersSummary() {
     </Card>
   );
 }
-export function ShareholdersSummary() {
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [netProfit, setNetProfit] = useState(0);
