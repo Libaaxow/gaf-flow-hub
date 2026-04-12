@@ -21,35 +21,34 @@ interface Transaction {
 export function ShareholdersSummary() {
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [netProfit, setNetProfit] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [shRes, txRes] = await Promise.all([
+      const [shRes, txRes, , paymentsRes, expensesRes, balancesRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage, asset_value, asset_description').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+        supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
+        supabase.from('payments').select('amount'),
+        supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
+        supabase.from('beginning_balances').select('amount, account_type'),
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
+
+      // Calculate net profit: Opening Balance + Collected - Expenses
+      const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
+      const collected = (paymentsRes.data || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+      const expenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
+      setNetProfit(openingBalance + collected - expenses);
+
       setLoading(false);
     };
     fetchData();
   }, []);
 
   if (loading || shareholders.length === 0) return null;
-
-  const getMoneyBalance = (id: string) => {
-    const shTx = transactions.filter(t => t.shareholder_id === id);
-    let balance = 0;
-    shTx.forEach(t => {
-      if (['capital_investment', 'debt_repayment'].includes(t.transaction_type)) {
-        balance += t.amount;
-      } else {
-        balance -= t.amount;
-      }
-    });
-    return balance;
-  };
 
   const getDebtBalance = (id: string) => {
     const shTx = transactions.filter(t => t.shareholder_id === id);
@@ -74,7 +73,7 @@ export function ShareholdersSummary() {
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {shareholders.map(sh => {
-            const moneyBalance = getMoneyBalance(sh.id);
+            const profitShare = netProfit * (sh.share_percentage / 100);
             const debt = getDebtBalance(sh.id);
             const outstanding = debt;
             return (
@@ -97,14 +96,14 @@ export function ShareholdersSummary() {
                     )}
                   </div>
                   
-                  {/* Money */}
+                  {/* Money (share of net profit) */}
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
                       <Banknote className="h-3 w-3" />
-                      <span>Money</span>
+                      <span>Money (Net Profit)</span>
                     </div>
-                    <p className={`font-semibold text-sm ${moneyBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${fmt(moneyBalance)}
+                    <p className={`font-semibold text-sm ${profitShare >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${fmt(profitShare)}
                     </p>
                   </div>
                 </div>
