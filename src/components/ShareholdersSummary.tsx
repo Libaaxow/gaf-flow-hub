@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Landmark, Banknote, AlertCircle, Receipt } from 'lucide-react';
+import { Users, Landmark, Banknote, AlertCircle, Receipt, Package } from 'lucide-react';
 
 interface Shareholder {
   id: string;
@@ -23,33 +23,36 @@ export function ShareholdersSummary() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [netProfit, setNetProfit] = useState(0);
   const [totalReceivable, setTotalReceivable] = useState(0);
+  const [totalCompanyAssets, setTotalCompanyAssets] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes] = await Promise.all([
+      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage, asset_value, asset_description').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
         supabase.from('payments').select('amount'),
         supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
         supabase.from('beginning_balances').select('amount, account_type'),
+        supabase.from('company_assets').select('total_value'),
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
 
-      // Calculate net profit: Opening Balance + Collected - Expenses
       const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
       const collected = (paymentsRes.data || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       const expenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
       setNetProfit(openingBalance + collected - expenses);
 
-      // Calculate total receivable (outstanding from non-draft invoices)
       const receivable = (invoicesRes.data || []).reduce((sum: number, inv: any) => {
         const outstanding = (inv.total_amount || 0) - (inv.amount_paid || 0);
         return sum + Math.max(0, outstanding);
       }, 0);
       setTotalReceivable(receivable);
+
+      const companyAssetsTotal = (assetsRes.data || []).reduce((sum: number, a: any) => sum + (a.total_value || 0), 0);
+      setTotalCompanyAssets(companyAssetsTotal);
 
       setLoading(false);
     };
@@ -88,11 +91,21 @@ export function ShareholdersSummary() {
           <span className="text-lg font-bold text-orange-600">${fmt(totalReceivable)}</span>
         </div>
 
+        {/* Total Company Assets */}
+        <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="h-4 w-4 text-blue-500" />
+            <span className="text-sm font-medium">Total Company Assets</span>
+          </div>
+          <span className="text-lg font-bold text-blue-600">${fmt(totalCompanyAssets)}</span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {shareholders.map(sh => {
             const profitShare = netProfit * (sh.share_percentage / 100);
             const debt = getDebtBalance(sh.id);
             const receivableShare = totalReceivable * (sh.share_percentage / 100);
+            const assetsShare = totalCompanyAssets * (sh.share_percentage / 100);
             return (
               <div key={sh.id} className="border rounded-lg p-3 space-y-2">
                 <div className="flex justify-between items-center">
@@ -123,6 +136,12 @@ export function ShareholdersSummary() {
                       ${fmt(profitShare)}
                     </p>
                   </div>
+                </div>
+
+                {/* Company Assets Share */}
+                <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
+                  <Package className="h-3 w-3" />
+                  <span>Company Assets Share: <strong>${fmt(assetsShare)}</strong></span>
                 </div>
 
                 {/* Receivable share */}
