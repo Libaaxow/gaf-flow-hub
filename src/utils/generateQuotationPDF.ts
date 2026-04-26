@@ -1,7 +1,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import logoImg from "@/assets/gaf-media-logo-poster.png";
-import qrCodeImg from "@/assets/qr-code-gaf.png";
+
 import companyStamp from "@/assets/company-stamp.png";
 
 interface QuotationData {
@@ -164,17 +164,19 @@ export const generateQuotationPDF = (quotationNumber: string, data: QuotationDat
     // Footer Section
     const finalY = (pdf as any).lastAutoTable.finalY + 10;
 
-    // QR Code Section
-    pdf.addImage(qrCodeImg, "PNG", leftMargin, finalY, 25, 25);
-    
-    pdf.setFontSize(8);
+    // Contact Details Section (replaces QR code)
+    pdf.setFontSize(9);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(30, 64, 175);
-    pdf.text("FADLAN HALKAAN ISKAANGAREE", leftMargin + 30, finalY + 8);
-    pdf.text("SI AAD U HUBISO", leftMargin + 30, finalY + 13);
-    pdf.setFont("helvetica", "italic");
-    pdf.setTextColor(128, 128, 128);
-    pdf.text("Please Scan Here To Verify", leftMargin + 30, finalY + 20);
+    pdf.text("Contact Us", leftMargin, finalY + 5);
+
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(51, 51, 51);
+    pdf.text("Hormuud: 0619130707", leftMargin, finalY + 11);
+    pdf.text("Somtel: 0629130707", leftMargin, finalY + 16);
+    pdf.text("Email: gafmedia02@gmail.com", leftMargin, finalY + 21);
+    pdf.text("Website: www.gafsom.com", leftMargin, finalY + 26);
 
     // Totals Section - Right side
     const totalsX = 130;
