@@ -2291,18 +2291,19 @@ const AccountantDashboard = () => {
       const itemsToInsert = invoiceItems.map(item => {
         const isAreaBased = item.sale_type === 'area';
         const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const qty = item.quantity || 1;
         const lineAmount = isAreaBased 
-          ? (area || 0) * item.unit_price 
+          ? (area || 0) * qty * item.unit_price 
           : item.quantity * item.unit_price;
         const lineCost = isAreaBased 
-          ? (area || 0) * (item.cost_per_unit || 0) 
+          ? (area || 0) * qty * (item.cost_per_unit || 0) 
           : item.quantity * (item.cost_per_unit || 0);
         const lineProfit = lineAmount - lineCost;
         
         return {
           invoice_id: invoiceData.id,
           description: item.description,
-          quantity: isAreaBased ? 1 : item.quantity,
+          quantity: qty,
           unit_price: item.unit_price,
           amount: lineAmount,
           product_id: item.product_id || null,
@@ -2492,18 +2493,19 @@ const AccountantDashboard = () => {
       const itemsToInsert = invoiceItems.map(item => {
         const isAreaBased = item.sale_type === 'area';
         const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const qty = item.quantity || 1;
         const lineAmount = isAreaBased 
-          ? (area || 0) * item.unit_price 
+          ? (area || 0) * qty * item.unit_price 
           : item.quantity * item.unit_price;
         const lineCost = isAreaBased 
-          ? (area || 0) * (item.cost_per_unit || 0) 
+          ? (area || 0) * qty * (item.cost_per_unit || 0) 
           : item.quantity * (item.cost_per_unit || 0);
         const lineProfit = lineAmount - lineCost;
         
         return {
           invoice_id: activatingDraftInvoice.id,
           description: item.description,
-          quantity: isAreaBased ? 1 : item.quantity,
+          quantity: qty,
           unit_price: item.unit_price,
           amount: lineAmount,
           product_id: item.product_id || null,
@@ -2659,18 +2661,19 @@ const AccountantDashboard = () => {
       const itemsToInsert = invoiceItems.map(item => {
         const isAreaBased = item.sale_type === 'area';
         const area = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : null;
+        const qty = item.quantity || 1;
         const lineAmount = isAreaBased 
-          ? (area || 0) * item.unit_price 
+          ? (area || 0) * qty * item.unit_price 
           : item.quantity * item.unit_price;
         const lineCost = isAreaBased 
-          ? (area || 0) * (item.cost_per_unit || 0) 
+          ? (area || 0) * qty * (item.cost_per_unit || 0) 
           : item.quantity * (item.cost_per_unit || 0);
         const lineProfit = lineAmount - lineCost;
         
         return {
           invoice_id: editingInvoice.id,
           description: item.description,
-          quantity: isAreaBased ? 1 : item.quantity,
+          quantity: qty,
           unit_price: item.unit_price,
           amount: lineAmount,
           product_id: item.product_id || null,
