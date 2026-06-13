@@ -23,6 +23,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
+import { InstallPWAButton } from '@/components/InstallPWAButton';
 
 interface NavItem {
   href: string;
