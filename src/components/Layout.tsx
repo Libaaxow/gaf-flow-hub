@@ -210,6 +210,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                         System
                       </Button>
                     </a>
+                    <InstallPWAButton />
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-destructive"
