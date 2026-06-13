@@ -68,6 +68,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
+  // Auto sign-out after 1 hour of inactivity
+  useEffect(() => {
+    if (!user) return;
+    const IDLE_MS = 60 * 60 * 1000; // 1 hour
+    let timer: ReturnType<typeof setTimeout>;
+
+    const reset = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        supabase.auth.signOut().then(() => navigate('/auth'));
+      }, IDLE_MS);
+    };
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click', 'visibilitychange'];
+    events.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    reset();
+
+    return () => {
+      clearTimeout(timer);
+      events.forEach((e) => window.removeEventListener(e, reset));
+    };
+  }, [user, navigate]);
+
   const signOut = async () => {
     await supabase.auth.signOut();
     navigate('/auth');
