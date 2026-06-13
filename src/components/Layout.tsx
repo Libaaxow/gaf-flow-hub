@@ -23,6 +23,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
+import { InstallPWAButton } from '@/components/InstallPWAButton';
 
 interface NavItem {
   href: string;
@@ -209,6 +210,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
                         System
                       </Button>
                     </a>
+                    <InstallPWAButton />
                     <Button
                       variant="ghost"
                       className="w-full justify-start text-destructive"
