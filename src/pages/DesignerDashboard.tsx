@@ -16,7 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn, sanitizeStorageFilename } from '@/lib/utils';
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
-import { CommissionPanel } from '@/components/CommissionPanel';
+import { Plus } from 'lucide-react';
 
 
 interface SalesRequest {
@@ -463,15 +463,20 @@ const DesignerDashboard = () => {
     <Layout>
       <div className="space-y-4 sm:space-y-6 w-full max-w-full">
         {/* Profile Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <Avatar className="h-16 w-16">
-            <AvatarImage src="" />
-            <AvatarFallback>{profile?.full_name?.charAt(0) || 'D'}</AvatarFallback>
-          </Avatar>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
-            <p className="text-sm sm:text-base text-muted-foreground">Designer Dashboard</p>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <Avatar className="h-16 w-16">
+              <AvatarImage src="" />
+              <AvatarFallback>{profile?.full_name?.charAt(0) || 'D'}</AvatarFallback>
+            </Avatar>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{profile?.full_name}</h1>
+              <p className="text-sm sm:text-base text-muted-foreground">Designer Dashboard</p>
+            </div>
           </div>
+          <Button size="lg" onClick={() => navigate('/leads')} className="w-full sm:w-auto">
+            <Plus className="mr-2 h-4 w-4" /> New Lead
+          </Button>
         </div>
 
         {/* Stats Cards */}
@@ -517,195 +522,7 @@ const DesignerDashboard = () => {
           </Card>
         </div>
 
-        {/* Commission Panel */}
-        <CommissionPanel />
-
-        {/* Tabs for Jobs and Commissions */}
-        <Tabs defaultValue="jobs" className="w-full">
-          <TabsList>
-            <TabsTrigger value="jobs">My Jobs</TabsTrigger>
-            <TabsTrigger value="commissions">My Commissions</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="jobs" className="mt-4">
-            {/* Jobs Table with Filters */}
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <CardTitle>My Assigned Jobs</CardTitle>
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "justify-start text-left font-normal",
-                            !dateFilter && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {dateFilter ? format(dateFilter, "PPP") : "All Dates"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <div className="p-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              setDateFilter(null as any);
-                            }}
-                            className="w-full mb-2"
-                          >
-                            Clear Filter
-                          </Button>
-                        </div>
-                        <Calendar
-                          mode="single"
-                          selected={dateFilter}
-                          onSelect={(date) => {
-                            if (date) {
-                              setDateFilter(date);
-                            }
-                          }}
-                          initialFocus
-                          className="pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Tabs value={filter} onValueChange={setFilter} className="w-full sm:w-auto">
-                      <TabsList className="grid grid-cols-2 sm:inline-flex w-full sm:w-auto">
-                        <TabsTrigger value="all" className="text-xs sm:text-sm">All</TabsTrigger>
-                        <TabsTrigger value="in-progress" className="text-xs sm:text-sm">In Progress</TabsTrigger>
-                        <TabsTrigger value="ready" className="text-xs sm:text-sm">Ready</TabsTrigger>
-                        <TabsTrigger value="completed" className="text-xs sm:text-sm">Completed</TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="overflow-x-auto custom-scrollbar">
-                <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[100px]">Request ID</TableHead>
-                  <TableHead className="min-w-[150px]">Customer</TableHead>
-                  <TableHead className="min-w-[200px]">Description</TableHead>
-                  <TableHead className="min-w-[120px]">Status</TableHead>
-                  <TableHead className="min-w-[120px]">Created</TableHead>
-                  <TableHead className="min-w-[150px]">Created By</TableHead>
-                  <TableHead className="min-w-[150px]">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRequests.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                      No jobs found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredRequests.map((request) => (
-                    <TableRow 
-                      key={request.id}
-                      className="hover:bg-muted/50 transition-colors"
-                    >
-                      <TableCell className="font-mono text-sm">
-                        #{request.id.slice(0, 8)}
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{request.customer_name}</div>
-                          {request.company_name && (
-                            <div className="text-sm text-muted-foreground">
-                              {request.company_name}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate">{request.description}</TableCell>
-                      <TableCell>{getStatusBadge(request.status)}</TableCell>
-                      <TableCell>
-                        {format(new Date(request.created_at), 'PP')}
-                      </TableCell>
-                      <TableCell>{request.creator?.full_name || 'Unknown'}</TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openRequestDetails(request)}
-                        >
-                          <Eye className="h-4 w-4 mr-1" />
-                          {request.status === 'in_design' ? 'Manage' : 'View'}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-          </TabsContent>
-
-          <TabsContent value="commissions" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Design Commissions</CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Commission</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No commissions found. Make sure your commission percentage is set in your profile.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      commissions.map((commission) => (
-                        <TableRow key={commission.id}>
-                          <TableCell className="font-medium">
-                            {commission.orders?.job_title || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            {commission.orders?.customers?.name || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            ${commission.orders?.order_value?.toFixed(2) || '0.00'}
-                          </TableCell>
-                          <TableCell>{commission.commission_percentage}%</TableCell>
-                          <TableCell className="font-bold">
-                            ${commission.commission_amount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
-                              {commission.paid_status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(commission.created_at), 'PP')}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Jobs list and commissions removed per request */}
 
         {/* Request Details Dialog */}
         <JobDetailsDialog
