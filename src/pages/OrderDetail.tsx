@@ -13,6 +13,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Upload, Download, MessageSquare, FileText, CheckCircle, History, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Checkbox } from '@/components/ui/checkbox';
+import OrderWorkflowPanel from '@/components/OrderWorkflowPanel';
+import ActivityTimeline from '@/components/ActivityTimeline';
 
 interface Order {
   id: string;
@@ -675,6 +677,8 @@ const OrderDetail = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
+          <OrderWorkflowPanel orderId={order.id} onChanged={fetchOrderDetails} />
+          <ActivityTimeline entityType="order" entityId={order.id} />
           <Card>
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>

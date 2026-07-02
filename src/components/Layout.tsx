@@ -42,6 +42,7 @@ const navItems: NavItem[] = [
   { href: '/vendor-payments', label: 'Vendor Payments', icon: Receipt, roles: ['admin', 'accountant', 'board'] },
   { href: '/vendor-reports', label: 'Vendor Reports', icon: BarChart3, roles: ['admin', 'accountant', 'board'] },
   { href: '/orders', label: 'Orders', icon: ShoppingCart, roles: ['admin', 'accountant', 'designer', 'print_operator', 'marketing'] },
+  { href: '/leads', label: 'Leads', icon: FileText, roles: ['sales', 'designer', 'admin', 'accountant'] },
   { href: '/quotations', label: 'Quotations', icon: FileText, roles: ['admin', 'accountant', 'board'] },
   { href: '/customer-history', label: 'Order History', icon: History, roles: ['admin', 'accountant'] },
   { href: '/reports', label: 'Reports', icon: BarChart3, roles: ['admin', 'accountant', 'board'] },

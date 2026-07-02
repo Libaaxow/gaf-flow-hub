@@ -31,6 +31,7 @@ import CustomerAnalytics from "./pages/CustomerAnalytics";
 import Quotations from "./pages/Quotations";
 import BeginningBalances from "./pages/BeginningBalances";
 import FinancialAnalyst from "./pages/FinancialAnalyst";
+import Leads from "./pages/Leads";
 
 import NotFound from "./pages/NotFound";
 
@@ -155,6 +156,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Orders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/leads"
+              element={
+                <ProtectedRoute>
+                  <Leads />
                 </ProtectedRoute>
               }
             />

@@ -40,6 +40,9 @@ const Orders = () => {
   const { user } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [designers, setDesigners] = useState<any[]>([]);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [selectedDesignerId, setSelectedDesignerId] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [phoneCheckOpen, setPhoneCheckOpen] = useState(false);
   const [orderFormOpen, setOrderFormOpen] = useState(false);
@@ -54,6 +57,11 @@ const Orders = () => {
   useEffect(() => {
     fetchOrders();
     fetchCustomers();
+    fetchDesigners();
+    if (user) {
+      supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => { if (data?.role) setUserRole(data.role as string); });
+    }
 
     // Set up realtime subscription for orders
     const ordersChannel = supabase
@@ -91,7 +99,7 @@ const Orders = () => {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(customersChannel);
     };
-  }, []);
+  }, [user?.id]);
 
   const fetchOrders = async () => {
     try {
@@ -122,6 +130,14 @@ const Orders = () => {
       .select('*')
       .order('name');
     setCustomers(data || []);
+  };
+
+  const fetchDesigners = async () => {
+    const { data } = await supabase.from('user_roles').select('user_id').eq('role', 'designer');
+    const ids = (data || []).map((r: any) => r.user_id);
+    if (!ids.length) { setDesigners([]); return; }
+    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+    setDesigners(profs || []);
   };
 
   const handleCustomerSearch = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -246,13 +262,22 @@ const Orders = () => {
       }
 
       // Create order
-      const orderData = {
+      const isSales = userRole === 'sales';
+      const isDesigner = userRole === 'designer';
+      if (isSales && !selectedDesignerId) {
+        toast({ title: 'Designer required', description: 'Sales must assign a designer to every order.', variant: 'destructive' });
+        return;
+      }
+      const orderData: any = {
         customer_id: customerId,
         job_title: formData.get('job_title') as string,
         description: formData.get('description') as string,
         order_value: parseFloat(formData.get('order_value') as string),
         salesperson_id: user?.id,
         delivery_date: formData.get('delivery_date') as string || null,
+        owner_id: user?.id,
+        designer_id: isDesigner ? user?.id : (selectedDesignerId || null),
+        production_stage: 'not_sent',
       };
 
       orderSchema.parse(orderData);
@@ -275,6 +300,7 @@ const Orders = () => {
       setExistingCustomer(null);
       setMatchingCustomers([]);
       setSearchType('phone');
+      setSelectedDesignerId('');
       fetchOrders();
     } catch (error: any) {
       toast({
@@ -509,6 +535,21 @@ const Orders = () => {
                     <Label htmlFor="delivery_date">Delivery Date</Label>
                     <Input id="delivery_date" name="delivery_date" type="date" />
                   </div>
+                  {userRole === 'sales' && (
+                    <div className="space-y-2">
+                      <Label>Assign Designer *</Label>
+                      <Select value={selectedDesignerId} onValueChange={setSelectedDesignerId}>
+                        <SelectTrigger><SelectValue placeholder="Pick a designer" /></SelectTrigger>
+                        <SelectContent>
+                          {designers.map(d => <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Every order created by Sales must be assigned to a designer.</p>
+                    </div>
+                  )}
+                  {userRole === 'designer' && (
+                    <p className="text-xs text-muted-foreground">You will be auto-assigned as the designer for this order.</p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full">Create Order</Button>
