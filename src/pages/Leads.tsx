@@ -37,9 +37,9 @@ const Leads = () => {
   const [open, setOpen] = useState(false);
 
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [source, setSource] = useState('');
-  const [customerId, setCustomerId] = useState<string>('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [jobSize, setJobSize] = useState('');
   const [designerAssign, setDesignerAssign] = useState<string>('');
 
   const [convertLead, setConvertLead] = useState<Lead | null>(null);
@@ -82,12 +82,35 @@ const Leads = () => {
   const canCreate = role === 'sales' || role === 'designer';
 
   const handleCreate = async () => {
-    if (!user || !title.trim()) return;
+    if (!user) return;
+    if (!customerName.trim() || !customerPhone.trim() || !jobSize.trim()) {
+      return toast({ title: 'Missing info', description: 'Customer name, number and job size are required.', variant: 'destructive' });
+    }
+
+    // Find or create customer by phone
+    let cid: string | null = null;
+    const { data: existing } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('phone', customerPhone.trim())
+      .limit(1);
+    if (existing && existing.length > 0) {
+      cid = existing[0].id;
+    } else {
+      const { data: newCust, error: custErr } = await supabase
+        .from('customers')
+        .insert({ name: customerName.trim(), phone: customerPhone.trim(), created_by: user.id })
+        .select('id')
+        .single();
+      if (custErr) return toast({ title: 'Error', description: custErr.message, variant: 'destructive' });
+      cid = newCust.id;
+    }
+
     const payload: any = {
-      title: title.trim(),
-      description: description.trim() || null,
-      source: source.trim() || null,
-      customer_id: customerId || null,
+      title: `${customerName.trim()} - ${jobSize.trim()}`,
+      description: `Size: ${jobSize.trim()}`,
+      source: null,
+      customer_id: cid,
       owner_id: user.id,
       created_by_role: role,
       status: 'new',
@@ -98,8 +121,8 @@ const Leads = () => {
     if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
     toast({ title: 'Lead created' });
     setOpen(false);
-    setTitle(''); setDescription(''); setSource(''); setCustomerId(''); setDesignerAssign('');
-    fetchLeads();
+    setCustomerName(''); setCustomerPhone(''); setJobSize(''); setDesignerAssign('');
+    fetchLeads(); fetchCustomers();
   };
 
   const openConvert = (lead: Lead) => {
@@ -151,20 +174,15 @@ const Leads = () => {
               </DialogTrigger>
               <DialogContent className="max-w-lg">
                 <DialogHeader><DialogTitle>Create Lead</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1"><Label>Title *</Label>
-                    <Input value={title} onChange={(e) => setTitle(e.target.value)} /></div>
-                  <div className="space-y-1"><Label>Description</Label>
-                    <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} /></div>
-                  <div className="space-y-1"><Label>Source</Label>
-                    <Input value={source} onChange={(e) => setSource(e.target.value)} placeholder="Walk-in, WhatsApp, referral..." /></div>
-                  <div className="space-y-1"><Label>Customer</Label>
-                    <Select value={customerId} onValueChange={setCustomerId}>
-                      <SelectTrigger><SelectValue placeholder="Optional - link a customer" /></SelectTrigger>
-                      <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.name}{c.phone ? ` · ${c.phone}` : ''}</SelectItem>)}</SelectContent>
-                    </Select></div>
+                <div className="flex flex-col gap-3">
+                  <div className="space-y-1"><Label>Customer Name *</Label>
+                    <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" /></div>
+                  <div className="space-y-1"><Label>Customer Number *</Label>
+                    <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Phone number" /></div>
+                  <div className="space-y-1"><Label>Job Size *</Label>
+                    <Input value={jobSize} onChange={(e) => setJobSize(e.target.value)} placeholder="e.g. 2m x 3m, A4, 100 pcs" /></div>
                   {role === 'sales' && (
-                    <div className="space-y-1"><Label>Assign Designer (optional at lead stage)</Label>
+                    <div className="space-y-1"><Label>Assign Designer (optional)</Label>
                       <Select value={designerAssign} onValueChange={setDesignerAssign}>
                         <SelectTrigger><SelectValue placeholder="Pick a designer" /></SelectTrigger>
                         <SelectContent>{designers.map(d => <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>)}</SelectContent>
