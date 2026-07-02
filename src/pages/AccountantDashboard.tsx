@@ -2991,6 +2991,8 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
+        <FinanceNotesPanel />
+
         <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-5">
           {statCards.map((stat) => (
             <Card
