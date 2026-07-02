@@ -521,6 +521,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          amount: number | null
           assigned_designer_id: string | null
           converted_order_id: string | null
           created_at: string
@@ -529,12 +530,14 @@ export type Database = {
           description: string | null
           id: string
           owner_id: string
+          quantity: number | null
           source: string | null
           status: string
           title: string
           updated_at: string
         }
         Insert: {
+          amount?: number | null
           assigned_designer_id?: string | null
           converted_order_id?: string | null
           created_at?: string
@@ -543,12 +546,14 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id: string
+          quantity?: number | null
           source?: string | null
           status?: string
           title: string
           updated_at?: string
         }
         Update: {
+          amount?: number | null
           assigned_designer_id?: string | null
           converted_order_id?: string | null
           created_at?: string
@@ -557,6 +562,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id?: string
+          quantity?: number | null
           source?: string | null
           status?: string
           title?: string
