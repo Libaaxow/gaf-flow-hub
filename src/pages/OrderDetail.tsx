@@ -677,6 +677,8 @@ const OrderDetail = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
+          <OrderWorkflowPanel orderId={order.id} onChanged={fetchOrderDetails} />
+          <ActivityTimeline entityType="order" entityId={order.id} />
           <Card>
             <CardHeader>
               <CardTitle>Customer Information</CardTitle>
