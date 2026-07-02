@@ -14,6 +14,8 @@ interface LeadNote {
   owner_id: string;
   created_at: string;
   created_by_role: string | null;
+  quantity: number | null;
+  amount: number | null;
 }
 
 export const FinanceNotesPanel = () => {
@@ -93,6 +95,8 @@ export const FinanceNotesPanel = () => {
                     {n.description && <p className="text-sm text-muted-foreground mt-1">{n.description}</p>}
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
                       {cust && <span>Customer: <span className="text-foreground">{cust.name}</span>{cust.phone ? ` · ${cust.phone}` : ''}</span>}
+                      {n.quantity != null && <span>Qty: <span className="text-foreground">{n.quantity}</span></span>}
+                      {n.amount != null && <span>Amount: <span className="text-foreground">${Number(n.amount).toLocaleString()}</span></span>}
                       {owners[n.owner_id] && <span>By: <span className="text-foreground">{owners[n.owner_id]}</span></span>}
                       <span>{new Date(n.created_at).toLocaleString()}</span>
                     </div>

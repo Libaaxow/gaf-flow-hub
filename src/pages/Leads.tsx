@@ -40,6 +40,8 @@ const Leads = () => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [jobSize, setJobSize] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [amount, setAmount] = useState('');
   const [designerAssign, setDesignerAssign] = useState<string>('');
 
   const [sendingId, setSendingId] = useState<string | null>(null);
@@ -112,6 +114,8 @@ const Leads = () => {
       owner_id: user.id,
       created_by_role: role,
       status: 'new',
+      quantity: quantity ? Number(quantity) : null,
+      amount: amount ? Number(amount) : null,
       assigned_designer_id:
         role === 'designer' ? user.id : (designerAssign || null),
     };
@@ -119,7 +123,7 @@ const Leads = () => {
     if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
     toast({ title: 'Lead created' });
     setOpen(false);
-    setCustomerName(''); setCustomerPhone(''); setJobSize(''); setDesignerAssign('');
+    setCustomerName(''); setCustomerPhone(''); setJobSize(''); setQuantity(''); setAmount(''); setDesignerAssign('');
     fetchLeads(); fetchCustomers();
   };
 
@@ -159,6 +163,10 @@ const Leads = () => {
                     <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Phone number" /></div>
                   <div className="space-y-1"><Label>Job Size *</Label>
                     <Input value={jobSize} onChange={(e) => setJobSize(e.target.value)} placeholder="e.g. 2m x 3m, A4, 100 pcs" /></div>
+                  <div className="space-y-1"><Label>Quantity</Label>
+                    <Input type="number" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="e.g. 10" /></div>
+                  <div className="space-y-1"><Label>Amount</Label>
+                    <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="e.g. 150.00" /></div>
                   {role === 'sales' && (
                     <div className="space-y-1"><Label>Assign Designer (optional)</Label>
                       <Select value={designerAssign} onValueChange={setDesignerAssign}>
