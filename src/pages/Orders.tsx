@@ -535,6 +535,21 @@ const Orders = () => {
                     <Label htmlFor="delivery_date">Delivery Date</Label>
                     <Input id="delivery_date" name="delivery_date" type="date" />
                   </div>
+                  {userRole === 'sales' && (
+                    <div className="space-y-2">
+                      <Label>Assign Designer *</Label>
+                      <Select value={selectedDesignerId} onValueChange={setSelectedDesignerId}>
+                        <SelectTrigger><SelectValue placeholder="Pick a designer" /></SelectTrigger>
+                        <SelectContent>
+                          {designers.map(d => <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">Every order created by Sales must be assigned to a designer.</p>
+                    </div>
+                  )}
+                  {userRole === 'designer' && (
+                    <p className="text-xs text-muted-foreground">You will be auto-assigned as the designer for this order.</p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full">Create Order</Button>
