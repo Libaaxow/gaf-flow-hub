@@ -62,6 +62,7 @@ import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
+import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 
 interface FinancialStats {
   totalRevenue: number;
