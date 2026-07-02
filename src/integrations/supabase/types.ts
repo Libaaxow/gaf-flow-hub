@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string | null
+          created_at: string
+          details: Json | null
+          entity_id: string
+          entity_type: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id: string
+          entity_type: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          created_at?: string
+          details?: Json | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+        }
+        Relationships: []
+      }
       beginning_balances: {
         Row: {
           account_type: string
@@ -486,6 +519,66 @@ export type Database = {
           },
         ]
       }
+      leads: {
+        Row: {
+          assigned_designer_id: string | null
+          converted_order_id: string | null
+          created_at: string
+          created_by_role: Database["public"]["Enums"]["app_role"] | null
+          customer_id: string | null
+          description: string | null
+          id: string
+          owner_id: string
+          source: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_designer_id?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          created_by_role?: Database["public"]["Enums"]["app_role"] | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          owner_id: string
+          source?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_designer_id?: string | null
+          converted_order_id?: string | null
+          created_at?: string
+          created_by_role?: Database["public"]["Enums"]["app_role"] | null
+          customer_id?: string | null
+          description?: string | null
+          id?: string
+          owner_id?: string
+          source?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leads_converted_order_id_fkey"
+            columns: ["converted_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leads_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string
@@ -663,10 +756,12 @@ export type Database = {
           job_title: string
           notes: string | null
           order_value: number | null
+          owner_id: string | null
           payment_method: Database["public"]["Enums"]["payment_method"] | null
           payment_status: Database["public"]["Enums"]["payment_status"] | null
           print_operator_id: string | null
           print_type: string | null
+          production_stage: string
           quantity: number | null
           salesperson_id: string | null
           status: Database["public"]["Enums"]["order_status"] | null
@@ -683,10 +778,12 @@ export type Database = {
           job_title: string
           notes?: string | null
           order_value?: number | null
+          owner_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           print_operator_id?: string | null
           print_type?: string | null
+          production_stage?: string
           quantity?: number | null
           salesperson_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
@@ -703,10 +800,12 @@ export type Database = {
           job_title?: string
           notes?: string | null
           order_value?: number | null
+          owner_id?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"] | null
           payment_status?: Database["public"]["Enums"]["payment_status"] | null
           print_operator_id?: string | null
           print_type?: string | null
+          production_stage?: string
           quantity?: number | null
           salesperson_id?: string | null
           status?: Database["public"]["Enums"]["order_status"] | null
