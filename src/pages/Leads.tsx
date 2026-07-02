@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, ArrowRightCircle } from 'lucide-react';
+import { Plus, Send } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -42,9 +42,7 @@ const Leads = () => {
   const [jobSize, setJobSize] = useState('');
   const [designerAssign, setDesignerAssign] = useState<string>('');
 
-  const [convertLead, setConvertLead] = useState<Lead | null>(null);
-  const [convertValue, setConvertValue] = useState('');
-  const [convertDesigner, setConvertDesigner] = useState<string>('');
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -125,35 +123,15 @@ const Leads = () => {
     fetchLeads(); fetchCustomers();
   };
 
-  const openConvert = (lead: Lead) => {
-    setConvertLead(lead);
-    setConvertValue('');
-    setConvertDesigner(lead.assigned_designer_id || (role === 'designer' ? user!.id : ''));
-  };
-
-  const handleConvert = async () => {
-    if (!convertLead || !user) return;
-    if (!convertLead.customer_id) {
-      return toast({ title: 'Missing customer', description: 'Attach a customer to this lead first.', variant: 'destructive' });
-    }
-    const designer = role === 'designer' ? user.id : convertDesigner;
-    if (!designer) {
-      return toast({ title: 'Designer required', description: 'Assign a designer before converting.', variant: 'destructive' });
-    }
-    const { data: order, error } = await supabase.from('orders').insert({
-      customer_id: convertLead.customer_id,
-      job_title: convertLead.title,
-      description: convertLead.description || null,
-      order_value: Number(convertValue) || 0,
-      salesperson_id: role === 'sales' ? user.id : null,
-      designer_id: designer,
-      owner_id: user.id,
-      production_stage: 'not_sent',
-    } as any).select('id').single();
+  const handleSendToFinance = async (lead: Lead) => {
+    setSendingId(lead.id);
+    const { error } = await supabase
+      .from('leads')
+      .update({ status: 'sent_to_finance' })
+      .eq('id', lead.id);
+    setSendingId(null);
     if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    await supabase.from('leads').update({ status: 'converted', converted_order_id: order.id }).eq('id', convertLead.id);
-    toast({ title: 'Lead converted to order' });
-    setConvertLead(null);
+    toast({ title: 'Sent to Finance', description: 'A note has been added to the Finance dashboard for invoicing.' });
     fetchLeads();
   };
 
@@ -218,8 +196,14 @@ const Leads = () => {
                   </div>
                   {lead.status === 'new' && canCreate && lead.owner_id === user?.id && (
                     <div className="pt-2">
-                      <Button size="sm" variant="outline" onClick={() => openConvert(lead)} className="gap-2">
-                        <ArrowRightCircle className="h-4 w-4" /> Convert to Order
+                      <Button
+                        size="sm"
+                        onClick={() => handleSendToFinance(lead)}
+                        disabled={sendingId === lead.id}
+                        className="gap-2"
+                      >
+                        <Send className="h-4 w-4" />
+                        {sendingId === lead.id ? 'Sending...' : 'Send to Finance'}
                       </Button>
                     </div>
                   )}
@@ -232,26 +216,6 @@ const Leads = () => {
           )}
         </div>
       </div>
-
-      <Dialog open={!!convertLead} onOpenChange={(o) => !o && setConvertLead(null)}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Convert Lead to Order</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1"><Label>Order Value</Label>
-              <Input type="number" step="0.01" value={convertValue} onChange={(e) => setConvertValue(e.target.value)} /></div>
-            {role === 'sales' ? (
-              <div className="space-y-1"><Label>Designer *</Label>
-                <Select value={convertDesigner} onValueChange={setConvertDesigner}>
-                  <SelectTrigger><SelectValue placeholder="Assign a designer" /></SelectTrigger>
-                  <SelectContent>{designers.map(d => <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>)}</SelectContent>
-                </Select></div>
-            ) : (
-              <p className="text-xs text-muted-foreground">You will be assigned as the designer.</p>
-            )}
-            <Button className="w-full" onClick={handleConvert}>Create Order</Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </Layout>
   );
 };
