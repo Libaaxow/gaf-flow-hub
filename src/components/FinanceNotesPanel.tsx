@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, StickyNote, FileText, Inbox, Archive } from 'lucide-react';
+import { CheckCircle, StickyNote, FileText, Inbox, Archive, Printer } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -23,7 +23,9 @@ interface LeadNote {
   updated_at?: string | null;
 }
 
-export const FinanceNotesPanel = () => {
+interface Props { mode?: 'finance' | 'print' }
+
+export const FinanceNotesPanel = ({ mode = 'finance' }: Props = {}) => {
   const { toast } = useToast();
   const [pending, setPending] = useState<LeadNote[]>([]);
   const [recorded, setRecorded] = useState<LeadNote[]>([]);
@@ -81,7 +83,7 @@ export const FinanceNotesPanel = () => {
   const markRecorded = async (id: string) => {
     const { error } = await supabase.from('leads').update({ status: 'processed' }).eq('id', id);
     if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: 'Marked as recorded' });
+    toast({ title: mode === 'print' ? 'Marked as printed & recorded' : 'Marked as recorded' });
     fetchNotes();
   };
 
@@ -119,15 +121,23 @@ export const FinanceNotesPanel = () => {
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
             <>
-              <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
-                <FileText className="h-4 w-4" /> Create Invoice
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => markRecorded(n.id)} className="gap-2">
-                <CheckCircle className="h-4 w-4" /> Mark Recorded
-              </Button>
+              {mode === 'print' ? (
+                <Button size="sm" onClick={() => markRecorded(n.id)} className="gap-2">
+                  <Printer className="h-4 w-4" /> Printed
+                </Button>
+              ) : (
+                <>
+                  <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
+                    <FileText className="h-4 w-4" /> Create Invoice
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => markRecorded(n.id)} className="gap-2">
+                    <CheckCircle className="h-4 w-4" /> Mark Recorded
+                  </Button>
+                </>
+              )}
             </>
           )}
-          {isRecorded && (
+          {isRecorded && mode !== 'print' && (
             <Button size="sm" variant="outline" onClick={() => reopenNote(n.id)} className="gap-2">
               <Inbox className="h-4 w-4" /> Reopen
             </Button>
