@@ -1,0 +1,1 @@
+CREATE POLICY "Print operators read leads" ON public.leads FOR SELECT USING (has_role(auth.uid(), 'print_operator'::app_role));
