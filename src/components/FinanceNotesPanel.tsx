@@ -67,12 +67,6 @@ export const FinanceNotesPanel = () => {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const markProcessed = async (id: string) => {
-    const { error } = await supabase.from('leads').update({ status: 'processed' }).eq('id', id);
-    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: 'Note recorded', description: 'Moved to Recorded tab for your records.' });
-    fetchNotes();
-  };
 
   const reopenNote = async (id: string) => {
     const { error } = await supabase.from('leads').update({ status: 'sent_to_finance' }).eq('id', id);
