@@ -87,13 +87,14 @@ const Leads = () => {
       return toast({ title: 'Missing info', description: 'Customer name is required.', variant: 'destructive' });
     }
 
-    // Find or create customer (lookup by phone when provided)
+    // Find or create customer (only reuse when both name and phone match exactly)
     let cid: string | null = null;
-    if (customerPhone.trim()) {
+    if (customerPhone.trim() && customerName.trim()) {
       const { data: existing } = await supabase
         .from('customers')
         .select('id')
         .eq('phone', customerPhone.trim())
+        .eq('name', customerName.trim())
         .limit(1);
       if (existing && existing.length > 0) cid = existing[0].id;
     }
