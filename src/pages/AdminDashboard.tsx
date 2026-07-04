@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { ShareholdersPanel } from '@/components/ShareholdersPanel';
