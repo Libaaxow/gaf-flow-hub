@@ -158,6 +158,8 @@ export default function AdminDashboard() {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
+  const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
