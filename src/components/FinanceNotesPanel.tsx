@@ -151,6 +151,7 @@ export const FinanceNotesPanel = () => {
   });
 
   return (
+    <>
     <Card className="border-primary/40">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
