@@ -4523,6 +4523,308 @@ const AccountantDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Create Invoice Dialog */}
+        <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) setPendingLeadId(null); }}>
+          <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[95vh] flex flex-col">
+            <DialogHeader className="flex-shrink-0">
+              <DialogTitle>Create Invoice</DialogTitle>
+              <DialogDescription>Create a new invoice for a customer</DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto pr-4">
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-number">Invoice Number *</Label>
+                <Input
+                  id="invoice-number"
+                  value={invoiceNumber}
+                  readOnly
+                  className="bg-muted"
+                  placeholder="inv-6445"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-customer">Customer *</Label>
+                <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((customer) => (
+                      <SelectItem key={customer.id} value={customer.id}>
+                        {customer.name} - {customer.company_name || 'No Company'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-order">Related Order (Optional)</Label>
+                <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select order" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {orders.map((order) => (
+                      <SelectItem key={order.id} value={order.id}>
+                        {order.job_title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              {/* Invoice Items - Table Layout */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <Label>Invoice Items</Label>
+                  <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Item
+                  </Button>
+                </div>
+                
+                <div className="overflow-x-auto">
+                <Table className="min-w-[800px]">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[22%]">Product</TableHead>
+                      <TableHead className="w-[18%]">Description</TableHead>
+                      <TableHead className="w-[8%]">Unit</TableHead>
+                      <TableHead className="w-[6%]">Qty</TableHead>
+                      <TableHead className="w-[14%]">Size</TableHead>
+                      <TableHead className="w-[10%]">Rate</TableHead>
+                      <TableHead className="w-[12%]">Total</TableHead>
+                      <TableHead className="w-[5%]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {invoiceItems.map((item, index) => {
+                      const isAreaBased = item.sale_type === 'area';
+                      const calculatedArea = isAreaBased ? (item.width_m || 0) * (item.height_m || 0) : 0;
+                      const quantity = item.quantity || 1;
+                      const lineTotal = isAreaBased 
+                        ? calculatedArea * quantity * item.unit_price 
+                        : item.quantity * item.unit_price;
+                      
+                      return (
+                        <TableRow key={index}>
+                          <TableCell>
+                            <Select
+                              value={item.product_id || ''}
+                              onValueChange={(value) => handleProductSelect(index, value)}
+                            >
+                              <SelectTrigger className="bg-background">
+                                <SelectValue placeholder="Select product" />
+                              </SelectTrigger>
+                              <SelectContent className="bg-background z-50">
+                                {products.map((product) => (
+                                  <SelectItem key={product.id} value={product.id}>
+                                    {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              value={item.description}
+                              onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                              placeholder="Description"
+                              required
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">{item.retail_unit || 'piece'}</span>
+                          </TableCell>
+                          {/* Quantity column - always visible */}
+                          <TableCell>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.quantity}
+                              onChange={(e) => updateInvoiceItem(index, 'quantity', parseInt(e.target.value) || 1)}
+                              className="w-16"
+                              required
+                            />
+                          </TableCell>
+                          {/* Size column - only for area-based products */}
+                          <TableCell>
+                            {isAreaBased ? (
+                              <div className="flex flex-col gap-1">
+                                <div className="flex items-center gap-1">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    value={item.width_m || ''}
+                                    onChange={(e) => updateInvoiceItem(index, 'width_m', parseFloat(e.target.value) || 0)}
+                                    placeholder="W"
+                                    className="w-16"
+                                    required
+                                  />
+                                  <span className="text-xs text-muted-foreground">×</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0.01"
+                                    value={item.height_m || ''}
+                                    onChange={(e) => updateInvoiceItem(index, 'height_m', parseFloat(e.target.value) || 0)}
+                                    placeholder="H"
+                                    className="w-16"
+                                    required
+                                  />
+                                  <span className="text-xs text-muted-foreground">m</span>
+                                </div>
+                                <span className="text-xs text-primary font-medium">
+                                  = {calculatedArea.toFixed(2)} m² × {quantity} = {(calculatedArea * quantity).toFixed(2)} m²
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-col">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                className="min-w-[80px]"
+                                value={item.unit_price}
+                                onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                                required
+                              />
+                              {isAreaBased && (
+                                <span className="text-xs text-muted-foreground">/m²</span>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            ${lineTotal.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {invoiceItems.length > 1 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeInvoiceItem(index)}
+                              >
+                                ×
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+                </div>
+
+                <div className="flex justify-end pt-4 border-t">
+                  <div className="text-right space-y-2">
+                    <div className="flex justify-between items-center gap-4">
+                      <span className="font-semibold">Subtotal:</span>
+                      <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center gap-4 text-success">
+                      <span className="text-sm font-medium">Est. Profit:</span>
+                      <span className="font-bold">${calculateTotalProfit().toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="tax">Tax Amount</Label>
+                <Input
+                  id="tax"
+                  type="number"
+                  step="0.01"
+                  value={invoiceTax}
+                  onChange={(e) => setInvoiceTax(e.target.value)}
+                  placeholder="0.00"
+                />
+              </div>
+              
+              <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
+                <span className="font-semibold text-lg">Total:</span>
+                <span className="text-2xl font-bold">
+                  ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
+                </span>
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="amount-paid" className="flex items-center gap-2">
+                  Amount Paid
+                  <span className="text-xs text-muted-foreground">(if already paid)</span>
+                </Label>
+                <Input
+                  id="amount-paid"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max={(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0))}
+                  value={invoiceAmountPaid}
+                  onChange={(e) => setInvoiceAmountPaid(e.target.value)}
+                  placeholder="0.00"
+                />
+                {parseFloat(invoiceAmountPaid) > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Status will be: <span className="font-semibold">
+                      {(parseFloat(invoiceAmountPaid) || 0) >= (calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)) ? 'Paid' : 'Partially Paid'}
+                    </span>
+                    {' · '}Outstanding: <span className="font-semibold text-orange-600">
+                      ${((calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)) - (parseFloat(invoiceAmountPaid) || 0)).toFixed(2)}
+                    </span>
+                  </p>
+                )}
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="project-name">Project Name</Label>
+                <Input
+                  id="project-name"
+                  value={invoiceProjectName}
+                  onChange={(e) => setInvoiceProjectName(e.target.value)}
+                  placeholder="Enter project name"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="due-date">Due Date</Label>
+                <Input
+                  id="due-date"
+                  type="date"
+                  value={invoiceDueDate}
+                  onChange={(e) => setInvoiceDueDate(e.target.value)}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-terms">Payment Terms</Label>
+                <Textarea
+                  id="invoice-terms"
+                  value={invoiceTerms}
+                  onChange={(e) => setInvoiceTerms(e.target.value)}
+                  placeholder="Net 30 days"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-notes">Notes</Label>
+                <Textarea
+                  id="invoice-notes"
+                  value={invoiceNotes}
+                  onChange={(e) => setInvoiceNotes(e.target.value)}
+                  placeholder="Additional notes"
+                />
+              </div>
+            </div>
+            </div>
+            <DialogFooter className="flex-shrink-0 pt-4 border-t">
+              <Button onClick={handleCreateInvoice}>Create Invoice</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Invoice Payment Recording Dialog */}
