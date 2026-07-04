@@ -15,7 +15,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
-import { CommissionPanel } from '@/components/CommissionPanel';
 import { PrintNotesPanel } from '@/components/PrintNotesPanel';
 
 
@@ -445,9 +444,6 @@ const PrintOperatorDashboard = () => {
             </CardContent>
           </Card>
         </div>
-
-        {/* Commission Panel */}
-        <CommissionPanel />
 
         <PrintNotesPanel />
 
