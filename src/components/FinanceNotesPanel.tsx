@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, StickyNote, FileText, Inbox, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface LeadNote {
   id: string;
@@ -28,6 +29,7 @@ export const FinanceNotesPanel = () => {
   const [owners, setOwners] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'pending' | 'recorded'>('pending');
+  const [recordedFilter, setRecordedFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
 
   const fetchNotes = async () => {
     const { data } = await supabase
@@ -127,6 +129,19 @@ export const FinanceNotesPanel = () => {
 
   if (loading) return null;
 
+  const filteredRecorded = recorded.filter(n => {
+    if (recordedFilter === 'all') return true;
+    const d = new Date(n.created_at);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (recordedFilter === 'today') {
+      return d.toDateString() === now.toDateString();
+    }
+    if (recordedFilter === 'week') return diffMs <= 7 * 86400000;
+    if (recordedFilter === 'month') return diffMs <= 30 * 86400000;
+    return true;
+  });
+
   return (
     <Card className="border-primary/40">
       <CardHeader className="pb-3">
@@ -156,10 +171,26 @@ export const FinanceNotesPanel = () => {
             )}
           </TabsContent>
           <TabsContent value="recorded">
-            {recorded.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No recorded notes yet. Notes you mark as recorded will appear here for future reference.</p>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <span className="text-xs text-muted-foreground">
+                Showing {filteredRecorded.length} of {recorded.length}
+              </span>
+              <Select value={recordedFilter} onValueChange={(v) => setRecordedFilter(v as any)}>
+                <SelectTrigger className="w-[140px] h-8">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="week">Last 7 days</SelectItem>
+                  <SelectItem value="month">Last 30 days</SelectItem>
+                  <SelectItem value="all">All time</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {filteredRecorded.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No recorded notes in this range.</p>
             ) : (
-              <div className="grid gap-3">{recorded.map(n => renderNote(n, true))}</div>
+              <div className="grid gap-3">{filteredRecorded.map(n => renderNote(n, true))}</div>
             )}
           </TabsContent>
         </Tabs>
