@@ -75,6 +75,13 @@ export const FinanceNotesPanel = () => {
     fetchNotes();
   };
 
+  const markRecorded = async (id: string) => {
+    const { error } = await supabase.from('leads').update({ status: 'processed' }).eq('id', id);
+    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    toast({ title: 'Marked as recorded' });
+    fetchNotes();
+  };
+
   const openInvoiceCreate = (leadId: string) => {
     window.dispatchEvent(new CustomEvent('open-create-invoice', { detail: { leadId } }));
     const el = document.getElementById('invoices-section') || document.querySelector('[data-invoices-section]');
@@ -102,9 +109,14 @@ export const FinanceNotesPanel = () => {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
-            <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
-              <FileText className="h-4 w-4" /> Create Invoice
-            </Button>
+            <>
+              <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
+                <FileText className="h-4 w-4" /> Create Invoice
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => markRecorded(n.id)} className="gap-2">
+                <CheckCircle className="h-4 w-4" /> Mark Recorded
+              </Button>
+            </>
           )}
           {isRecorded && (
             <Button size="sm" variant="outline" onClick={() => reopenNote(n.id)} className="gap-2">
