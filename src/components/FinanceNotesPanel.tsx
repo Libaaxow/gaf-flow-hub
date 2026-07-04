@@ -108,14 +108,9 @@ export const FinanceNotesPanel = () => {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
-            <>
-              <Button size="sm" onClick={openInvoiceCreate} className="gap-2">
-                <FileText className="h-4 w-4" /> Create Invoice
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => markProcessed(n.id)} className="gap-2">
-                <CheckCircle className="h-4 w-4" /> Mark Recorded
-              </Button>
-            </>
+            <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
+              <FileText className="h-4 w-4" /> Create Invoice
+            </Button>
           )}
           {isRecorded && (
             <Button size="sm" variant="outline" onClick={() => reopenNote(n.id)} className="gap-2">
