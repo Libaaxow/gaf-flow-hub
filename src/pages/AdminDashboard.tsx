@@ -248,6 +248,23 @@ export default function AdminDashboard() {
     };
   }, [debouncedFetchAllData]);
 
+  // Open the invoice creation dialog when triggered from the Finance Notes panel
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const leadId = (e as CustomEvent).detail?.leadId || null;
+      setPendingLeadId(leadId);
+      try {
+        const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+        setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+      } catch (_) {
+        setInvoiceNumber(`inv-${Date.now()}`);
+      }
+      setCreateInvoiceDialogOpen(true);
+    };
+    window.addEventListener('open-create-invoice', handler);
+    return () => window.removeEventListener('open-create-invoice', handler);
+  }, []);
+
   useEffect(() => {
     applyFilters();
   }, [orders, filterDesigner, filterSalesperson, filterCustomer, filterStatus, searchQuery, dateFilter]);
