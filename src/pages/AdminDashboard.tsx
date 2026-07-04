@@ -1405,6 +1405,7 @@ export default function AdminDashboard() {
     <Layout>
       <div className="space-y-4">
       <ShareholdersSummary />
+      <FinanceNotesPanel />
       <Tabs defaultValue="orders" className="w-full">
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="orders">Orders</TabsTrigger>
