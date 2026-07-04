@@ -1808,9 +1808,9 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold">Invoice Management</h2>
           <p className="text-muted-foreground">View, search and edit all invoices</p>
         </div>
-        <Dialog>
+        <Dialog open={createInvoiceDialogOpen} onOpenChange={setCreateInvoiceDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={() => setCreateInvoiceDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
               Create Invoice
             </Button>
