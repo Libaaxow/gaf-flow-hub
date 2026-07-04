@@ -1815,7 +1815,7 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold">Invoice Management</h2>
           <p className="text-muted-foreground">View, search and edit all invoices</p>
         </div>
-        <Dialog open={createInvoiceDialogOpen} onOpenChange={setCreateInvoiceDialogOpen}>
+        <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) setPendingLeadId(null); }}>
           <DialogTrigger asChild>
             <Button onClick={() => setCreateInvoiceDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
