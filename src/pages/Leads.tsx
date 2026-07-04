@@ -83,32 +83,38 @@ const Leads = () => {
 
   const handleCreate = async () => {
     if (!user) return;
-    if (!customerName.trim() || !customerPhone.trim() || !jobSize.trim()) {
-      return toast({ title: 'Missing info', description: 'Customer name, number and job size are required.', variant: 'destructive' });
+    if (!customerName.trim()) {
+      return toast({ title: 'Missing info', description: 'Customer name is required.', variant: 'destructive' });
     }
 
-    // Find or create customer by phone
+    // Find or create customer (lookup by phone when provided)
     let cid: string | null = null;
-    const { data: existing } = await supabase
-      .from('customers')
-      .select('id')
-      .eq('phone', customerPhone.trim())
-      .limit(1);
-    if (existing && existing.length > 0) {
-      cid = existing[0].id;
-    } else {
+    if (customerPhone.trim()) {
+      const { data: existing } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('phone', customerPhone.trim())
+        .limit(1);
+      if (existing && existing.length > 0) cid = existing[0].id;
+    }
+    if (!cid) {
       const { data: newCust, error: custErr } = await supabase
         .from('customers')
-        .insert({ name: customerName.trim(), phone: customerPhone.trim(), created_by: user.id })
+        .insert({ name: customerName.trim(), phone: customerPhone.trim() || null, created_by: user.id })
         .select('id')
         .single();
       if (custErr) return toast({ title: 'Error', description: custErr.message, variant: 'destructive' });
       cid = newCust.id;
     }
 
+    const titleParts = [customerName.trim(), jobSize.trim()].filter(Boolean);
+    const descParts: string[] = [];
+    if (jobSize.trim()) descParts.push(`Size: ${jobSize.trim()}`);
+    if (customerPhone.trim()) descParts.push(`Phone: ${customerPhone.trim()}`);
+
     const payload: any = {
-      title: `${customerName.trim()} - ${jobSize.trim()}`,
-      description: `Size: ${jobSize.trim()}`,
+      title: titleParts.join(' - '),
+      description: descParts.join(' · ') || null,
       source: null,
       customer_id: cid,
       owner_id: user.id,
@@ -159,9 +165,9 @@ const Leads = () => {
                 <div className="flex flex-col gap-3">
                   <div className="space-y-1"><Label>Customer Name *</Label>
                     <Input value={customerName} onChange={(e) => setCustomerName(e.target.value)} placeholder="Full name" /></div>
-                  <div className="space-y-1"><Label>Customer Number *</Label>
+                  <div className="space-y-1"><Label>Customer Number</Label>
                     <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Phone number" /></div>
-                  <div className="space-y-1"><Label>Job Size *</Label>
+                  <div className="space-y-1"><Label>Job Size</Label>
                     <Input value={jobSize} onChange={(e) => setJobSize(e.target.value)} placeholder="e.g. 2m x 3m, A4, 100 pcs" /></div>
                   <div className="space-y-1"><Label>Quantity</Label>
                     <Input type="number" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="e.g. 10" /></div>
