@@ -19,6 +19,7 @@ interface LeadNote {
   quantity: number | null;
   amount: number | null;
   status: string;
+  updated_at?: string | null;
 }
 
 export const FinanceNotesPanel = () => {
@@ -132,7 +133,7 @@ export const FinanceNotesPanel = () => {
 
   const filteredRecorded = recorded.filter(n => {
     if (recordedFilter === 'all') return true;
-    const d = new Date(n.created_at);
+    const d = new Date(n.updated_at || n.created_at);
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     if (recordedFilter === 'today') {
