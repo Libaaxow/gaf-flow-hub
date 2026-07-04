@@ -431,18 +431,6 @@ const PrintOperatorDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Commissions</CardTitle>
-              <DollarSign className="h-4 w-4 text-success" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">${stats.totalCommissions.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                ${stats.paidCommissions.toFixed(2)} paid
-              </p>
-            </CardContent>
-          </Card>
         </div>
 
         <PrintNotesPanel />
@@ -462,7 +450,6 @@ const PrintOperatorDashboard = () => {
               )}
             </TabsTrigger>
             <TabsTrigger value="jobs">Print Jobs</TabsTrigger>
-            <TabsTrigger value="commissions">My Commissions</TabsTrigger>
           </TabsList>
 
           <TabsContent value="sales-requests" className="mt-4">
@@ -730,63 +717,6 @@ const PrintOperatorDashboard = () => {
         </Card>
           </TabsContent>
 
-          <TabsContent value="commissions" className="mt-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>My Print Commissions</CardTitle>
-              </CardHeader>
-              <CardContent className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Order</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Order Value</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Commission</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {commissions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                          No commissions found. Make sure your commission percentage is set in your profile.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      commissions.map((commission) => (
-                        <TableRow key={commission.id}>
-                          <TableCell className="font-medium">
-                            {commission.orders?.job_title || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            {commission.orders?.customers?.name || 'N/A'}
-                          </TableCell>
-                          <TableCell>
-                            ${commission.orders?.order_value?.toFixed(2) || '0.00'}
-                          </TableCell>
-                          <TableCell>{commission.commission_percentage}%</TableCell>
-                          <TableCell className="font-bold">
-                            ${commission.commission_amount.toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={commission.paid_status === 'paid' ? 'default' : 'secondary'}>
-                              {commission.paid_status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(commission.created_at), 'PP')}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
       </div>
 
