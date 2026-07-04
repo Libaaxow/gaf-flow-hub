@@ -761,6 +761,7 @@ export default function AdminDashboard() {
       
       fetchAllData();
     } catch (error: any) {
+      setPendingLeadId(null);
       toast({
         title: 'Error',
         description: error.message,
