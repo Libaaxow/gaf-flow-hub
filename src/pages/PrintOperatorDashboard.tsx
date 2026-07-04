@@ -433,7 +433,7 @@ const PrintOperatorDashboard = () => {
 
         </div>
 
-        <FinanceNotesPanel />
+        <FinanceNotesPanel mode="print" />
 
         <Tabs defaultValue="sales-requests" className="w-full">
           <TabsList className="flex-wrap h-auto gap-1">
