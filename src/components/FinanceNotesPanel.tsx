@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, StickyNote, FileText, Inbox, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface LeadNote {
   id: string;
@@ -31,6 +32,7 @@ export const FinanceNotesPanel = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'pending' | 'recorded'>('pending');
   const [recordedFilter, setRecordedFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [detail, setDetail] = useState<LeadNote | null>(null);
 
   const fetchNotes = async () => {
     const { data } = await supabase
@@ -93,7 +95,11 @@ export const FinanceNotesPanel = () => {
     const cust = n.customer_id ? customers[n.customer_id] : null;
     return (
       <div key={n.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 rounded-lg border bg-muted/30 p-3">
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setDetail(n)}
+          className="min-w-0 flex-1 text-left hover:bg-muted/40 rounded-md -m-1 p-1 transition-colors"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{n.title}</span>
             {n.created_by_role && <Badge variant="outline" className="text-xs">{n.created_by_role}</Badge>}
@@ -107,7 +113,7 @@ export const FinanceNotesPanel = () => {
             {owners[n.owner_id] && <span>By: <span className="text-foreground">{owners[n.owner_id]}</span></span>}
             <span>{new Date(n.created_at).toLocaleString()}</span>
           </div>
-        </div>
+        </button>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
             <>
@@ -145,6 +151,7 @@ export const FinanceNotesPanel = () => {
   });
 
   return (
+    <>
     <Card className="border-primary/40">
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-lg">
@@ -198,5 +205,36 @@ export const FinanceNotesPanel = () => {
         </Tabs>
       </CardContent>
     </Card>
+    {detail && (() => {
+      const cust = detail.customer_id ? customers[detail.customer_id] : null;
+      const rows: [string, any][] = [
+        ['Title', detail.title],
+        ['Customer name', cust?.name || '—'],
+        ['Phone', cust?.phone || '—'],
+        ['Job size', detail.description?.replace(/^Size:\s*/, '').split(' · ')[0] || '—'],
+        ['Quantity', detail.quantity ?? '—'],
+        ['Amount', detail.amount != null ? `$${Number(detail.amount).toLocaleString()}` : '—'],
+        ['Created by', owners[detail.owner_id] || '—'],
+        ['Role', detail.created_by_role || '—'],
+        ['Status', detail.status === 'processed' ? 'Recorded' : 'Pending'],
+        ['Sent at', new Date(detail.created_at).toLocaleString()],
+      ];
+      return (
+        <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Note Details</DialogTitle></DialogHeader>
+            <div className="grid gap-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4 border-b py-1.5 last:border-0">
+                  <span className="text-muted-foreground">{k}</span>
+                  <span className="text-right font-medium">{v}</span>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    })()}
+    </>
   );
 };
