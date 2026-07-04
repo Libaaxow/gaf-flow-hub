@@ -158,6 +158,8 @@ export default function AdminDashboard() {
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
+  const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
+  const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
   const [editInvoiceDialogOpen, setEditInvoiceDialogOpen] = useState(false);
   const [editingInvoice, setEditingInvoice] = useState<any>(null);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState<string | null>(null);
@@ -245,6 +247,23 @@ export default function AdminDashboard() {
       supabase.removeChannel(channel);
     };
   }, [debouncedFetchAllData]);
+
+  // Open the invoice creation dialog when triggered from the Finance Notes panel
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const leadId = (e as CustomEvent).detail?.leadId || null;
+      setPendingLeadId(leadId);
+      try {
+        const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+        setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+      } catch (_) {
+        setInvoiceNumber(`inv-${Date.now()}`);
+      }
+      setCreateInvoiceDialogOpen(true);
+    };
+    window.addEventListener('open-create-invoice', handler);
+    return () => window.removeEventListener('open-create-invoice', handler);
+  }, []);
 
   useEffect(() => {
     applyFilters();
@@ -723,6 +742,12 @@ export default function AdminDashboard() {
         description: `Invoice ${invoiceNumber} created successfully`,
       });
 
+      // Mark the associated finance note as recorded after invoice creation
+      if (pendingLeadId) {
+        await supabase.from('leads').update({ status: 'processed' }).eq('id', pendingLeadId);
+        setPendingLeadId(null);
+      }
+
       // Reset form
       setInvoiceNumber('');
       setInvoiceCustomer('');
@@ -732,9 +757,11 @@ export default function AdminDashboard() {
       setInvoiceNotes('');
       setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+      setCreateInvoiceDialogOpen(false);
       
       fetchAllData();
     } catch (error: any) {
+      setPendingLeadId(null);
       toast({
         title: 'Error',
         description: error.message,
@@ -1789,170 +1816,10 @@ export default function AdminDashboard() {
           <h2 className="text-2xl font-bold">Invoice Management</h2>
           <p className="text-muted-foreground">View, search and edit all invoices</p>
         </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Invoice
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Create New Invoice</DialogTitle>
-              <DialogDescription>Create a new invoice for a customer</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="invoice-number">Invoice Number *</Label>
-                <Input
-                  id="invoice-number"
-                  value={invoiceNumber}
-                  onChange={(e) => setInvoiceNumber(e.target.value)}
-                  placeholder="INV-00001"
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invoice-customer">Customer *</Label>
-                <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select customer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invoice-order">Related Order (Optional)</Label>
-                <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select order (optional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {orders.map((order) => (
-                      <SelectItem key={order.id} value={order.id}>
-                        {order.job_title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="due-date">Due Date</Label>
-                <Input
-                  id="due-date"
-                  type="date"
-                  value={invoiceDueDate}
-                  onChange={(e) => setInvoiceDueDate(e.target.value)}
-                />
-              </div>
-              {/* Invoice Items */}
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <Label>Invoice Items</Label>
-                  <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
-                    <Plus className="h-4 w-4 mr-1" />
-                    Add Item
-                  </Button>
-                </div>
-                
-                {invoiceItems.map((item, index) => (
-                  <Card key={index} className="p-4">
-                    <div className="grid gap-3">
-                      <div className="grid gap-2">
-                        <Label>Description *</Label>
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
-                          placeholder="Item description"
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="grid gap-2">
-                          <Label>Quantity *</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Unit Price *</Label>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unit_price}
-                            onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Amount</Label>
-                          <Input
-                            type="number"
-                            value={item.amount.toFixed(2)}
-                            disabled
-                            className="bg-muted"
-                          />
-                        </div>
-                      </div>
-                      {invoiceItems.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => removeInvoiceItem(index)}
-                        >
-                          Remove Item
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                ))}
-
-                <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
-                  <span className="font-semibold">Subtotal:</span>
-                  <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tax">Tax Amount</Label>
-                <Input
-                  id="tax"
-                  type="number"
-                  value={invoiceTax}
-                  onChange={(e) => setInvoiceTax(e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
-              
-              <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
-                <span className="font-semibold text-lg">Total:</span>
-                <span className="text-2xl font-bold">
-                  ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
-                </span>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="invoice-notes">Notes</Label>
-                <Input
-                  id="invoice-notes"
-                  value={invoiceNotes}
-                  onChange={(e) => setInvoiceNotes(e.target.value)}
-                  placeholder="Additional notes"
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button onClick={handleCreateInvoice}>Create Invoice</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setCreateInvoiceDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Create Invoice
+        </Button>
       </div>
 
       {/* Search & Filter */}
@@ -2233,6 +2100,166 @@ export default function AdminDashboard() {
     </TabsContent>
 
     </Tabs>
+
+    {/* Create Invoice Dialog */}
+    <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) setPendingLeadId(null); }}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Invoice</DialogTitle>
+          <DialogDescription>Create a new invoice for a customer</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          <div className="grid gap-2">
+            <Label htmlFor="invoice-number">Invoice Number *</Label>
+            <Input
+              id="invoice-number"
+              value={invoiceNumber}
+              onChange={(e) => setInvoiceNumber(e.target.value)}
+              placeholder="INV-00001"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="invoice-customer">Customer *</Label>
+            <Select value={invoiceCustomer} onValueChange={setInvoiceCustomer}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select customer" />
+              </SelectTrigger>
+              <SelectContent>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="invoice-order">Related Order (Optional)</Label>
+            <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select order (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {orders.map((order) => (
+                  <SelectItem key={order.id} value={order.id}>
+                    {order.job_title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="due-date">Due Date</Label>
+            <Input
+              id="due-date"
+              type="date"
+              value={invoiceDueDate}
+              onChange={(e) => setInvoiceDueDate(e.target.value)}
+            />
+          </div>
+          {/* Invoice Items */}
+          <div className="space-y-4">
+            <div className="flex justify-between items-center">
+              <Label>Invoice Items</Label>
+              <Button type="button" variant="outline" size="sm" onClick={addInvoiceItem}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add Item
+              </Button>
+            </div>
+            
+            {invoiceItems.map((item, index) => (
+              <Card key={index} className="p-4">
+                <div className="grid gap-3">
+                  <div className="grid gap-2">
+                    <Label>Description *</Label>
+                    <Input
+                      value={item.description}
+                      onChange={(e) => updateInvoiceItem(index, 'description', e.target.value)}
+                      placeholder="Item description"
+                    />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="grid gap-2">
+                      <Label>Quantity *</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateInvoiceItem(index, 'quantity', parseFloat(e.target.value) || 1)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Unit Price *</Label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.unit_price}
+                        onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Amount</Label>
+                      <Input
+                        type="number"
+                        value={item.amount.toFixed(2)}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  </div>
+                  {invoiceItems.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => removeInvoiceItem(index)}
+                    >
+                      Remove Item
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+
+            <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
+              <span className="font-semibold">Subtotal:</span>
+              <span className="text-xl font-bold">${calculateInvoiceSubtotal().toFixed(2)}</span>
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="tax">Tax Amount</Label>
+            <Input
+              id="tax"
+              type="number"
+              value={invoiceTax}
+              onChange={(e) => setInvoiceTax(e.target.value)}
+              placeholder="0.00"
+            />
+          </div>
+          
+          <div className="flex justify-between items-center p-3 bg-primary/10 rounded-lg">
+            <span className="font-semibold text-lg">Total:</span>
+            <span className="text-2xl font-bold">
+              ${(calculateInvoiceSubtotal() + (parseFloat(invoiceTax) || 0)).toFixed(2)}
+            </span>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="invoice-notes">Notes</Label>
+            <Input
+              id="invoice-notes"
+              value={invoiceNotes}
+              onChange={(e) => setInvoiceNotes(e.target.value)}
+              placeholder="Additional notes"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button onClick={handleCreateInvoice}>Create Invoice</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     {selectedInvoice && (
       <InvoiceDialog

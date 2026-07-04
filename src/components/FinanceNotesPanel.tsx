@@ -67,12 +67,6 @@ export const FinanceNotesPanel = () => {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const markProcessed = async (id: string) => {
-    const { error } = await supabase.from('leads').update({ status: 'processed' }).eq('id', id);
-    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: 'Note recorded', description: 'Moved to Recorded tab for your records.' });
-    fetchNotes();
-  };
 
   const reopenNote = async (id: string) => {
     const { error } = await supabase.from('leads').update({ status: 'sent_to_finance' }).eq('id', id);
@@ -81,8 +75,8 @@ export const FinanceNotesPanel = () => {
     fetchNotes();
   };
 
-  const openInvoiceCreate = () => {
-    window.dispatchEvent(new CustomEvent('open-create-invoice'));
+  const openInvoiceCreate = (leadId: string) => {
+    window.dispatchEvent(new CustomEvent('open-create-invoice', { detail: { leadId } }));
     const el = document.getElementById('invoices-section') || document.querySelector('[data-invoices-section]');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
@@ -108,14 +102,9 @@ export const FinanceNotesPanel = () => {
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
-            <>
-              <Button size="sm" onClick={openInvoiceCreate} className="gap-2">
-                <FileText className="h-4 w-4" /> Create Invoice
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => markProcessed(n.id)} className="gap-2">
-                <CheckCircle className="h-4 w-4" /> Mark Recorded
-              </Button>
-            </>
+            <Button size="sm" onClick={() => openInvoiceCreate(n.id)} className="gap-2">
+              <FileText className="h-4 w-4" /> Create Invoice
+            </Button>
           )}
           {isRecorded && (
             <Button size="sm" variant="outline" onClick={() => reopenNote(n.id)} className="gap-2">
