@@ -204,5 +204,36 @@ export const FinanceNotesPanel = () => {
         </Tabs>
       </CardContent>
     </Card>
+    {detail && (() => {
+      const cust = detail.customer_id ? customers[detail.customer_id] : null;
+      const rows: [string, any][] = [
+        ['Title', detail.title],
+        ['Customer name', cust?.name || '—'],
+        ['Phone', cust?.phone || '—'],
+        ['Job size', detail.description?.replace(/^Size:\s*/, '').split(' · ')[0] || '—'],
+        ['Quantity', detail.quantity ?? '—'],
+        ['Amount', detail.amount != null ? `$${Number(detail.amount).toLocaleString()}` : '—'],
+        ['Created by', owners[detail.owner_id] || '—'],
+        ['Role', detail.created_by_role || '—'],
+        ['Status', detail.status === 'processed' ? 'Recorded' : 'Pending'],
+        ['Sent at', new Date(detail.created_at).toLocaleString()],
+      ];
+      return (
+        <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader><DialogTitle>Note Details</DialogTitle></DialogHeader>
+            <div className="grid gap-2 text-sm">
+              {rows.map(([k, v]) => (
+                <div key={k} className="flex justify-between gap-4 border-b py-1.5 last:border-0">
+                  <span className="text-muted-foreground">{k}</span>
+                  <span className="text-right font-medium">{v}</span>
+                </div>
+              ))}
+            </div>
+          </DialogContent>
+        </Dialog>
+      );
+    })()}
+    </>
   );
 };
