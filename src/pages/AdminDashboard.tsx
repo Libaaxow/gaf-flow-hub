@@ -742,6 +742,12 @@ export default function AdminDashboard() {
         description: `Invoice ${invoiceNumber} created successfully`,
       });
 
+      // Mark the associated finance note as recorded after invoice creation
+      if (pendingLeadId) {
+        await supabase.from('leads').update({ status: 'processed' }).eq('id', pendingLeadId);
+        setPendingLeadId(null);
+      }
+
       // Reset form
       setInvoiceNumber('');
       setInvoiceCustomer('');
@@ -751,6 +757,7 @@ export default function AdminDashboard() {
       setInvoiceNotes('');
       setInvoiceProjectName('');
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+      setCreateInvoiceDialogOpen(false);
       
       fetchAllData();
     } catch (error: any) {
