@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, StickyNote, FileText, Inbox, Archive } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface LeadNote {
   id: string;
@@ -31,6 +32,7 @@ export const FinanceNotesPanel = () => {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<'pending' | 'recorded'>('pending');
   const [recordedFilter, setRecordedFilter] = useState<'today' | 'week' | 'month' | 'all'>('today');
+  const [detail, setDetail] = useState<LeadNote | null>(null);
 
   const fetchNotes = async () => {
     const { data } = await supabase
@@ -93,7 +95,11 @@ export const FinanceNotesPanel = () => {
     const cust = n.customer_id ? customers[n.customer_id] : null;
     return (
       <div key={n.id} className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 rounded-lg border bg-muted/30 p-3">
-        <div className="min-w-0 flex-1">
+        <button
+          type="button"
+          onClick={() => setDetail(n)}
+          className="min-w-0 flex-1 text-left hover:bg-muted/40 rounded-md -m-1 p-1 transition-colors"
+        >
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{n.title}</span>
             {n.created_by_role && <Badge variant="outline" className="text-xs">{n.created_by_role}</Badge>}
@@ -107,7 +113,7 @@ export const FinanceNotesPanel = () => {
             {owners[n.owner_id] && <span>By: <span className="text-foreground">{owners[n.owner_id]}</span></span>}
             <span>{new Date(n.created_at).toLocaleString()}</span>
           </div>
-        </div>
+        </button>
         <div className="flex flex-wrap gap-2 shrink-0">
           {!isRecorded && (
             <>
