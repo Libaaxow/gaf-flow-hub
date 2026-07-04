@@ -260,10 +260,13 @@ const AccountantDashboard = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
+  const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
 
   // Open the invoice creation dialog when triggered from the Finance Notes panel
   useEffect(() => {
-    const handler = async () => {
+    const handler = async (e: Event) => {
+      const leadId = (e as CustomEvent).detail?.leadId || null;
+      setPendingLeadId(leadId);
       try {
         const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
         setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
