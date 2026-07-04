@@ -101,11 +101,9 @@ export const FinanceNotesPanel = () => {
           className="min-w-0 flex-1 text-left hover:bg-muted/40 rounded-md -m-1 p-1 transition-colors"
         >
           <div className="flex flex-wrap items-center gap-2">
-            {owners[n.owner_id] ? (
-              <span className="font-medium">{owners[n.owner_id]}</span>
-            ) : (
-              <span className="font-medium">{n.title}</span>
-            )}
+            <span className="font-medium">
+              {owners[n.owner_id] ? `${owners[n.owner_id]} — ${n.title}` : n.title}
+            </span>
             {n.created_by_role && <Badge variant="outline" className="text-xs">{n.created_by_role}</Badge>}
             {isRecorded && <Badge className="text-xs gap-1"><CheckCircle className="h-3 w-3" />Recorded</Badge>}
           </div>
