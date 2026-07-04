@@ -210,14 +210,13 @@ export const FinanceNotesPanel = () => {
     {detail && (() => {
       const cust = detail.customer_id ? customers[detail.customer_id] : null;
       const rows: [string, any][] = [
+        ['Sent by', owners[detail.owner_id] ? `${owners[detail.owner_id]} (${detail.created_by_role || '—'})` : '—'],
         ['Title', detail.title],
         ['Customer name', cust?.name || '—'],
         ['Phone', cust?.phone || '—'],
         ['Job size', detail.description?.replace(/^Size:\s*/, '').split(' · ')[0] || '—'],
         ['Quantity', detail.quantity ?? '—'],
         ['Amount', detail.amount != null ? `$${Number(detail.amount).toLocaleString()}` : '—'],
-        ['Created by', owners[detail.owner_id] || '—'],
-        ['Role', detail.created_by_role || '—'],
         ['Status', detail.status === 'processed' ? 'Recorded' : 'Pending'],
         ['Sent at', new Date(detail.created_at).toLocaleString()],
       ];
