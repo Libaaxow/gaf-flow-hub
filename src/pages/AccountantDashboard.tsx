@@ -3091,7 +3091,7 @@ const AccountantDashboard = () => {
                         <Plus className="mr-2 h-4 w-4" />
                         Create Invoice
                       </Button>
-                  <Dialog open={createInvoiceDialogOpen} onOpenChange={setCreateInvoiceDialogOpen}>
+                  <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) setPendingLeadId(null); }}>
                     <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[95vh] flex flex-col">
                       <DialogHeader className="flex-shrink-0">
                         <DialogTitle>Create Invoice</DialogTitle>
