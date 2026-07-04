@@ -81,8 +81,8 @@ export const FinanceNotesPanel = () => {
     fetchNotes();
   };
 
-  const openInvoiceCreate = () => {
-    window.dispatchEvent(new CustomEvent('open-create-invoice'));
+  const openInvoiceCreate = (leadId: string) => {
+    window.dispatchEvent(new CustomEvent('open-create-invoice', { detail: { leadId } }));
     const el = document.getElementById('invoices-section') || document.querySelector('[data-invoices-section]');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
