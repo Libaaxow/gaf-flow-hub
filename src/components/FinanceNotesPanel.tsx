@@ -101,16 +101,20 @@ export const FinanceNotesPanel = () => {
           className="min-w-0 flex-1 text-left hover:bg-muted/40 rounded-md -m-1 p-1 transition-colors"
         >
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{n.title}</span>
+            {owners[n.owner_id] ? (
+              <span className="font-medium">{owners[n.owner_id]}</span>
+            ) : (
+              <span className="font-medium">{n.title}</span>
+            )}
             {n.created_by_role && <Badge variant="outline" className="text-xs">{n.created_by_role}</Badge>}
             {isRecorded && <Badge className="text-xs gap-1"><CheckCircle className="h-3 w-3" />Recorded</Badge>}
           </div>
           {n.description && <p className="text-sm text-muted-foreground mt-1">{n.description}</p>}
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground mt-2">
+            {owners[n.owner_id] && <span>Sent by: <span className="text-foreground">{owners[n.owner_id]}</span>{n.created_by_role ? ` (${n.created_by_role})` : ''}</span>}
             {cust && <span>Customer: <span className="text-foreground">{cust.name}</span>{cust.phone ? ` · ${cust.phone}` : ''}</span>}
             {n.quantity != null && <span>Qty: <span className="text-foreground">{n.quantity}</span></span>}
             {n.amount != null && <span>Amount: <span className="text-foreground">${Number(n.amount).toLocaleString()}</span></span>}
-            {owners[n.owner_id] && <span>By: <span className="text-foreground">{owners[n.owner_id]}</span></span>}
             <span>{new Date(n.created_at).toLocaleString()}</span>
           </div>
         </button>
