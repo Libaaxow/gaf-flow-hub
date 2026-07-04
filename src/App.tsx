@@ -34,6 +34,7 @@ import FinancialAnalyst from "./pages/FinancialAnalyst";
 import Leads from "./pages/Leads";
 
 import NotFound from "./pages/NotFound";
+import { InstallAppBanner } from "@/components/InstallAppBanner";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
+          <InstallAppBanner />
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/auth" element={<Auth />} />
