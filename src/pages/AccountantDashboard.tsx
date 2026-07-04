@@ -260,6 +260,21 @@ const AccountantDashboard = () => {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
+
+  // Open the invoice creation dialog when triggered from the Finance Notes panel
+  useEffect(() => {
+    const handler = async () => {
+      try {
+        const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+        setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+      } catch (_) {
+        setInvoiceNumber(`inv-${Date.now()}`);
+      }
+      setCreateInvoiceDialogOpen(true);
+    };
+    window.addEventListener('open-create-invoice', handler);
+    return () => window.removeEventListener('open-create-invoice', handler);
+  }, []);
   const [invoicePaymentDialogOpen, setInvoicePaymentDialogOpen] = useState(false);
   const [debtDialogOpen, setDebtDialogOpen] = useState(false);
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
