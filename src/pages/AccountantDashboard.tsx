@@ -2429,6 +2429,7 @@ const AccountantDashboard = () => {
       fetchActualStats();
       fetchProducts(); // Refresh products to get updated stock
     } catch (error: any) {
+      setPendingLeadId(null);
       toast({
         title: 'Error',
         description: error.message,
