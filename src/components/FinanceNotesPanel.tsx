@@ -17,6 +17,7 @@ interface LeadNote {
   created_by_role: string | null;
   quantity: number | null;
   amount: number | null;
+  status: string;
 }
 
 export const FinanceNotesPanel = () => {
