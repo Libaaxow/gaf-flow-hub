@@ -169,7 +169,17 @@ const Leads = () => {
                   <div className="space-y-1"><Label>Customer Number</Label>
                     <Input value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} placeholder="Phone number" /></div>
                   <div className="space-y-1"><Label>Job Size</Label>
-                    <Input value={jobSize} onChange={(e) => setJobSize(e.target.value)} placeholder="e.g. 2m x 3m, A4, 100 pcs" /></div>
+                    <Textarea
+                      value={jobSize}
+                      onChange={(e) => {
+                        setJobSize(e.target.value);
+                        e.target.style.height = 'auto';
+                        e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
+                      }}
+                      placeholder="e.g. 2m x 3m, A4, 100 pcs"
+                      className="min-h-[40px] resize-none overflow-hidden py-2"
+                      rows={1}
+                    /></div>
                   <div className="space-y-1"><Label>Quantity</Label>
                     <Input type="number" min="0" value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="e.g. 10" /></div>
                   <div className="space-y-1"><Label>Amount</Label>
