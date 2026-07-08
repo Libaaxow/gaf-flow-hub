@@ -120,6 +120,7 @@ const Reports = () => {
   const totalSales = useMemo(() => filteredInvoices.reduce((s, i) => s + Number(i.total_amount || 0), 0), [filteredInvoices]);
   const totalCollected = useMemo(() => filteredPayments.reduce((s, p) => s + Number(p.amount || 0), 0), [filteredPayments]);
   const totalExpenses = useMemo(() => filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0), [filteredExpenses]);
+  const totalOutstanding = useMemo(() => filteredInvoices.reduce((s, i) => s + Math.max(0, Number(i.total_amount || 0) - Number(i.amount_paid || 0)), 0), [filteredInvoices]);
   const netProfit = totalSales - totalExpenses;
   const cashBalance = useMemo(() => {
     const opening = beginningBalances.reduce((s, b) => s + Number(b.amount || 0), 0);
@@ -128,20 +129,21 @@ const Reports = () => {
 
   // Monthly chart data
   const monthlyData = useMemo(() => {
-    const months: Record<string, { month: string; sales: number; expenses: number; collections: number }> = {};
+    const months: Record<string, { month: string; sales: number; expenses: number; collections: number; outstanding: number }> = {};
     filteredInvoices.forEach(i => {
       const m = format(parseISO(i.invoice_date), 'MMM yyyy');
-      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0 };
+      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0, outstanding: 0 };
       months[m].sales += Number(i.total_amount || 0);
+      months[m].outstanding += Math.max(0, Number(i.total_amount || 0) - Number(i.amount_paid || 0));
     });
     filteredExpenses.forEach(e => {
       const m = format(parseISO(e.expense_date), 'MMM yyyy');
-      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0 };
+      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0, outstanding: 0 };
       months[m].expenses += Number(e.amount || 0);
     });
     filteredPayments.forEach(p => {
       const m = format(parseISO(p.payment_date), 'MMM yyyy');
-      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0 };
+      if (!months[m]) months[m] = { month: m, sales: 0, expenses: 0, collections: 0, outstanding: 0 };
       months[m].collections += Number(p.amount || 0);
     });
     return Object.values(months).sort((a, b) => {
@@ -284,9 +286,10 @@ const Reports = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           <SummaryCard title="Total Sales" value={totalSales} icon={<TrendingUp className="h-4 w-4" />} color="text-primary" />
           <SummaryCard title="Collected" value={totalCollected} icon={<ArrowUpRight className="h-4 w-4" />} color="text-emerald-600" />
+          <SummaryCard title="Outstanding" value={totalOutstanding} icon={<FileText className="h-4 w-4" />} color="text-orange-600" />
           <SummaryCard title="Expenses" value={totalExpenses} icon={<ArrowDownRight className="h-4 w-4" />} color="text-destructive" />
           <SummaryCard title="Net Profit" value={netProfit} icon={<DollarSign className="h-4 w-4" />} color={netProfit >= 0 ? 'text-emerald-600' : 'text-destructive'} />
           <SummaryCard title="Cash Balance" value={cashBalance} icon={<Wallet className="h-4 w-4" />} color="text-primary" />
@@ -320,6 +323,8 @@ const Reports = () => {
                         <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
                         <Legend />
                         <Bar dataKey="sales" name="Sales" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="collections" name="Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="outstanding" name="Outstanding" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="expenses" name="Expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
