@@ -61,7 +61,7 @@ const Reports = () => {
     try {
       const [invData, payData, expData, balData] = await Promise.all([
         fetchAllPaginated(async (offset, bs) => {
-          const { data, error } = await supabase.from('invoices').select('*, customers(name)').neq('status', 'draft').range(offset, offset + bs - 1);
+          const { data, error } = await supabase.from('invoices').select('*, customers(name)').eq('is_draft', false).range(offset, offset + bs - 1);
           if (error) throw error;
           return data || [];
         }),
