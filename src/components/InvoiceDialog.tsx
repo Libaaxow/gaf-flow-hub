@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { InvoiceTemplate } from "./InvoiceTemplate";
 import { generateInvoicePDF } from "@/utils/generateInvoicePDF";
-import { Download } from "lucide-react";
+import { generateDeliveryNotePDF } from "@/utils/generateDeliveryNotePDF";
+import { Download, Truck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface InvoiceDialogProps {
@@ -148,6 +149,34 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     }
   };
 
+  const handleDownloadDeliveryNote = () => {
+    setIsGenerating(true);
+    try {
+      const invNum = order.invoice_number || order.id || "N/A";
+      const deliveryData = {
+        deliveryNumber: `DN-${invNum}`,
+        deliveryDate: format(new Date(), "dd.MM.yyyy"),
+        invoiceNumber: invNum,
+        customerName,
+        customerContact,
+        customerEmail,
+        customerAddress,
+        items: items.map((it: any) => ({
+          description: it.productName ? `${it.productName}${it.description && it.description !== it.productName ? ` — ${it.description}` : ""}` : it.description,
+          quantity: it.quantity,
+        })),
+        notes: order.project_name ? `Project: ${order.project_name}` : "",
+      };
+      const ok = generateDeliveryNotePDF(deliveryData.deliveryNumber, deliveryData);
+      if (ok) toast({ title: "Success", description: "Delivery note downloaded!" });
+    } catch (error) {
+      console.error("Error generating delivery note:", error);
+      toast({ title: "Error", description: "Failed to generate delivery note.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -176,6 +205,10 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
+          </Button>
+          <Button variant="secondary" onClick={handleDownloadDeliveryNote} disabled={isGenerating}>
+            <Truck className="mr-2 h-4 w-4" />
+            Delivery Note
           </Button>
           <Button onClick={handleDownloadPDF} disabled={isGenerating}>
             <Download className="mr-2 h-4 w-4" />
