@@ -20,6 +20,7 @@ const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', '#10b981
 const Reports = () => {
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState<DateRange>('this_month');
+  const [salesRange, setSalesRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
   const [loading, setLoading] = useState(true);
 
   // Raw data
