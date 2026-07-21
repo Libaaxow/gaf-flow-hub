@@ -3071,6 +3071,17 @@ const AccountantDashboard = () => {
                     <CardDescription className="text-xs sm:text-sm">Manage customer invoices</CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                    <Select value={invoiceFilterDate} onValueChange={setInvoiceFilterDate}>
+                      <SelectTrigger className="w-full sm:w-[160px]">
+                        <SelectValue placeholder="Filter by date" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">Last 7 days</SelectItem>
+                        <SelectItem value="month">Last 30 days</SelectItem>
+                        <SelectItem value="all">All Invoices</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select value={invoiceFilterCustomer} onValueChange={setInvoiceFilterCustomer}>
                       <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filter by customer" />
