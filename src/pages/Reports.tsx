@@ -502,7 +502,10 @@ const Reports = () => {
                 .filter(i => !bound || parseISO(i.invoice_date) >= bound)
                 .sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime());
               const total = salesList.reduce((s, i) => s + Number(i.total_amount || 0), 0);
-              const collected = salesList.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+              // Collected = actual payments received in this date range (not invoice.amount_paid)
+              const collected = payments
+                .filter(p => !bound || parseISO(p.payment_date) >= bound)
+                .reduce((s, p) => s + Number(p.amount || 0), 0);
               const label = salesRange === 'today' ? "Today's Sales" : salesRange === '7d' ? 'Last 7 Days Sales' : salesRange === '30d' ? 'Last 30 Days Sales' : 'All Sales';
               return (
                 <Card>
