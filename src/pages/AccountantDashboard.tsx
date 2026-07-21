@@ -221,6 +221,7 @@ const AccountantDashboard = () => {
 
   // Invoice form states
   const [invoiceFilterCustomer, setInvoiceFilterCustomer] = useState<string>('all');
+  const [invoiceFilterDate, setInvoiceFilterDate] = useState<string>('today');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
