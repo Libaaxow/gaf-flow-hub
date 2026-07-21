@@ -3279,7 +3279,8 @@ const AccountantDashboard = () => {
                             )}
                           </>
                         );})
-                    )}
+                    );
+                    })()}
                   </TableBody>
                 </Table>
                 </div>
