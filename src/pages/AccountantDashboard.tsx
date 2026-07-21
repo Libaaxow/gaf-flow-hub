@@ -221,6 +221,7 @@ const AccountantDashboard = () => {
 
   // Invoice form states
   const [invoiceFilterCustomer, setInvoiceFilterCustomer] = useState<string>('all');
+  const [invoiceFilterDate, setInvoiceFilterDate] = useState<string>('today');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
@@ -3070,6 +3071,17 @@ const AccountantDashboard = () => {
                     <CardDescription className="text-xs sm:text-sm">Manage customer invoices</CardDescription>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+                    <Select value={invoiceFilterDate} onValueChange={setInvoiceFilterDate}>
+                      <SelectTrigger className="w-full sm:w-[160px]">
+                        <SelectValue placeholder="Filter by date" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background z-50">
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="week">Last 7 days</SelectItem>
+                        <SelectItem value="month">Last 30 days</SelectItem>
+                        <SelectItem value="all">All Invoices</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Select value={invoiceFilterCustomer} onValueChange={setInvoiceFilterCustomer}>
                       <SelectTrigger className="w-full sm:w-[200px]">
                         <SelectValue placeholder="Filter by customer" />
@@ -3112,20 +3124,29 @@ const AccountantDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices.filter(invoice => 
-                      invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
-                    ).length === 0 ? (
+                    {(() => {
+                      const matchesDate = (invoice: any) => {
+                        if (invoiceFilterDate === 'all') return true;
+                        const d = new Date(invoice.invoice_date);
+                        const now = new Date();
+                        const start = new Date(now); start.setHours(0,0,0,0);
+                        if (invoiceFilterDate === 'today') return d >= start;
+                        if (invoiceFilterDate === 'week') { const s = new Date(start); s.setDate(s.getDate()-7); return d >= s; }
+                        if (invoiceFilterDate === 'month') { const s = new Date(start); s.setDate(s.getDate()-30); return d >= s; }
+                        return true;
+                      };
+                      const filtered = invoices.filter(invoice =>
+                        (invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer) &&
+                        matchesDate(invoice)
+                      );
+                      return filtered.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                           No invoices found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoices
-                        .filter(invoice => 
-                          invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
-                        )
-                        .map((invoice) => {
+                      filtered.map((invoice) => {
                           const outstanding = invoice.total_amount - invoice.amount_paid;
                           return (
                           <>
@@ -3258,7 +3279,8 @@ const AccountantDashboard = () => {
                             )}
                           </>
                         );})
-                    )}
+                    );
+                    })()}
                   </TableBody>
                 </Table>
                 </div>
