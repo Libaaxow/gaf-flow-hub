@@ -3124,20 +3124,29 @@ const AccountantDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invoices.filter(invoice => 
-                      invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
-                    ).length === 0 ? (
+                    {(() => {
+                      const matchesDate = (invoice: any) => {
+                        if (invoiceFilterDate === 'all') return true;
+                        const d = new Date(invoice.invoice_date);
+                        const now = new Date();
+                        const start = new Date(now); start.setHours(0,0,0,0);
+                        if (invoiceFilterDate === 'today') return d >= start;
+                        if (invoiceFilterDate === 'week') { const s = new Date(start); s.setDate(s.getDate()-7); return d >= s; }
+                        if (invoiceFilterDate === 'month') { const s = new Date(start); s.setDate(s.getDate()-30); return d >= s; }
+                        return true;
+                      };
+                      const filtered = invoices.filter(invoice =>
+                        (invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer) &&
+                        matchesDate(invoice)
+                      );
+                      return filtered.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
                           No invoices found
                         </TableCell>
                       </TableRow>
                     ) : (
-                      invoices
-                        .filter(invoice => 
-                          invoiceFilterCustomer === 'all' || invoice.customer_id === invoiceFilterCustomer
-                        )
-                        .map((invoice) => {
+                      filtered.map((invoice) => {
                           const outstanding = invoice.total_amount - invoice.amount_paid;
                           return (
                           <>
