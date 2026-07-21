@@ -20,6 +20,7 @@ const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--destructive))', '#10b981
 const Reports = () => {
   const { toast } = useToast();
   const [dateRange, setDateRange] = useState<DateRange>('this_month');
+  const [salesRange, setSalesRange] = useState<'today' | '7d' | '30d' | 'all'>('today');
   const [loading, setLoading] = useState(true);
 
   // Raw data
@@ -490,6 +491,78 @@ const Reports = () => {
 
           {/* Sales Tab */}
           <TabsContent value="sales" className="space-y-4">
+            {(() => {
+              const now = new Date();
+              const start = new Date(now); start.setHours(0,0,0,0);
+              let bound: Date | null = start;
+              if (salesRange === '7d') { bound = new Date(start); bound.setDate(bound.getDate() - 7); }
+              else if (salesRange === '30d') { bound = new Date(start); bound.setDate(bound.getDate() - 30); }
+              else if (salesRange === 'all') { bound = null; }
+              const salesList = invoices
+                .filter(i => !bound || parseISO(i.invoice_date) >= bound)
+                .sort((a, b) => new Date(b.invoice_date).getTime() - new Date(a.invoice_date).getTime());
+              const total = salesList.reduce((s, i) => s + Number(i.total_amount || 0), 0);
+              const collected = salesList.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+              const label = salesRange === 'today' ? "Today's Sales" : salesRange === '7d' ? 'Last 7 Days Sales' : salesRange === '30d' ? 'Last 30 Days Sales' : 'All Sales';
+              return (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <CardTitle className="text-sm">{label}</CardTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {salesList.length} invoice{salesList.length !== 1 ? 's' : ''} · Total ${total.toFixed(2)} · Collected ${collected.toFixed(2)}
+                        </p>
+                      </div>
+                      <Select value={salesRange} onValueChange={(v) => setSalesRange(v as any)}>
+                        <SelectTrigger className="w-[160px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="today">Today</SelectItem>
+                          <SelectItem value="7d">Last 7 Days</SelectItem>
+                          <SelectItem value="30d">Last 30 Days</SelectItem>
+                          <SelectItem value="all">All Sales</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-[320px] overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Invoice #</TableHead>
+                            <TableHead>Customer</TableHead>
+                            <TableHead>Date</TableHead>
+                            <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="text-right">Paid</TableHead>
+                            <TableHead className="text-right">Outstanding</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {salesList.length === 0 ? (
+                            <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-6">No sales in this period</TableCell></TableRow>
+                          ) : salesList.map(i => {
+                            const out = Math.max(0, Number(i.total_amount || 0) - Number(i.amount_paid || 0));
+                            return (
+                              <TableRow key={i.id}>
+                                <TableCell className="font-medium">{i.invoice_number}</TableCell>
+                                <TableCell>{i.customers?.name || '-'}</TableCell>
+                                <TableCell>{format(parseISO(i.invoice_date), 'PP')}</TableCell>
+                                <TableCell className="text-right">${Number(i.total_amount || 0).toFixed(2)}</TableCell>
+                                <TableCell className="text-right text-emerald-600">${Number(i.amount_paid || 0).toFixed(2)}</TableCell>
+                                <TableCell className={`text-right ${out > 0 ? 'text-orange-600' : 'text-emerald-600'}`}>${out.toFixed(2)}</TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })()}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2">
