@@ -119,7 +119,7 @@ const Reports = () => {
 
   // Summary metrics
   const totalSales = useMemo(() => filteredInvoices.reduce((s, i) => s + Number(i.total_amount || 0), 0), [filteredInvoices]);
-  const totalCollected = useMemo(() => filteredPayments.reduce((s, p) => s + Number(p.amount || 0), 0), [filteredPayments]);
+  const totalCollected = useMemo(() => filteredInvoices.reduce((s, i) => s + Number(i.amount_paid || 0), 0), [filteredInvoices]);
   const totalExpenses = useMemo(() => filteredExpenses.reduce((s, e) => s + Number(e.amount || 0), 0), [filteredExpenses]);
   const totalOutstanding = useMemo(() => filteredInvoices.reduce((s, i) => s + Math.max(0, Number(i.total_amount || 0) - Number(i.amount_paid || 0)), 0), [filteredInvoices]);
   const netProfit = totalSales - totalExpenses;
