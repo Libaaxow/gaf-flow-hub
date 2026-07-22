@@ -128,7 +128,7 @@ const CustomerReports = () => {
         query = query.ilike('name', `%${search}%`);
       }
       
-      const { data, error } = await query.limit(50);
+      const { data, error } = await query.limit(1000);
 
       if (error) throw error;
       setCustomers(data || []);
