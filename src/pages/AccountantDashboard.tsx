@@ -359,10 +359,6 @@ const AccountantDashboard = () => {
     fetchFilteredData();
   }, [startDate, endDate]);
 
-  useEffect(() => {
-    fetchActualStats();
-  }, [startDate, endDate, startTime, endTime]);
-
   const fetchAllData = async () => {
     await Promise.all([
       fetchActualStats(),
@@ -787,30 +783,15 @@ const AccountantDashboard = () => {
     }
   };
 
-  // Fetch stats filtered by the currently selected date range
+  // Fetch actual total stats (not filtered by date)
   const fetchActualStats = async () => {
     try {
-      // Parse time and apply to dates for range filtering
-      const [sh, sm] = startTime.split(':').map(Number);
-      const [eh, em] = endTime.split(':').map(Number);
-      const startDateTime = new Date(startDate);
-      startDateTime.setHours(sh, sm, 0, 0);
-      const endDateTime = new Date(endDate);
-      endDateTime.setHours(eh, em, 59, 999);
-      const rangeStart = startDateTime.toISOString();
-      const rangeEnd = endDateTime.toISOString();
-
-      // invoice_date and expense_date are DATE columns — send yyyy-MM-dd so
-      // Postgres doesn't cast a timestamp string and pull in the prior day.
-      const rangeStartDate = format(startDate, 'yyyy-MM-dd');
-      const rangeEndDate = format(endDate, 'yyyy-MM-dd');
-
       // Get all orders for actual revenue calculation
       const { data: allOrdersData } = await supabase
         .from('orders')
         .select('order_value, amount_paid');
 
-      // Get invoices in range with their items for profit calculation
+      // Get all invoices with their items for profit calculation
       const { data: allInvoices } = await supabase
         .from('invoices')
         .select(`
@@ -821,29 +802,18 @@ const AccountantDashboard = () => {
           is_draft, 
           status,
           invoice_items(line_profit)
-        `)
-        .gte('invoice_date', rangeStartDate)
-        .lte('invoice_date', rangeEndDate);
+        `);
 
       // Get all commissions
       const { data: allCommissions } = await supabase
         .from('commissions')
         .select('commission_amount, paid_status');
 
-      // Get approved expenses in range
+      // Get all approved expenses
       const { data: allExpenses } = await supabase
         .from('expenses')
         .select('amount, approval_status')
-        .eq('approval_status', 'approved')
-        .gte('expense_date', rangeStartDate)
-        .lte('expense_date', rangeEndDate);
-
-      // Get payments received in range (true cash collected in the period)
-      const { data: rangePayments } = await supabase
-        .from('payments')
-        .select('amount, payment_date')
-        .gte('payment_date', rangeStart)
-        .lte('payment_date', rangeEnd);
+        .eq('approval_status', 'approved');
 
       // Fetch beginning balances
       const { data: beginningBalancesData } = await supabase
@@ -853,10 +823,9 @@ const AccountantDashboard = () => {
       // Calculate beginning balance total
       const beginningBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
 
-      // Calculate revenue from invoices in range
+      // Calculate revenue from ALL invoices for total revenue
       const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
-      // Amount Collected = payments actually received in the selected period
-      const collectedAmount = rangePayments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
+      const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
       
       // Outstanding Balance should only exclude true draft invoices (is_draft=true)
       const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft) || [];
