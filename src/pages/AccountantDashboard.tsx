@@ -800,6 +800,11 @@ const AccountantDashboard = () => {
       const rangeStart = startDateTime.toISOString();
       const rangeEnd = endDateTime.toISOString();
 
+      // invoice_date and expense_date are DATE columns — send yyyy-MM-dd so
+      // Postgres doesn't cast a timestamp string and pull in the prior day.
+      const rangeStartDate = format(startDate, 'yyyy-MM-dd');
+      const rangeEndDate = format(endDate, 'yyyy-MM-dd');
+
       // Get all orders for actual revenue calculation
       const { data: allOrdersData } = await supabase
         .from('orders')
@@ -817,8 +822,8 @@ const AccountantDashboard = () => {
           status,
           invoice_items(line_profit)
         `)
-        .gte('invoice_date', rangeStart)
-        .lte('invoice_date', rangeEnd);
+        .gte('invoice_date', rangeStartDate)
+        .lte('invoice_date', rangeEndDate);
 
       // Get all commissions
       const { data: allCommissions } = await supabase
@@ -830,8 +835,8 @@ const AccountantDashboard = () => {
         .from('expenses')
         .select('amount, approval_status')
         .eq('approval_status', 'approved')
-        .gte('expense_date', rangeStart)
-        .lte('expense_date', rangeEnd);
+        .gte('expense_date', rangeStartDate)
+        .lte('expense_date', rangeEndDate);
 
       // Get payments received in range (true cash collected in the period)
       const { data: rangePayments } = await supabase
