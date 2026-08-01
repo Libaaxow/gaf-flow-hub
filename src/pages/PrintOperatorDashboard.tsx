@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
+import { DailyWorkLogPanel } from '@/components/DailyWorkLogPanel';
 
 
 interface Order {
@@ -434,6 +435,8 @@ const PrintOperatorDashboard = () => {
         </div>
 
         <FinanceNotesPanel mode="print" />
+
+        <DailyWorkLogPanel />
 
         <Tabs defaultValue="sales-requests" className="w-full">
           <TabsList className="flex-wrap h-auto gap-1">
