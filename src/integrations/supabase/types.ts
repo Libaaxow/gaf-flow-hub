@@ -1861,6 +1861,54 @@ export type Database = {
           },
         ]
       }
+      work_logs: {
+        Row: {
+          created_at: string
+          id: string
+          job_name: string
+          log_date: string
+          log_time: string
+          notes: string | null
+          operator_id: string
+          photo_path: string | null
+          price: number | null
+          quantity: number | null
+          status: string
+          updated_at: string
+          work_type: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          job_name: string
+          log_date?: string
+          log_time?: string
+          notes?: string | null
+          operator_id: string
+          photo_path?: string | null
+          price?: number | null
+          quantity?: number | null
+          status?: string
+          updated_at?: string
+          work_type?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          job_name?: string
+          log_date?: string
+          log_time?: string
+          notes?: string | null
+          operator_id?: string
+          photo_path?: string | null
+          price?: number | null
+          quantity?: number | null
+          status?: string
+          updated_at?: string
+          work_type?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
