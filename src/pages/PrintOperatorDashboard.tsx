@@ -134,7 +134,9 @@ const PrintOperatorDashboard = () => {
               });
             }
           }
-          fetchPrintData();
+          // Never refresh while the operator is filling in a work log form
+          if (document.body.dataset.worklogOpen === '1') return;
+          fetchPrintData(true);
         }
       )
       .subscribe();
@@ -144,9 +146,9 @@ const PrintOperatorDashboard = () => {
     };
   };
 
-  const fetchPrintData = async () => {
+  const fetchPrintData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
 
       // Fetch commissions for print operator
       const { data: commissionsData } = await supabase
