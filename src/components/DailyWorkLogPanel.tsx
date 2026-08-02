@@ -334,20 +334,24 @@ export const DailyWorkLogPanel = () => {
                   <Camera className="h-4 w-4" /> Take Photo
                 </Button>
                 <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => uploadRef.current?.click()}>
-                  <Upload className="h-4 w-4" /> Upload Photo
+                  <Upload className="h-4 w-4" /> Upload Photos
                 </Button>
               </div>
-              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhoto(e.target.files?.[0])} />
-              <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => handlePhoto(e.target.files?.[0])} />
-              {photoPreview && (
-                <div className="relative w-fit">
-                  <img src={photoPreview} alt="Work proof preview" className="h-32 rounded border object-cover" />
-                  <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6" onClick={clearPhoto}>
-                    <X className="h-3 w-3" />
-                  </Button>
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotos(e.target.files)} />
+              <input ref={uploadRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotos(e.target.files)} />
+              {photoPreviews.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {photoPreviews.map((src, i) => (
+                    <div key={src} className="relative">
+                      <img src={src} alt={`Work proof preview ${i + 1}`} className="h-24 w-24 rounded border object-cover" />
+                      <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => removePhoto(i)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
-              {!photoPreview && (
+              {photoPreviews.length === 0 && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1"><ImageIcon className="h-3 w-3" /> No photo attached</p>
               )}
             </div>
