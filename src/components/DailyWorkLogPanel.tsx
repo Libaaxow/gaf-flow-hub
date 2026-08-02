@@ -279,7 +279,7 @@ export const DailyWorkLogPanel = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={(o) => { if (!o) return; setOpen(o); }}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
         <DialogContent
           className="max-w-md max-h-[90vh] overflow-y-auto"
           onInteractOutside={(e) => e.preventDefault()}
