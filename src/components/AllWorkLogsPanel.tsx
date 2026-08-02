@@ -43,6 +43,7 @@ export const AllWorkLogsPanel = () => {
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
   const [range, setRange] = useState<RangeKey>('today');
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
+  const [detail, setDetail] = useState<WorkLog | null>(null);
 
   const fetchLogs = useCallback(async () => {
     let query = supabase.from('work_logs').select('*').order('log_date', { ascending: false }).order('log_time', { ascending: false });
@@ -120,7 +121,7 @@ export const AllWorkLogsPanel = () => {
             </TableHeader>
             <TableBody>
               {logs.map(l => (
-                <TableRow key={l.id}>
+                <TableRow key={l.id} onClick={() => setDetail(l)} className="cursor-pointer">
                   <TableCell>{l.log_date}</TableCell>
                   <TableCell>{l.log_time?.slice(0, 5)}</TableCell>
                   <TableCell>{names[l.operator_id] || '—'}</TableCell>
@@ -136,7 +137,7 @@ export const AllWorkLogsPanel = () => {
                       return (
                         <div className="flex gap-1">
                           {paths.map(p => (
-                            <button key={p} type="button" onClick={() => setViewPhoto(photoUrls[p])}>
+                            <button key={p} type="button" onClick={(e) => { e.stopPropagation(); setViewPhoto(photoUrls[p]); }}>
                               <img src={photoUrls[p]} alt={`Proof for ${l.job_name}`} className="h-10 w-10 rounded object-cover border" />
                             </button>
                           ))}
@@ -155,6 +156,41 @@ export const AllWorkLogsPanel = () => {
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>Photo Proof</DialogTitle></DialogHeader>
           {viewPhoto && <img src={viewPhoto} alt="Work log photo proof" className="w-full rounded" />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{detail?.job_name}</DialogTitle></DialogHeader>
+          {detail && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><span className="text-muted-foreground">Operator: </span>{names[detail.operator_id] || '—'}</div>
+                <div><span className="text-muted-foreground">Status: </span>{statusLabel[detail.status] || detail.status}</div>
+                <div><span className="text-muted-foreground">Date: </span>{detail.log_date} {detail.log_time?.slice(0, 5)}</div>
+                <div><span className="text-muted-foreground">Work Type: </span>{detail.work_type || '—'}</div>
+                <div><span className="text-muted-foreground">Qty: </span>{detail.quantity ?? '—'}</div>
+                <div><span className="text-muted-foreground">Price: </span>{detail.price != null ? `$${Number(detail.price).toFixed(2)}` : '—'}</div>
+              </div>
+              <div>
+                <p className="text-muted-foreground mb-1">Notes from print operator</p>
+                <p className="whitespace-pre-wrap rounded border p-3 bg-muted/40">{detail.notes?.trim() || 'No notes written.'}</p>
+              </div>
+              {(() => {
+                const paths = (detail.photo_paths?.length ? detail.photo_paths : detail.photo_path ? [detail.photo_path] : []).filter(p => photoUrls[p]);
+                if (!paths.length) return null;
+                return (
+                  <div className="flex gap-2 flex-wrap">
+                    {paths.map(p => (
+                      <button key={p} type="button" onClick={() => setViewPhoto(photoUrls[p])}>
+                        <img src={photoUrls[p]} alt={`Proof for ${detail.job_name}`} className="h-20 w-20 rounded object-cover border" />
+                      </button>
+                    ))}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </Card>
