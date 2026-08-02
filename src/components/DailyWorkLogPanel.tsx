@@ -106,6 +106,13 @@ export const DailyWorkLogPanel = () => {
     fetchLogs();
   }, [user?.id, fetchLogs]);
 
+  // Signal to the dashboard that a form is open so it never auto-refreshes mid-entry
+  useEffect(() => {
+    if (open) document.body.dataset.worklogOpen = '1';
+    else delete document.body.dataset.worklogOpen;
+    return () => { delete document.body.dataset.worklogOpen; };
+  }, [open]);
+
   const handlePhotos = (files?: FileList | null) => {
     if (!files || !files.length) return;
     const arr = Array.from(files);
@@ -272,8 +279,12 @@ export const DailyWorkLogPanel = () => {
         </CardContent>
       </Card>
 
-      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <Dialog open={open} onOpenChange={(o) => { if (!o) return; setOpen(o); }}>
+        <DialogContent
+          className="max-w-md max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader><DialogTitle>Add Work Log</DialogTitle></DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
