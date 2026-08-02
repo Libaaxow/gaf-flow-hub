@@ -1871,6 +1871,7 @@ export type Database = {
           notes: string | null
           operator_id: string
           photo_path: string | null
+          photo_paths: string[]
           price: number | null
           quantity: number | null
           status: string
@@ -1886,6 +1887,7 @@ export type Database = {
           notes?: string | null
           operator_id: string
           photo_path?: string | null
+          photo_paths?: string[]
           price?: number | null
           quantity?: number | null
           status?: string
@@ -1901,6 +1903,7 @@ export type Database = {
           notes?: string | null
           operator_id?: string
           photo_path?: string | null
+          photo_paths?: string[]
           price?: number | null
           quantity?: number | null
           status?: string

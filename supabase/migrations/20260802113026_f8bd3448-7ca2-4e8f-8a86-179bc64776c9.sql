@@ -1,0 +1,2 @@
+ALTER TABLE public.work_logs ADD COLUMN IF NOT EXISTS photo_paths text[] NOT NULL DEFAULT '{}';
+UPDATE public.work_logs SET photo_paths = ARRAY[photo_path] WHERE photo_path IS NOT NULL AND cardinality(photo_paths) = 0;

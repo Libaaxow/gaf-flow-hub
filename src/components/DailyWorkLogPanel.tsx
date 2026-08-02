@@ -45,6 +45,7 @@ interface WorkLog {
   status: string;
   notes: string | null;
   photo_path: string | null;
+  photo_paths?: string[] | null;
   created_at: string;
 }
 
@@ -66,8 +67,8 @@ export const DailyWorkLogPanel = () => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -85,7 +86,9 @@ export const DailyWorkLogPanel = () => {
     const list = (data || []) as WorkLog[];
     setLogs(list);
 
-    const paths = list.map(l => l.photo_path).filter(Boolean) as string[];
+    const paths = [...new Set(
+      list.flatMap(l => (l.photo_paths?.length ? l.photo_paths : l.photo_path ? [l.photo_path] : []))
+    )] as string[];
     if (paths.length) {
       const { data: signed } = await supabase.storage.from('work-log-photos').createSignedUrls(paths, 3600);
       const map: Record<string, string> = {};
@@ -103,15 +106,30 @@ export const DailyWorkLogPanel = () => {
     fetchLogs();
   }, [user?.id, fetchLogs]);
 
-  const handlePhoto = (file?: File | null) => {
-    if (!file) return;
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+  // Signal to the dashboard that a form is open so it never auto-refreshes mid-entry
+  useEffect(() => {
+    if (open) document.body.dataset.worklogOpen = '1';
+    else delete document.body.dataset.worklogOpen;
+    return () => { delete document.body.dataset.worklogOpen; };
+  }, [open]);
+
+  const handlePhotos = (files?: FileList | null) => {
+    if (!files || !files.length) return;
+    const arr = Array.from(files);
+    setPhotoFiles(prev => [...prev, ...arr]);
+    setPhotoPreviews(prev => [...prev, ...arr.map(f => URL.createObjectURL(f))]);
+    if (cameraRef.current) cameraRef.current.value = '';
+    if (uploadRef.current) uploadRef.current.value = '';
+  };
+
+  const removePhoto = (idx: number) => {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== idx));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
   const clearPhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
     if (cameraRef.current) cameraRef.current.value = '';
     if (uploadRef.current) uploadRef.current.value = '';
   };
@@ -129,15 +147,15 @@ export const DailyWorkLogPanel = () => {
     }
     setSaving(true);
     try {
-      let photo_path: string | null = null;
-      if (photoFile) {
-        const ext = photoFile.name.split('.').pop() || 'jpg';
-        const path = `${user.id}/${Date.now()}.${ext}`;
+      const uploaded: string[] = [];
+      for (const [i, file] of photoFiles.entries()) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('work-log-photos')
-          .upload(path, photoFile, { contentType: photoFile.type || 'image/jpeg' });
+          .upload(path, file, { contentType: file.type || 'image/jpeg' });
         if (upErr) throw upErr;
-        photo_path = path;
+        uploaded.push(path);
       }
 
       const now = new Date();
@@ -151,7 +169,8 @@ export const DailyWorkLogPanel = () => {
         price: form.price ? Number(form.price) : null,
         status: form.status,
         notes: form.notes.trim() || null,
-        photo_path,
+        photo_path: uploaded[0] || null,
+        photo_paths: uploaded,
       });
       if (error) throw error;
 
@@ -238,13 +257,19 @@ export const DailyWorkLogPanel = () => {
                     <TableCell>{l.price != null ? `$${Number(l.price).toFixed(2)}` : '—'}</TableCell>
                     <TableCell><Badge variant="secondary">{statusLabel[l.status] || l.status}</Badge></TableCell>
                     <TableCell>
-                      {l.photo_path && photoUrls[l.photo_path] ? (
-                        <button type="button" onClick={() => setViewPhoto(photoUrls[l.photo_path!])}>
-                          <img src={photoUrls[l.photo_path]} alt={`Proof for ${l.job_name}`} className="h-10 w-10 rounded object-cover border" />
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
+                      {(() => {
+                        const paths = (l.photo_paths?.length ? l.photo_paths : l.photo_path ? [l.photo_path] : []).filter(p => photoUrls[p]);
+                        if (!paths.length) return <span className="text-muted-foreground text-xs">—</span>;
+                        return (
+                          <div className="flex gap-1">
+                            {paths.map(p => (
+                              <button key={p} type="button" onClick={() => setViewPhoto(photoUrls[p])}>
+                                <img src={photoUrls[p]} alt={`Proof for ${l.job_name}`} className="h-10 w-10 rounded object-cover border" />
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -255,7 +280,11 @@ export const DailyWorkLogPanel = () => {
       </Card>
 
       <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-w-md max-h-[90vh] overflow-y-auto"
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
           <DialogHeader><DialogTitle>Add Work Log</DialogTitle></DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1.5">
@@ -316,20 +345,24 @@ export const DailyWorkLogPanel = () => {
                   <Camera className="h-4 w-4" /> Take Photo
                 </Button>
                 <Button type="button" variant="outline" size="sm" className="gap-2" onClick={() => uploadRef.current?.click()}>
-                  <Upload className="h-4 w-4" /> Upload Photo
+                  <Upload className="h-4 w-4" /> Upload Photos
                 </Button>
               </div>
-              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhoto(e.target.files?.[0])} />
-              <input ref={uploadRef} type="file" accept="image/*" className="hidden" onChange={e => handlePhoto(e.target.files?.[0])} />
-              {photoPreview && (
-                <div className="relative w-fit">
-                  <img src={photoPreview} alt="Work proof preview" className="h-32 rounded border object-cover" />
-                  <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6" onClick={clearPhoto}>
-                    <X className="h-3 w-3" />
-                  </Button>
+              <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handlePhotos(e.target.files)} />
+              <input ref={uploadRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotos(e.target.files)} />
+              {photoPreviews.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {photoPreviews.map((src, i) => (
+                    <div key={src} className="relative">
+                      <img src={src} alt={`Work proof preview ${i + 1}`} className="h-24 w-24 rounded border object-cover" />
+                      <Button type="button" size="icon" variant="destructive" className="absolute -top-2 -right-2 h-6 w-6" onClick={() => removePhoto(i)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
                 </div>
               )}
-              {!photoPreview && (
+              {photoPreviews.length === 0 && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1"><ImageIcon className="h-3 w-3" /> No photo attached</p>
               )}
             </div>
