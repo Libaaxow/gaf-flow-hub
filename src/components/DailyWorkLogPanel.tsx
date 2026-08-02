@@ -45,6 +45,7 @@ interface WorkLog {
   status: string;
   notes: string | null;
   photo_path: string | null;
+  photo_paths?: string[] | null;
   created_at: string;
 }
 
@@ -66,8 +67,8 @@ export const DailyWorkLogPanel = () => {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
-  const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFiles, setPhotoFiles] = useState<File[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
@@ -85,7 +86,9 @@ export const DailyWorkLogPanel = () => {
     const list = (data || []) as WorkLog[];
     setLogs(list);
 
-    const paths = list.map(l => l.photo_path).filter(Boolean) as string[];
+    const paths = [...new Set(
+      list.flatMap(l => (l.photo_paths?.length ? l.photo_paths : l.photo_path ? [l.photo_path] : []))
+    )] as string[];
     if (paths.length) {
       const { data: signed } = await supabase.storage.from('work-log-photos').createSignedUrls(paths, 3600);
       const map: Record<string, string> = {};
@@ -103,15 +106,23 @@ export const DailyWorkLogPanel = () => {
     fetchLogs();
   }, [user?.id, fetchLogs]);
 
-  const handlePhoto = (file?: File | null) => {
-    if (!file) return;
-    setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+  const handlePhotos = (files?: FileList | null) => {
+    if (!files || !files.length) return;
+    const arr = Array.from(files);
+    setPhotoFiles(prev => [...prev, ...arr]);
+    setPhotoPreviews(prev => [...prev, ...arr.map(f => URL.createObjectURL(f))]);
+    if (cameraRef.current) cameraRef.current.value = '';
+    if (uploadRef.current) uploadRef.current.value = '';
+  };
+
+  const removePhoto = (idx: number) => {
+    setPhotoFiles(prev => prev.filter((_, i) => i !== idx));
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
   const clearPhoto = () => {
-    setPhotoFile(null);
-    setPhotoPreview(null);
+    setPhotoFiles([]);
+    setPhotoPreviews([]);
     if (cameraRef.current) cameraRef.current.value = '';
     if (uploadRef.current) uploadRef.current.value = '';
   };
@@ -129,15 +140,15 @@ export const DailyWorkLogPanel = () => {
     }
     setSaving(true);
     try {
-      let photo_path: string | null = null;
-      if (photoFile) {
-        const ext = photoFile.name.split('.').pop() || 'jpg';
-        const path = `${user.id}/${Date.now()}.${ext}`;
+      const uploaded: string[] = [];
+      for (const [i, file] of photoFiles.entries()) {
+        const ext = file.name.split('.').pop() || 'jpg';
+        const path = `${user.id}/${Date.now()}-${i}.${ext}`;
         const { error: upErr } = await supabase.storage
           .from('work-log-photos')
-          .upload(path, photoFile, { contentType: photoFile.type || 'image/jpeg' });
+          .upload(path, file, { contentType: file.type || 'image/jpeg' });
         if (upErr) throw upErr;
-        photo_path = path;
+        uploaded.push(path);
       }
 
       const now = new Date();
@@ -151,7 +162,8 @@ export const DailyWorkLogPanel = () => {
         price: form.price ? Number(form.price) : null,
         status: form.status,
         notes: form.notes.trim() || null,
-        photo_path,
+        photo_path: uploaded[0] || null,
+        photo_paths: uploaded,
       });
       if (error) throw error;
 
