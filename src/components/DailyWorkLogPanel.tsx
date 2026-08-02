@@ -250,13 +250,19 @@ export const DailyWorkLogPanel = () => {
                     <TableCell>{l.price != null ? `$${Number(l.price).toFixed(2)}` : '—'}</TableCell>
                     <TableCell><Badge variant="secondary">{statusLabel[l.status] || l.status}</Badge></TableCell>
                     <TableCell>
-                      {l.photo_path && photoUrls[l.photo_path] ? (
-                        <button type="button" onClick={() => setViewPhoto(photoUrls[l.photo_path!])}>
-                          <img src={photoUrls[l.photo_path]} alt={`Proof for ${l.job_name}`} className="h-10 w-10 rounded object-cover border" />
-                        </button>
-                      ) : (
-                        <span className="text-muted-foreground text-xs">—</span>
-                      )}
+                      {(() => {
+                        const paths = (l.photo_paths?.length ? l.photo_paths : l.photo_path ? [l.photo_path] : []).filter(p => photoUrls[p]);
+                        if (!paths.length) return <span className="text-muted-foreground text-xs">—</span>;
+                        return (
+                          <div className="flex gap-1">
+                            {paths.map(p => (
+                              <button key={p} type="button" onClick={() => setViewPhoto(photoUrls[p])}>
+                                <img src={photoUrls[p]} alt={`Proof for ${l.job_name}`} className="h-10 w-10 rounded object-cover border" />
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </TableCell>
                   </TableRow>
                 ))}
