@@ -58,6 +58,24 @@ const emptyForm = {
   notes: '',
 };
 
+const DRAFT_KEY = 'worklog-draft-v1';
+
+const fileToDataUrl = (file: File) =>
+  new Promise<string>((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.readAsDataURL(file);
+  });
+
+const dataUrlToFile = (dataUrl: string, name: string) => {
+  const [meta, b64] = dataUrl.split(',');
+  const mime = meta.match(/:(.*?);/)?.[1] || 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new File([arr], name, { type: mime });
+};
+
 export const DailyWorkLogPanel = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,8 +90,41 @@ export const DailyWorkLogPanel = () => {
   const [viewPhoto, setViewPhoto] = useState<string | null>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
+  const restored = useRef(false);
 
   const today = new Date().toISOString().slice(0, 10);
+
+  // Restore an in-progress entry if the browser reloaded the page
+  // (common when the phone camera app takes over on mobile).
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) { restored.current = true; return; }
+      const draft = JSON.parse(raw);
+      setForm({ ...emptyForm, ...(draft.form || {}) });
+      const photos: string[] = draft.photos || [];
+      setPhotoPreviews(photos);
+      setPhotoFiles(photos.map((d, i) => dataUrlToFile(d, `photo-${i}.jpg`)));
+      setOpen(true);
+    } catch { /* ignore corrupt draft */ }
+    restored.current = true;
+  }, []);
+
+  // Persist the in-progress entry (form + photos) so nothing is lost on reload
+  useEffect(() => {
+    if (!restored.current) return;
+    if (!open) { sessionStorage.removeItem(DRAFT_KEY); return; }
+    (async () => {
+      const photos = await Promise.all(
+        photoPreviews.map(async (src, i) =>
+          src.startsWith('data:') ? src : await fileToDataUrl(photoFiles[i])
+        )
+      );
+      try {
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ form, photos }));
+      } catch { /* storage full — keep going */ }
+    })();
+  }, [open, form, photoFiles, photoPreviews]);
 
   const fetchLogs = useCallback(async () => {
     if (!user?.id) return;
@@ -137,6 +188,7 @@ export const DailyWorkLogPanel = () => {
   const resetForm = () => {
     setForm({ ...emptyForm });
     clearPhoto();
+    sessionStorage.removeItem(DRAFT_KEY);
   };
 
   const handleSave = async () => {
