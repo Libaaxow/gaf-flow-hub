@@ -29,8 +29,9 @@ export default defineConfig(({ mode }) => ({
             options: { cacheName: "html-navigations", networkTimeoutSeconds: 5 },
           },
           {
-            urlPattern: ({ url, request }) =>
-              url.origin === self.location.origin &&
+            urlPattern: ({ url, request, sameOrigin }) =>
+              !!sameOrigin &&
+              !!url &&
               (request.destination === "script" || request.destination === "style" || request.destination === "image"),
             handler: "CacheFirst",
             options: { cacheName: "static-assets", expiration: { maxEntries: 200 } },
