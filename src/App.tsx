@@ -242,6 +242,14 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/github-settings"
+              element={
+                <ProtectedRoute>
+                  <GitHubSettings />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
