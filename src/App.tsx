@@ -32,6 +32,7 @@ import Quotations from "./pages/Quotations";
 import BeginningBalances from "./pages/BeginningBalances";
 import FinancialAnalyst from "./pages/FinancialAnalyst";
 import Leads from "./pages/Leads";
+import GitHubSettings from "./pages/GitHubSettings";
 
 import NotFound from "./pages/NotFound";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
@@ -238,6 +239,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <FinancialAnalyst />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/github-settings"
+              element={
+                <ProtectedRoute>
+                  <GitHubSettings />
                 </ProtectedRoute>
               }
             />

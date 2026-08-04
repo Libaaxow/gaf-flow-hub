@@ -51,6 +51,7 @@ const navItems: NavItem[] = [
   { href: '/beginning-balances', label: 'Beginning Balances', icon: Receipt, roles: ['admin', 'accountant'] },
   
   { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
+  { href: '/github-settings', label: 'GitHub', icon: Settings, roles: ['admin'] },
   { href: '/users', label: 'Users', icon: UserCog, roles: ['admin'] },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
