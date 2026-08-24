@@ -49,41 +49,37 @@ export const OverdueInvoicesAlert = () => {
       const { data, error } = await supabase
         .from('invoices')
         .select(`
-          id,
-          invoice_number,
-          invoice_date,
-          due_date,
-          total_amount,
-          amount_paid,
-          status,
-          payment_status,
-          payment_method,
-          project_name,
-          created_at,
-          customers(id, name, phone, email, address),
-          customer:customers(id, name, phone, email, address),
-          salesperson:profiles(full_name),
-          salesperson_name,
+          *,
+          customer:customers(name, email, phone),
           invoice_items(
             id,
             description,
             quantity,
             unit_price,
             amount,
+            product_id,
             sale_type,
             width_m,
             height_m,
             area_m2,
             rate_per_m2,
-            product:products(name),
-            products(name)
+            product:products(id, name)
           ),
-          payments(discount_amount, discount_reason)
+          payments(
+            id,
+            amount,
+            discount_amount,
+            discount_type,
+            discount_reason
+          )
         `)
         .eq('id', inv.id)
-        .single();
+        .maybeSingle();
 
-      if (error || !data) {
+      if (error) console.error('Overdue invoice load error:', error);
+
+
+      if (!data) {
         toast({
           title: 'Error',
           description: 'Could not load invoice details.',
