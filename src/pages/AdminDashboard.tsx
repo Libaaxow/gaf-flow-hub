@@ -150,7 +150,7 @@ export default function AdminDashboard() {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
-  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
@@ -706,7 +706,7 @@ export default function AdminDashboard() {
             customer_id: invoiceCustomer,
             order_id: invoiceOrder || null,
             invoice_date: new Date().toISOString().split('T')[0],
-            due_date: invoiceDueDate || null,
+            due_date: invoiceDueDate || defaultDueDate(),
             subtotal,
             tax_amount: tax,
             total_amount: total,
@@ -752,7 +752,7 @@ export default function AdminDashboard() {
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
-      setInvoiceDueDate('');
+      setInvoiceDueDate(defaultDueDate());
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
@@ -869,7 +869,7 @@ export default function AdminDashboard() {
     setInvoiceNumber(invoice.invoice_number);
     setInvoiceCustomer(invoice.customer_id);
     setInvoiceOrder(invoice.order_id || '');
-    setInvoiceDueDate(invoice.due_date || '');
+    setInvoiceDueDate(invoice.due_date || defaultDueDate(invoice.invoice_date));
     setInvoiceTax(`${invoice.tax_amount ?? 0}`);
     setInvoiceNotes(invoice.notes || '');
     setInvoiceProjectName(invoice.project_name || '');
@@ -937,7 +937,7 @@ export default function AdminDashboard() {
           invoice_number: invoiceNumber,
           customer_id: invoiceCustomer,
           order_id: invoiceOrder || null,
-          due_date: invoiceDueDate || null,
+          due_date: invoiceDueDate || defaultDueDate(),
           subtotal,
           tax_amount: tax,
           total_amount: total,
@@ -1045,7 +1045,7 @@ export default function AdminDashboard() {
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
-      setInvoiceDueDate('');
+      setInvoiceDueDate(defaultDueDate());
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
