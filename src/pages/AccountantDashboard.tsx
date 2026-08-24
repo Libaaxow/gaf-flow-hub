@@ -63,6 +63,7 @@ import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
+import { defaultDueDate } from '@/utils/dueDate';
 
 interface FinancialStats {
   totalRevenue: number;

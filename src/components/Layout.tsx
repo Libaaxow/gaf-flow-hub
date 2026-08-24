@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { InstallPWAButton } from '@/components/InstallPWAButton';
+import { OverdueInvoicesAlert } from '@/components/OverdueInvoicesAlert';
 
 interface NavItem {
   href: string;
@@ -236,6 +237,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           </div>
         </main>
       </div>
+      <OverdueInvoicesAlert />
     </div>
   );
 };
