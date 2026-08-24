@@ -232,6 +232,7 @@ const AccountantDashboard = () => {
   const [invoiceTerms, setInvoiceTerms] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
   const [invoiceAmountPaid, setInvoiceAmountPaid] = useState('');
+  const [sendSmsOnCreate, setSendSmsOnCreate] = useState(false);
 
   // Invoice items state with area-based support
   interface InvoiceItem {
