@@ -63,6 +63,7 @@ import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
+import { defaultDueDate } from '@/utils/dueDate';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -225,7 +226,7 @@ const AccountantDashboard = () => {
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
   const [invoiceOrder, setInvoiceOrder] = useState('');
-  const [invoiceDueDate, setInvoiceDueDate] = useState('');
+  const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceTerms, setInvoiceTerms] = useState('');
@@ -2291,7 +2292,7 @@ const AccountantDashboard = () => {
           invoice_number: invoiceNumber,
           customer_id: invoiceCustomer,
           order_id: invoiceOrder || null,
-          due_date: invoiceDueDate || null,
+          due_date: invoiceDueDate || defaultDueDate(),
           subtotal: subtotal,
           tax_amount: tax,
           total_amount: total,
@@ -2416,7 +2417,7 @@ const AccountantDashboard = () => {
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
-      setInvoiceDueDate('');
+      setInvoiceDueDate(defaultDueDate());
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceTerms('');
@@ -2448,7 +2449,7 @@ const AccountantDashboard = () => {
     setInvoiceOrder(order.id);
     setInvoiceCustomer(order.customer_id);
     setInvoiceNumber(''); // Accountant will assign the number
-    setInvoiceDueDate(draft.due_date || '');
+    setInvoiceDueDate(draft.due_date || defaultDueDate(draft.invoice_date));
     setInvoiceTax(draft.tax_amount?.toString() || '');
     setInvoiceNotes(draft.notes || '');
     setInvoiceTerms(draft.terms || '');
@@ -2500,7 +2501,7 @@ const AccountantDashboard = () => {
           subtotal: subtotal,
           tax_amount: tax,
           total_amount: total,
-          due_date: invoiceDueDate || null,
+          due_date: invoiceDueDate || defaultDueDate(),
           notes: invoiceNotes || null,
           terms: invoiceTerms || null,
           status: 'draft', // Keep as draft until paid
@@ -2566,7 +2567,7 @@ const AccountantDashboard = () => {
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
-      setInvoiceDueDate('');
+      setInvoiceDueDate(defaultDueDate());
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceTerms('');
@@ -2590,7 +2591,7 @@ const AccountantDashboard = () => {
     setInvoiceNumber(invoice.invoice_number);
     setInvoiceCustomer(invoice.customer_id);
     setInvoiceOrder(invoice.order_id || '');
-    setInvoiceDueDate(invoice.due_date || '');
+    setInvoiceDueDate(invoice.due_date || defaultDueDate(invoice.invoice_date));
     setInvoiceTax(invoice.tax_amount?.toString() || '');
     setInvoiceNotes(invoice.notes || '');
     setInvoiceProjectName(invoice.project_name || '');
@@ -2666,7 +2667,7 @@ const AccountantDashboard = () => {
           invoice_number: invoiceNumber,
           customer_id: invoiceCustomer,
           order_id: invoiceOrder || null,
-          due_date: invoiceDueDate || null,
+          due_date: invoiceDueDate || defaultDueDate(),
           subtotal,
           tax_amount: tax,
           total_amount: total,
@@ -2733,7 +2734,7 @@ const AccountantDashboard = () => {
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
-      setInvoiceDueDate('');
+      setInvoiceDueDate(defaultDueDate());
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
