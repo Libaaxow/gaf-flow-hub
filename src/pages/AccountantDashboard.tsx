@@ -2450,6 +2450,7 @@ const AccountantDashboard = () => {
       setInvoiceTerms('');
       setInvoiceProjectName('');
       setInvoiceAmountPaid('');
+      setSendSmsOnCreate(false);
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       setCreateInvoiceDialogOpen(false);
       
