@@ -23,6 +23,7 @@ interface InvoiceDialogProps {
 
 export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const { toast } = useToast();
 
   if (!order) return null;
