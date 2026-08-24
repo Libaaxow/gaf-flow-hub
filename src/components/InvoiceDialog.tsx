@@ -179,6 +179,26 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     }
   };
 
+  const handleSendSMS = async () => {
+    if (!customerContact) {
+      toast({ title: "No phone number", description: "This customer has no phone number.", variant: "destructive" });
+      return;
+    }
+    setIsSendingSms(true);
+    try {
+      const invNum = order.invoice_number || order.id || "N/A";
+      const dueDate = order.due_date ? format(new Date(order.due_date), "dd.MM.yyyy") : "N/A";
+      const message = `Hi ${customerName}, invoice ${invNum} is ready. Total: $${totalAmount.toFixed(2)}. Due: ${dueDate}. Thank you - GAFMEDIA`;
+      await sendSMS({ to: customerContact, message });
+      toast({ title: "SMS Sent", description: "Invoice notification sent to customer." });
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
+      toast({ title: "SMS Failed", description: error.message || "Failed to send SMS.", variant: "destructive" });
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
