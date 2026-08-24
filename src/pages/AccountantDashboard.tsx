@@ -64,6 +64,7 @@ import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
 import { defaultDueDate } from '@/utils/dueDate';
+import { sendSMS } from '@/utils/sendSMS';
 
 interface FinancialStats {
   totalRevenue: number;
