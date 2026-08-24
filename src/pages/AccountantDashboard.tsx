@@ -4583,6 +4583,16 @@ const AccountantDashboard = () => {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="send-sms"
+                  checked={sendSmsOnCreate}
+                  onCheckedChange={(checked) => setSendSmsOnCreate(Boolean(checked))}
+                />
+                <Label htmlFor="send-sms" className="cursor-pointer text-sm font-normal">
+                  Send SMS notification to customer
+                </Label>
+              </div>
               <div className="grid gap-2">
                 <Label htmlFor="invoice-order">Related Order (Optional)</Label>
                 <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
