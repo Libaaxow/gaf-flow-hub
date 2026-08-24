@@ -79,7 +79,7 @@ export const OverdueInvoicesAlert = () => {
       if (error) console.error('Overdue invoice load error:', error);
 
 
-      if (error || !data) {
+      if (!data) {
         toast({
           title: 'Error',
           description: 'Could not load invoice details.',
