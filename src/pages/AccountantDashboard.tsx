@@ -2416,6 +2416,31 @@ const AccountantDashboard = () => {
         setPendingLeadId(null);
       }
 
+      // Send SMS notification if requested and customer has a phone number
+      if (sendSmsOnCreate && invoiceData) {
+        const customer = customers.find((c) => c.id === invoiceCustomer);
+        if (customer?.phone) {
+          try {
+            const dueDateText = invoiceData.due_date
+              ? format(new Date(invoiceData.due_date), 'dd.MM.yyyy')
+              : 'N/A';
+            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAFMEDIA`;
+            await sendSMS({ to: customer.phone, message });
+            toast({
+              title: 'SMS Sent',
+              description: 'Invoice notification sent to customer.',
+            });
+          } catch (smsError: any) {
+            console.error('Error sending invoice SMS:', smsError);
+            toast({
+              title: 'SMS Failed',
+              description: smsError.message || 'Invoice created but SMS could not be sent.',
+              variant: 'destructive',
+            });
+          }
+        }
+      }
+
       setInvoiceNumber('');
       setInvoiceCustomer('');
       setInvoiceOrder('');
