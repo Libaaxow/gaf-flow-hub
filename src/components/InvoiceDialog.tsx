@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { InvoiceTemplate } from "./InvoiceTemplate";
 import { generateInvoicePDF } from "@/utils/generateInvoicePDF";
 import { generateDeliveryNotePDF } from "@/utils/generateDeliveryNotePDF";
-import { Download, Truck } from "lucide-react";
+import { Download, Truck, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { sendSMS } from "@/utils/sendSMS";
 
 interface InvoiceDialogProps {
   open: boolean;
@@ -22,6 +23,7 @@ interface InvoiceDialogProps {
 
 export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps) => {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const { toast } = useToast();
 
   if (!order) return null;
@@ -177,6 +179,26 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     }
   };
 
+  const handleSendSMS = async () => {
+    if (!customerContact) {
+      toast({ title: "No phone number", description: "This customer has no phone number.", variant: "destructive" });
+      return;
+    }
+    setIsSendingSms(true);
+    try {
+      const invNum = order.invoice_number || order.id || "N/A";
+      const dueDate = order.due_date ? format(new Date(order.due_date), "dd.MM.yyyy") : "N/A";
+      const message = `Hi ${customerName}, invoice ${invNum} is ready. Total: $${totalAmount.toFixed(2)}. Due: ${dueDate}. Thank you - GAFMEDIA`;
+      await sendSMS({ to: customerContact, message });
+      toast({ title: "SMS Sent", description: "Invoice notification sent to customer." });
+    } catch (error: any) {
+      console.error("Error sending SMS:", error);
+      toast({ title: "SMS Failed", description: error.message || "Failed to send SMS.", variant: "destructive" });
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -205,6 +227,14 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={handleSendSMS}
+            disabled={isSendingSms || !customerContact}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            {isSendingSms ? "Sending..." : "Send SMS"}
           </Button>
           <Button variant="secondary" onClick={handleDownloadDeliveryNote} disabled={isGenerating}>
             <Truck className="mr-2 h-4 w-4" />
