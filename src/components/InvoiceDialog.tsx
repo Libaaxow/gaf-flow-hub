@@ -228,6 +228,14 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
+          <Button
+            variant="secondary"
+            onClick={handleSendSMS}
+            disabled={isSendingSms || !customerContact}
+          >
+            <MessageSquare className="mr-2 h-4 w-4" />
+            {isSendingSms ? "Sending..." : "Send SMS"}
+          </Button>
           <Button variant="secondary" onClick={handleDownloadDeliveryNote} disabled={isGenerating}>
             <Truck className="mr-2 h-4 w-4" />
             Delivery Note
