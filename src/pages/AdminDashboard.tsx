@@ -156,6 +156,7 @@ export default function AdminDashboard() {
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
+  const [sendSmsOnCreate, setSendSmsOnCreate] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
