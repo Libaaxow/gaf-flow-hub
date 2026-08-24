@@ -11,8 +11,9 @@ import { Button } from "@/components/ui/button";
 import { InvoiceTemplate } from "./InvoiceTemplate";
 import { generateInvoicePDF } from "@/utils/generateInvoicePDF";
 import { generateDeliveryNotePDF } from "@/utils/generateDeliveryNotePDF";
-import { Download, Truck } from "lucide-react";
+import { Download, Truck, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { sendSMS } from "@/utils/sendSMS";
 
 interface InvoiceDialogProps {
   open: boolean;
