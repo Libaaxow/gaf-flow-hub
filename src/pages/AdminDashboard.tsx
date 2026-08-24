@@ -28,6 +28,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { defaultDueDate } from '@/utils/dueDate';
+import { sendSMS } from '@/utils/sendSMS';
 
 interface Order {
   id: string;
