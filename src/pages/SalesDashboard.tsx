@@ -58,6 +58,7 @@ const formatMoney = (n: number) =>
 const SalesDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [paidByRequest, setPaidByRequest] = useState<Record<string, number>>({});
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalRequests: 0,
