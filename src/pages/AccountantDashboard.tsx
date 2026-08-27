@@ -2151,7 +2151,7 @@ const AccountantDashboard = () => {
 
     const newItems = [...invoiceItems];
     const item = newItems[index];
-    const isAreaBased = product.sae_type === 'area';
+    const isAreaBased = product.sale_type === 'area';
 
     // Preserve user-entered details (description, qty, unit price, dimensions).
     // Only link the product and update internal cost/unit labels for reporting.
