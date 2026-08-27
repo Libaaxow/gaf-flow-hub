@@ -38,7 +38,21 @@ interface DashboardStats {
   totalRequests: number;
   pendingRequests: number;
   processedRequests: number;
+  totalAmount: number;
 }
+
+// Amount is stored inside the compiled note as "Amount: 1234"
+const parseAmount = (notes: string | null): number => {
+  if (!notes) return 0;
+  const m = notes.match(/Amount:\s*([\d.,]+)/i);
+  if (!m) return 0;
+  const n = parseFloat(m[1].replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+
+const formatMoney = (n: number) =>
+  `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 
 const SalesDashboard = () => {
   const { user } = useAuth();
