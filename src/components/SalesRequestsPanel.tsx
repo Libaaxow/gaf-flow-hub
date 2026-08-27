@@ -88,15 +88,50 @@ export const SalesRequestsPanel = () => {
     if (data?.signedUrl) window.open(data.signedUrl, '_blank');
   };
 
+  const downloadFile = async (path: string, name: string) => {
+    try {
+      const { data, error } = await supabase.storage.from('request-files').download(path);
+      if (error || !data) throw error;
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not download file');
+    }
+  };
+
+  const [processingId, setProcessingId] = useState<string | null>(null);
+
+  const markProcessed = async (r: SalesRequest) => {
+    setProcessingId(r.id);
+    const { error } = await supabase
+      .from('sales_order_requests')
+      .update({ status: 'processed', processed_at: new Date().toISOString() })
+      .eq('id', r.id);
+    setProcessingId(null);
+    if (error) {
+      toast.error('Could not move request');
+      return;
+    }
+    toast.success('Moved to Processed');
+    setDetail(null);
+    setTab('processed');
+    fetchRequests();
+  };
+
   const renderItem = (r: SalesRequest, isProcessed: boolean) => {
     const senderName = r.created_by ? senders[r.created_by] : null;
     const att = files[r.id] || [];
     return (
-      <button
+      <div
         key={r.id}
-        type="button"
         onClick={() => setDetail(r)}
-        className="text-left rounded-lg border bg-muted/30 p-3 hover:bg-muted/50 transition-colors w-full min-w-0"
+        className="text-left rounded-lg border bg-muted/30 p-3 hover:bg-muted/50 transition-colors w-full min-w-0 cursor-pointer"
       >
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{r.customer_name}</span>
@@ -112,9 +147,23 @@ export const SalesRequestsPanel = () => {
           {r.company_name && <span>Company: <span className="text-foreground">{r.company_name}</span></span>}
           <span>{new Date(r.created_at).toLocaleString()}</span>
         </div>
-      </button>
+        <div className="flex flex-wrap gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+          {att.map(f => (
+            <Button key={f.id} variant="outline" size="sm" className="gap-1 max-w-[220px]" onClick={() => downloadFile(f.file_path, f.file_name)}>
+              <Download className="h-3.5 w-3.5" />
+              <span className="truncate">{f.file_name}</span>
+            </Button>
+          ))}
+          {!isProcessed && (
+            <Button size="sm" className="gap-1" disabled={processingId === r.id} onClick={() => markProcessed(r)}>
+              <CheckCircle2 className="h-3.5 w-3.5" /> Proceed
+            </Button>
+          )}
+        </div>
+      </div>
     );
   };
+
 
   if (loading) return null;
 
