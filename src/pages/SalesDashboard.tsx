@@ -62,6 +62,7 @@ const SalesDashboard = () => {
     totalRequests: 0,
     pendingRequests: 0,
     processedRequests: 0,
+    totalAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
