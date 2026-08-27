@@ -2150,59 +2150,44 @@ const AccountantDashboard = () => {
     if (!product) return;
 
     const newItems = [...invoiceItems];
-    const isAreaBased = product.sale_type === 'area';
-    
-    if (isAreaBased) {
-      // Area-based product - set up with default 1x1 dimensions
-      const defaultWidth = 1;
-      const defaultHeight = 1;
-      const area = defaultWidth * defaultHeight;
-      const unitPrice = Number(product.selling_price_per_m2 || 0);
-      const costPerUnit = Number(product.cost_per_m2 || 0);
-      const lineAmount = area * unitPrice;
-      const lineCost = area * costPerUnit;
-      const lineProfit = lineAmount - lineCost;
+    const item = newItems[index];
+    const isAreaBased = product.sae_type === 'area';
 
-      newItems[index] = {
-        ...newItems[index],
-        product_id: productId,
-        description: product.name,
-        unit_price: unitPrice,
-        retail_unit: 'm²',
-        cost_per_unit: costPerUnit,
-        line_cost: lineCost,
-        line_profit: lineProfit,
-        amount: lineAmount,
-        sale_type: 'area',
-        width_m: defaultWidth,
-        height_m: defaultHeight,
-        area_m2: area,
-        quantity: 1, // For area-based, quantity is always 1
-      };
-    } else {
-      // Unit-based product
-      const quantity = newItems[index].quantity || 1;
-      const costPerUnit = Number(product.cost_per_retail_unit || 0);
-      const lineCost = costPerUnit * quantity;
-      const lineAmount = product.selling_price * quantity;
-      const lineProfit = lineAmount - lineCost;
+    // Preserve user-entered details (description, qty, unit price, dimensions).
+    // Only link the product and update internal cost/unit labels for reporting.
+    const quantity = item.quantity || 1;
+    const unitPrice = item.unit_price || 0;
+    const widthM = isAreaBased ? item.width_m : null;
+    const heightM = isAreaBased ? item.height_m : null;
+    const areaM2 = isAreaBased
+      ? (item.area_m2 || ((item.width_m || 0) * (item.height_m || 0)))
+      : null;
+    const amount = isAreaBased
+      ? (areaM2 || 0) * quantity * unitPrice
+      : quantity * unitPrice;
 
-      newItems[index] = {
-        ...newItems[index],
-        product_id: productId,
-        description: product.name,
-        unit_price: product.selling_price,
-        retail_unit: product.retail_unit,
-        cost_per_unit: costPerUnit,
-        line_cost: lineCost,
-        line_profit: lineProfit,
-        amount: lineAmount,
-        sale_type: 'unit',
-        width_m: null,
-        height_m: null,
-        area_m2: null,
-      };
-    }
+    const costPerUnit = isAreaBased
+      ? Number(product.cost_per_m2 || 0)
+      : Number(product.cost_per_retail_unit || 0);
+    const lineCost = isAreaBased
+      ? (areaM2 || 0) * quantity * costPerUnit
+      : quantity * costPerUnit;
+    const lineProfit = amount - lineCost;
+
+    newItems[index] = {
+      ...item,
+      product_id: productId,
+      sale_type: product.sale_type || 'unit',
+      retail_unit: isAreaBased ? 'm²' : product.retail_unit,
+      cost_per_unit: costPerUnit,
+      amount,
+      line_cost: lineCost,
+      line_profit: lineProfit,
+      width_m: widthM,
+      height_m: heightM,
+      area_m2: areaM2,
+    };
+
     setInvoiceItems(newItems);
   };
 
