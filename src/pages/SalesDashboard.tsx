@@ -122,11 +122,13 @@ const SalesDashboard = () => {
       const totalRequests = data?.length || 0;
       const pendingRequests = data?.filter(r => r.status === 'pending').length || 0;
       const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
+      const totalAmount = (data || []).reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
+        totalAmount,
       });
     } catch (error: any) {
       toast({
