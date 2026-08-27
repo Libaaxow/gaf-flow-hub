@@ -567,57 +567,44 @@ export default function AdminDashboard() {
     if (!product) return;
 
     const newItems = [...invoiceItems];
+    const item = newItems[index];
     const isAreaBased = product.sale_type === 'area';
 
-    if (isAreaBased) {
-      const defaultWidth = 1;
-      const defaultHeight = 1;
-      const area = defaultWidth * defaultHeight;
-      const ratePerM2 = product.selling_price_per_m2 || product.selling_price || 0;
-      const costPerM2 = product.cost_per_m2 || 0;
-      const lineAmount = area * ratePerM2;
-      const lineCost = area * costPerM2;
-      const lineProfit = lineAmount - lineCost;
+    // Preserve user-entered details (description, qty, unit price, dimensions).
+    // Only link the product and update internal cost/unit labels for reporting.
+    const quantity = item.quantity || 1;
+    const unitPrice = item.unit_price || 0;
+    const widthM = isAreaBased ? item.width_m : null;
+    const heightM = isAreaBased ? item.height_m : null;
+    const areaM2 = isAreaBased
+      ? (item.area_m2 || ((item.width_m || 0) * (item.height_m || 0)))
+      : null;
+    const amount = isAreaBased
+      ? (areaM2 || 0) * quantity * unitPrice
+      : quantity * unitPrice;
 
-      newItems[index] = {
-        ...newItems[index],
-        product_id: product.id,
-        description: product.name,
-        retail_unit: 'm²',
-        unit_price: ratePerM2,
-        cost_per_unit: costPerM2,
-        line_cost: lineCost,
-        line_profit: lineProfit,
-        amount: lineAmount,
-        sale_type: 'area',
-        width_m: defaultWidth,
-        height_m: defaultHeight,
-        area_m2: area,
-        quantity: 1,
-      };
-    } else {
-      const costPerUnit = product.cost_per_retail_unit || 0;
-      const lineAmount = product.selling_price * 1;
-      const lineCost = costPerUnit * 1;
-      const lineProfit = lineAmount - lineCost;
+    const costPerUnit = isAreaBased
+      ? Number(product.cost_per_m2 || 0)
+      : Number(product.cost_per_retail_unit || 0);
+    const lineCost = isAreaBased
+      ? (areaM2 || 0) * quantity * costPerUnit
+      : quantity * costPerUnit;
+    const lineProfit = amount - lineCost;
 
-      newItems[index] = {
-        ...newItems[index],
-        product_id: product.id,
-        description: product.name,
-        retail_unit: product.retail_unit,
-        unit_price: product.selling_price,
-        quantity: 1,
-        cost_per_unit: costPerUnit,
-        line_cost: lineCost,
-        line_profit: lineProfit,
-        amount: lineAmount,
-        sale_type: 'unit',
-        width_m: null,
-        height_m: null,
-        area_m2: null,
-      };
-    }
+    newItems[index] = {
+      ...item,
+      product_id: product.id,
+      sale_type: product.sale_type || 'unit',
+      retail_unit: isAreaBased ? 'm²' : product.retail_unit,
+      cost_per_unit: costPerUnit,
+      amount,
+      line_cost: lineCost,
+      line_profit: lineProfit,
+      width_m: widthM,
+      height_m: heightM,
+      area_m2: areaM2,
+    };
+
     setInvoiceItems(newItems);
   };
 
