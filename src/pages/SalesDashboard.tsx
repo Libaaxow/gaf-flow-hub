@@ -619,6 +619,9 @@ const SalesDashboard = () => {
                             <p className="text-xs text-muted-foreground truncate">{request.notes}</p>
                           )}
                         </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
+                        </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell className="text-right">
                           <Button
