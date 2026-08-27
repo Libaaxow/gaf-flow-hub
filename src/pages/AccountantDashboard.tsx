@@ -3863,11 +3863,14 @@ const AccountantDashboard = () => {
                         </SelectTrigger>
                         <SelectContent className="max-h-72">
                           <SelectItem value="none">No sales link</SelectItem>
-                          {salesRequests.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>
-                              {r.customer_name} — {(r.description || '').slice(0, 40)}
-                            </SelectItem>
-                          ))}
+                          {salesRequests.map((r) => {
+                            const amt = parseSalesRequestAmount(r.notes);
+                            return (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
