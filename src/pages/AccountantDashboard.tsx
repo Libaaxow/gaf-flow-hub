@@ -268,12 +268,32 @@ const AccountantDashboard = () => {
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
   const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   // Open the invoice creation dialog when triggered from the Finance Notes panel
   useEffect(() => {
     const handler = async (e: Event) => {
-      const leadId = (e as CustomEvent).detail?.leadId || null;
+      const detail = (e as CustomEvent).detail || {};
+      const leadId = detail.leadId || null;
       setPendingLeadId(leadId);
+      const pf = detail.prefill;
+      if (pf) {
+        setPendingRequestId(detail.requestId || null);
+        if (pf.description) {
+          setInvoiceItems([{ description: pf.description, quantity: Number(pf.quantity) || 1, unit_price: Number(pf.unitPrice) || 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
+        }
+        if (pf.notes) setInvoiceNotes(pf.notes);
+        if (pf.projectName) setInvoiceProjectName(pf.projectName);
+        if (pf.customerName) {
+          const needle = String(pf.customerName).trim().toLowerCase();
+          const match = customersRef.current.find((c: any) =>
+            c.name?.toLowerCase() === needle ||
+            (pf.customerPhone && c.phone && c.phone === pf.customerPhone)
+          );
+          if (match) setInvoiceCustomer(match.id);
+          else setInvoiceCustomer('');
+        }
+      }
       try {
         const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
         setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
@@ -2417,6 +2437,15 @@ const AccountantDashboard = () => {
       if (pendingLeadId) {
         await supabase.from('leads').update({ status: 'processed' }).eq('id', pendingLeadId);
         setPendingLeadId(null);
+      }
+
+      // Mark the linked sales order request as invoiced
+      if (pendingRequestId) {
+        await supabase
+          .from('sales_order_requests')
+          .update({ status: 'processed', linked_invoice_id: invoiceData?.id, processed_at: new Date().toISOString() })
+          .eq('id', pendingRequestId);
+        setPendingRequestId(null);
       }
 
       // Send SMS notification if requested and customer has a phone number
@@ -4584,7 +4613,7 @@ const AccountantDashboard = () => {
         </Tabs>
 
         {/* Create Invoice Dialog */}
-        <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) setPendingLeadId(null); }}>
+        <Dialog open={createInvoiceDialogOpen} onOpenChange={(open) => { setCreateInvoiceDialogOpen(open); if (!open) { setPendingLeadId(null); setPendingRequestId(null); } }}>
           <DialogContent className="sm:max-w-[900px] w-[95vw] max-h-[95vh] flex flex-col">
             <DialogHeader className="flex-shrink-0">
               <DialogTitle>Create Invoice</DialogTitle>
