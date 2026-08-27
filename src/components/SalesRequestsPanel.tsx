@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Inbox, Archive, ClipboardList, Paperclip, Download, CheckCircle2 } from 'lucide-react';
+import { Inbox, Archive, ClipboardList, Paperclip, Download, CheckCircle2, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -124,6 +124,28 @@ export const SalesRequestsPanel = () => {
     fetchRequests();
   };
 
+  const openInvoiceCreate = (r: SalesRequest) => {
+    const parts = [
+      r.description,
+      r.notes ? `Notes: ${r.notes}` : '',
+      r.company_name ? `Company: ${r.company_name}` : '',
+      r.customer_phone ? `Phone: ${r.customer_phone}` : '',
+    ].filter(Boolean);
+    window.dispatchEvent(new CustomEvent('open-create-invoice', {
+      detail: {
+        requestId: r.id,
+        prefill: {
+          description: r.description || '',
+          notes: parts.join(' | '),
+          projectName: r.description || '',
+          customerName: r.customer_name,
+          customerPhone: r.customer_phone,
+        },
+      },
+    }));
+    setDetail(null);
+  };
+
   const renderItem = (r: SalesRequest, isProcessed: boolean) => {
     const senderName = r.created_by ? senders[r.created_by] : null;
     const att = files[r.id] || [];
@@ -154,9 +176,13 @@ export const SalesRequestsPanel = () => {
               <span className="truncate">{f.file_name}</span>
             </Button>
           ))}
-          {!isProcessed && (
+          {!isProcessed ? (
             <Button size="sm" className="gap-1" disabled={processingId === r.id} onClick={() => markProcessed(r)}>
               <CheckCircle2 className="h-3.5 w-3.5" /> Proceed
+            </Button>
+          ) : (
+            <Button size="sm" className="gap-1" onClick={() => openInvoiceCreate(r)}>
+              <FileText className="h-3.5 w-3.5" /> Create Invoice
             </Button>
           )}
         </div>
@@ -267,9 +293,13 @@ export const SalesRequestsPanel = () => {
                 ))}
               </div>
             )}
-            {detail.status === 'pending' && (
+            {detail.status === 'pending' ? (
               <Button className="gap-2 mt-2" disabled={processingId === detail.id} onClick={() => markProcessed(detail)}>
                 <CheckCircle2 className="h-4 w-4" /> Proceed
+              </Button>
+            ) : (
+              <Button className="gap-2 mt-2" onClick={() => openInvoiceCreate(detail)}>
+                <FileText className="h-4 w-4" /> Create Invoice
               </Button>
             )}
           </DialogContent>
