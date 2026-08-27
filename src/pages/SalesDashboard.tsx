@@ -40,6 +40,7 @@ interface DashboardStats {
   processedRequests: number;
   totalAmount: number;
   deductedAmount: number;
+  remainingAmount: number;
 }
 
 // Amount is stored inside the compiled note as "Amount: 1234"
@@ -66,6 +67,7 @@ const SalesDashboard = () => {
     processedRequests: 0,
     totalAmount: 0,
     deductedAmount: 0,
+    remainingAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
