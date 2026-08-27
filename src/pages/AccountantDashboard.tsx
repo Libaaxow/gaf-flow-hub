@@ -476,7 +476,24 @@ const AccountantDashboard = () => {
       return;
     }
     setSalesRequests(data || []);
+
+    // Load salespeople (sales + marketing roles) for payment linking
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('role', ['sales', 'marketing']);
+    const ids = Array.from(new Set((roleRows || []).map((r: any) => r.user_id)));
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', ids);
+      setSalespeople(profs || []);
+    } else {
+      setSalespeople([]);
+    }
   };
+
 
   const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string, request?: any) => {
     // Find the request if not provided
