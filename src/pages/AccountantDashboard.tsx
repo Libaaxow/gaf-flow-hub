@@ -151,6 +151,8 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
+  const [salespeople, setSalespeople] = useState<any[]>([]);
+
   // Amount is stored inside the compiled note as "Amount: 1234"
   const parseSalesRequestAmount = (notes: string | null): number => {
     if (!notes) return 0;
