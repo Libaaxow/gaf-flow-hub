@@ -151,6 +151,14 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
+  // Amount is stored inside the compiled note as "Amount: 1234"
+  const parseSalesRequestAmount = (notes: string | null): number => {
+    if (!notes) return 0;
+    const m = notes.match(/Amount:\s*([\d.,]+)/i);
+    if (!m) return 0;
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
   const [viewSalesRequest, setViewSalesRequest] = useState<any | null>(null);
   const [requestFiles, setRequestFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
