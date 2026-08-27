@@ -3846,6 +3846,26 @@ const AccountantDashboard = () => {
                         rows={3}
                       />
                     </div>
+
+                    <div className="grid gap-2 border-t pt-4">
+                      <Label htmlFor="payment-sales-link">Link to Sales Submission (Optional)</Label>
+                      <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
+                        <SelectTrigger id="payment-sales-link">
+                          <SelectValue placeholder="No sales link" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="none">No sales link</SelectItem>
+                          {salesRequests.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.customer_name} — {(r.description || '').slice(0, 40)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        If linked, this amount is deducted from the salesperson's submitted total on their dashboard.
+                      </p>
+                    </div>
                   </>
                 )}
                   </div>
