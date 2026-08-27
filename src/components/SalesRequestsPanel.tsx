@@ -150,6 +150,7 @@ export const SalesRequestsPanel = () => {
   const renderItem = (r: SalesRequest, isProcessed: boolean) => {
     const senderName = r.created_by ? senders[r.created_by] : null;
     const att = files[r.id] || [];
+    const isCreated = r.status === 'created' || !!r.linked_invoice_id;
     return (
       <div
         key={r.id}
@@ -159,6 +160,7 @@ export const SalesRequestsPanel = () => {
         <div className="flex flex-wrap items-center gap-2">
           <span className="font-medium">{r.customer_name}</span>
           {isProcessed && <Badge variant="secondary" className="text-xs">{r.status.replace('_', ' ')}</Badge>}
+          {isCreated && <Badge variant="default" className="text-xs">created</Badge>}
           {att.length > 0 && (
             <Badge variant="outline" className="text-xs gap-1"><Paperclip className="h-3 w-3" />{att.length}</Badge>
           )}
@@ -182,8 +184,8 @@ export const SalesRequestsPanel = () => {
               <CheckCircle2 className="h-3.5 w-3.5" /> Proceed
             </Button>
           ) : (
-            <Button size="sm" className="gap-1" onClick={() => openInvoiceCreate(r)}>
-              <FileText className="h-3.5 w-3.5" /> Create Invoice
+            <Button size="sm" className="gap-1" disabled={isCreated} onClick={() => !isCreated && openInvoiceCreate(r)}>
+              <FileText className="h-3.5 w-3.5" /> {isCreated ? 'Invoice Created' : 'Create Invoice'}
             </Button>
           )}
         </div>
