@@ -3048,7 +3048,10 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
+        <SalesRequestsPanel />
+
         <FinanceNotesPanel />
+
 
         <AllWorkLogsPanel />
 
