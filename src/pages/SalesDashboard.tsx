@@ -181,13 +181,17 @@ const SalesDashboard = () => {
           toast({ title: 'Upload failed', description: `${f.name}: ${upErr.message}`, variant: 'destructive' });
           continue;
         }
-        await supabase.from('request_files').insert({
+        const { error: recErr } = await supabase.from('request_files').insert({
           request_id: created.id,
           file_name: f.name,
           file_path: path,
           file_type: f.type || null,
           uploaded_by: user?.id,
         });
+        if (recErr) {
+          toast({ title: 'Attachment not saved', description: `${f.name}: ${recErr.message}`, variant: 'destructive' });
+        }
+
       }
 
       toast({
