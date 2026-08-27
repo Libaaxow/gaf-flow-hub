@@ -3874,7 +3874,7 @@ const AccountantDashboard = () => {
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        If linked, this amount is deducted from the salesperson's submitted total on their dashboard.
+                        If linked, this payment deducts from that specific order only — the salesperson's other orders are not affected.
                       </p>
                     </div>
                   </>
