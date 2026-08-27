@@ -144,12 +144,21 @@ const SalesDashboard = () => {
       setPaidByRequest(paidMap);
       const deductedAmount = Object.values(paidMap).reduce((s, n) => s + n, 0);
 
+      // Deductions apply per order/request only — never against the user's other orders.
+      // Each request's balance = its own amount minus payments linked to that request (min 0).
+      const remainingAmount = (data || []).reduce((sum: number, r: any) => {
+        const reqAmount = parseAmount(r.notes);
+        const paid = paidMap[r.id] || 0;
+        return sum + Math.max(reqAmount - paid, 0);
+      }, 0);
+
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
         totalAmount,
         deductedAmount,
+        remainingAmount,
       });
     } catch (error: any) {
       toast({
