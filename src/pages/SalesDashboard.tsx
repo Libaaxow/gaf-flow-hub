@@ -97,7 +97,15 @@ const SalesDashboard = () => {
           fetchData();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          fetchData();
+        }
+      )
       .subscribe();
+
 
     return () => {
       supabase.removeChannel(channel);
