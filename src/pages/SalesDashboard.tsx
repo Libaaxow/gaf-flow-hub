@@ -647,6 +647,11 @@ const SalesDashboard = () => {
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
+                          {(paidByRequest[request.id] || 0) > 0 && (
+                            <p className="text-xs text-success font-normal">
+                              -{formatMoney(paidByRequest[request.id])} collected
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell className="text-right">
