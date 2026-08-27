@@ -38,7 +38,21 @@ interface DashboardStats {
   totalRequests: number;
   pendingRequests: number;
   processedRequests: number;
+  totalAmount: number;
 }
+
+// Amount is stored inside the compiled note as "Amount: 1234"
+const parseAmount = (notes: string | null): number => {
+  if (!notes) return 0;
+  const m = notes.match(/Amount:\s*([\d.,]+)/i);
+  if (!m) return 0;
+  const n = parseFloat(m[1].replace(/,/g, ''));
+  return isNaN(n) ? 0 : n;
+};
+
+const formatMoney = (n: number) =>
+  `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 
 const SalesDashboard = () => {
   const { user } = useAuth();
@@ -48,6 +62,7 @@ const SalesDashboard = () => {
     totalRequests: 0,
     pendingRequests: 0,
     processedRequests: 0,
+    totalAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -107,11 +122,13 @@ const SalesDashboard = () => {
       const totalRequests = data?.length || 0;
       const pendingRequests = data?.filter(r => r.status === 'pending').length || 0;
       const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
+      const totalAmount = (data || []).reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
+        totalAmount,
       });
     } catch (error: any) {
       toast({
@@ -308,6 +325,13 @@ const SalesDashboard = () => {
       description: 'Completed by accountant',
       color: 'text-success',
     },
+    {
+      title: 'Total Amount',
+      value: formatMoney(stats.totalAmount),
+      icon: FileText,
+      description: 'Value of my submissions',
+      color: 'text-primary',
+    },
   ];
 
   if (loading) {
@@ -503,7 +527,7 @@ const SalesDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
           {statCards.map((stat, index) => (
             <Card key={index}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -569,6 +593,7 @@ const SalesDashboard = () => {
                       <TableHead>Customer</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Description</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -593,6 +618,9 @@ const SalesDashboard = () => {
                           {request.notes && (
                             <p className="text-xs text-muted-foreground truncate">{request.notes}</p>
                           )}
+                        </TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap">
+                          {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell className="text-right">
