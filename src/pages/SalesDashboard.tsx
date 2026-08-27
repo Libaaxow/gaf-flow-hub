@@ -376,7 +376,7 @@ const SalesDashboard = () => {
       title: 'Remaining Balance',
       value: formatMoney(stats.remainingAmount),
       icon: CheckCircle,
-      description: 'Unpaid balance across your submissions',
+      description: 'Your total submitted minus money collected from you',
       color: 'text-success',
     },
   ];
