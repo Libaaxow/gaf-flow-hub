@@ -39,6 +39,7 @@ interface DashboardStats {
   pendingRequests: number;
   processedRequests: number;
   totalAmount: number;
+  deductedAmount: number;
 }
 
 // Amount is stored inside the compiled note as "Amount: 1234"
