@@ -64,6 +64,8 @@ import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
+import { SalesRequestsPanel } from '@/components/SalesRequestsPanel';
+
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
 
@@ -3048,7 +3050,10 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
+        <SalesRequestsPanel />
+
         <FinanceNotesPanel />
+
 
         <AllWorkLogsPanel />
 
