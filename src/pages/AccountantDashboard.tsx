@@ -3879,6 +3879,7 @@ const AccountantDashboard = () => {
                   setPaymentMethod('cash');
                   setPaymentReference('');
                   setPaymentNotes('');
+                  setPaymentSalesRequestId('none');
                   setCustomerInvoices([]);
                   setPaymentAllocation([]);
                 }}>
