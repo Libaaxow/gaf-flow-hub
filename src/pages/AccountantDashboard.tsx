@@ -3883,27 +3883,55 @@ const AccountantDashboard = () => {
                     </div>
 
                     <div className="grid gap-2 border-t pt-4">
-                      <Label htmlFor="payment-sales-link">Link to Sales Submission (Optional)</Label>
-                      <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
-                        <SelectTrigger id="payment-sales-link">
-                          <SelectValue placeholder="No sales link" />
+                      <Label htmlFor="payment-salesperson">Link to Salesperson (Optional)</Label>
+                      <Select
+                        value={paymentSalesUserId}
+                        onValueChange={(v) => {
+                          setPaymentSalesUserId(v);
+                          setPaymentSalesRequestId('none');
+                        }}
+                      >
+                        <SelectTrigger id="payment-salesperson">
+                          <SelectValue placeholder="No salesperson" />
                         </SelectTrigger>
                         <SelectContent className="max-h-72">
-                          <SelectItem value="none">No sales link</SelectItem>
-                          {salesRequests.map((r) => {
-                            const amt = parseSalesRequestAmount(r.notes);
-                            return (
-                              <SelectItem key={r.id} value={r.id}>
-                                {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
-                              </SelectItem>
-                            );
-                          })}
+                          <SelectItem value="none">No salesperson</SelectItem>
+                          {salespeople.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.full_name || s.email}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        If linked, this payment deducts from that specific order only — the salesperson's other orders are not affected.
+                        This amount is deducted from the selected salesperson's total submitted amount.
                       </p>
                     </div>
+
+                    {paymentSalesUserId !== 'none' && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="payment-sales-link">Specific Order (Optional)</Label>
+                        <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
+                          <SelectTrigger id="payment-sales-link">
+                            <SelectValue placeholder="Apply to total only" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            <SelectItem value="none">Apply to total only</SelectItem>
+                            {salesRequests
+                              .filter((r) => r.created_by === paymentSalesUserId)
+                              .map((r) => {
+                                const amt = parseSalesRequestAmount(r.notes);
+                                return (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
+                                  </SelectItem>
+                                );
+                              })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                   </>
                 )}
                   </div>
