@@ -237,7 +237,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
           </div>
         </main>
       </div>
-      <OverdueInvoicesAlert />
+      {(userRole === 'accountant' || userRole === 'admin') && <OverdueInvoicesAlert />}
     </div>
   );
 };
