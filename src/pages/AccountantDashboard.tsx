@@ -1668,6 +1668,7 @@ const AccountantDashboard = () => {
             reference_number: paymentReference || null,
             notes: paymentNotes || null,
             recorded_by: user?.id,
+            sales_request_id: paymentSalesRequestId !== 'none' ? paymentSalesRequestId : null,
             discount_type: alloc.discountType,
             discount_value: alloc.discountValue,
             discount_amount: discountAmount,
