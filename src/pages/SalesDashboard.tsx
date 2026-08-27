@@ -128,7 +128,8 @@ const SalesDashboard = () => {
     e.preventDefault();
     setSubmitting(true);
     
-    const formData = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const formData = new FormData(formEl);
     
     // Compile all fields into a structured note
     const itemName = formData.get('item_name') as string;
@@ -198,7 +199,7 @@ const SalesDashboard = () => {
 
       setAttachments([]);
       if (formFileRef.current) formFileRef.current.value = '';
-      e.currentTarget.reset();
+      formEl.reset();
       setIsDialogOpen(false);
       fetchData();
     } catch (error: any) {
