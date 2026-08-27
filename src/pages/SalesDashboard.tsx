@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye, Paperclip, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
@@ -54,6 +54,10 @@ const SalesDashboard = () => {
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
   const [submitting, setSubmitting] = useState(false);
   const [viewRequest, setViewRequest] = useState<OrderRequest | null>(null);
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [viewFiles, setViewFiles] = useState<any[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const formFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -157,17 +161,43 @@ const SalesDashboard = () => {
     };
 
     try {
-      const { error } = await supabase
+      const { data: created, error } = await supabase
         .from('sales_order_requests')
-        .insert([requestData]);
+        .insert([requestData])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
+      // Upload attachments at original full resolution (no compression / resizing)
+      for (const f of attachments) {
+        const safeName = f.name.replace(/[^\w.\-]/g, '_');
+        const path = `${created.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from('request-files')
+          .upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false, cacheControl: '3600' });
+        if (upErr) {
+          toast({ title: 'Upload failed', description: `${f.name}: ${upErr.message}`, variant: 'destructive' });
+          continue;
+        }
+        await supabase.from('request_files').insert({
+          request_id: created.id,
+          file_name: f.name,
+          file_path: path,
+          file_type: f.type || null,
+          uploaded_by: user?.id,
+        });
+      }
+
       toast({
         title: 'Success',
-        description: 'Order request sent to accountant for processing',
+        description: attachments.length
+          ? `Order request sent with ${attachments.length} attachment(s)`
+          : 'Order request sent to accountant for processing',
       });
 
+      setAttachments([]);
+      if (formFileRef.current) formFileRef.current.value = '';
       e.currentTarget.reset();
       setIsDialogOpen(false);
       fetchData();
@@ -180,6 +210,56 @@ const SalesDashboard = () => {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  useEffect(() => {
+    const loadFiles = async () => {
+      if (!viewRequest) { setViewFiles([]); return; }
+      const { data } = await supabase
+        .from('request_files')
+        .select('*')
+        .eq('request_id', viewRequest.id)
+        .order('created_at', { ascending: false });
+      setViewFiles(data || []);
+    };
+    loadFiles();
+  }, [viewRequest]);
+
+  const downloadFile = async (filePath: string, fileName: string) => {
+    const { data, error } = await supabase.storage.from('request-files').createSignedUrl(filePath, 3600, { download: fileName });
+    if (error || !data?.signedUrl) {
+      toast({ title: 'Error', description: error?.message || 'Could not open file', variant: 'destructive' });
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  };
+
+  const uploadToRequest = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!viewRequest || !e.target.files?.length) return;
+    setUploading(true);
+    for (const f of Array.from(e.target.files)) {
+      const safeName = f.name.replace(/[^\w.\-]/g, '_');
+      const path = `${viewRequest.id}/${Date.now()}-${safeName}`;
+      const { error: upErr } = await supabase.storage
+        .from('request-files')
+        .upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false, cacheControl: '3600' });
+      if (upErr) {
+        toast({ title: 'Upload failed', description: upErr.message, variant: 'destructive' });
+        continue;
+      }
+      await supabase.from('request_files').insert({
+        request_id: viewRequest.id,
+        file_name: f.name,
+        file_path: path,
+        file_type: f.type || null,
+        uploaded_by: user?.id,
+      });
+    }
+    const { data } = await supabase.from('request_files').select('*').eq('request_id', viewRequest.id).order('created_at', { ascending: false });
+    setViewFiles(data || []);
+    setUploading(false);
+    e.target.value = '';
+    toast({ title: 'Files uploaded' });
   };
 
   const getStatusBadge = (status: string) => {
@@ -371,6 +451,31 @@ const SalesDashboard = () => {
                       rows={2}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="attachments">Attach Files (original quality)</Label>
+                    <Input
+                      id="attachments"
+                      ref={formFileRef}
+                      type="file"
+                      multiple
+                      onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Files are sent exactly as uploaded — no compression or resizing. Finance reviews them first, then forwards to print.
+                    </p>
+                    {attachments.length > 0 && (
+                      <div className="flex flex-col gap-1 pt-1">
+                        {attachments.map((f, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1 text-xs">
+                            <span className="truncate flex items-center gap-1"><Paperclip className="h-3 w-3" />{f.name}</span>
+                            <button type="button" onClick={() => setAttachments(attachments.filter((_, x) => x !== i))}>
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex justify-end gap-2 pt-4">
                     <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                       Cancel
@@ -509,6 +614,11 @@ const SalesDashboard = () => {
           onOpenChange={(open) => !open && setViewRequest(null)}
           request={viewRequest}
           variant="sales"
+          files={viewFiles}
+          onDownloadFile={downloadFile}
+          onUploadFile={uploadToRequest}
+          showUpload
+          uploading={uploading}
         />
       </div>
     </Layout>
