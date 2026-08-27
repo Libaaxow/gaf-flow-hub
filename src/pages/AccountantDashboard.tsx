@@ -1678,9 +1678,13 @@ const AccountantDashboard = () => {
         if (paymentError) throw paymentError;
       }
 
+      const linkedRequest = paymentSalesRequestId !== 'none'
+        ? salesRequests.find(r => r.id === paymentSalesRequestId)
+        : null;
+
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)`,
+        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedRequest ? ` • Deducted from ${linkedRequest.customer_name}'s sales submission` : ''}`,
       });
 
       setPaymentDialogOpen(false);
@@ -1689,6 +1693,7 @@ const AccountantDashboard = () => {
       setPaymentMethod('cash');
       setPaymentReference('');
       setPaymentNotes('');
+      setPaymentSalesRequestId('none');
       setCustomerInvoices([]);
       setPaymentAllocation([]);
       fetchAllData();
