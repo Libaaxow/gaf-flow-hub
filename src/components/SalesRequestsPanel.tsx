@@ -22,6 +22,7 @@ interface SalesRequest {
   updated_at: string | null;
   processed_at: string | null;
   created_by: string | null;
+  linked_invoice_id: string | null;
 }
 
 interface ReqFile {
