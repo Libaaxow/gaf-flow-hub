@@ -39,6 +39,7 @@ interface DashboardStats {
   pendingRequests: number;
   processedRequests: number;
   totalAmount: number;
+  deductedAmount: number;
 }
 
 // Amount is stored inside the compiled note as "Amount: 1234"
@@ -57,12 +58,14 @@ const formatMoney = (n: number) =>
 const SalesDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [paidByRequest, setPaidByRequest] = useState<Record<string, number>>({});
   const [orderRequests, setOrderRequests] = useState<OrderRequest[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     totalRequests: 0,
     pendingRequests: 0,
     processedRequests: 0,
     totalAmount: 0,
+    deductedAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -124,11 +127,27 @@ const SalesDashboard = () => {
       const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
       const totalAmount = (data || []).reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
+      // Payments the accountant linked to these submissions
+      const requestIds = (data || []).map((r: any) => r.id);
+      let paidMap: Record<string, number> = {};
+      if (requestIds.length > 0) {
+        const { data: linkedPayments } = await supabase
+          .from('payments')
+          .select('amount, sales_request_id')
+          .in('sales_request_id', requestIds);
+        (linkedPayments || []).forEach((p: any) => {
+          paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
+        });
+      }
+      setPaidByRequest(paidMap);
+      const deductedAmount = Object.values(paidMap).reduce((s, n) => s + n, 0);
+
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
         totalAmount,
+        deductedAmount,
       });
     } catch (error: any) {
       toast({
@@ -329,8 +348,15 @@ const SalesDashboard = () => {
       title: 'Total Amount',
       value: formatMoney(stats.totalAmount),
       icon: FileText,
-      description: 'Value of my submissions',
+      description: `Submitted • ${formatMoney(stats.deductedAmount)} collected`,
       color: 'text-primary',
+    },
+    {
+      title: 'Remaining Balance',
+      value: formatMoney(Math.max(stats.totalAmount - stats.deductedAmount, 0)),
+      icon: CheckCircle,
+      description: `${formatMoney(stats.deductedAmount)} deducted by payments`,
+      color: 'text-success',
     },
   ];
 
@@ -621,6 +647,11 @@ const SalesDashboard = () => {
                         </TableCell>
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
+                          {(paidByRequest[request.id] || 0) > 0 && (
+                            <p className="text-xs text-success font-normal">
+                              -{formatMoney(paidByRequest[request.id])} collected
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell className="text-right">

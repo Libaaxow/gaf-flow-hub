@@ -175,6 +175,7 @@ const AccountantDashboard = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentSalesRequestId, setPaymentSalesRequestId] = useState<string>('none');
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [paymentInvoice, setPaymentInvoice] = useState('');
   const [paymentDiscount, setPaymentDiscount] = useState('');
@@ -1667,6 +1668,7 @@ const AccountantDashboard = () => {
             reference_number: paymentReference || null,
             notes: paymentNotes || null,
             recorded_by: user?.id,
+            sales_request_id: paymentSalesRequestId !== 'none' ? paymentSalesRequestId : null,
             discount_type: alloc.discountType,
             discount_value: alloc.discountValue,
             discount_amount: discountAmount,
@@ -1676,9 +1678,13 @@ const AccountantDashboard = () => {
         if (paymentError) throw paymentError;
       }
 
+      const linkedRequest = paymentSalesRequestId !== 'none'
+        ? salesRequests.find(r => r.id === paymentSalesRequestId)
+        : null;
+
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)`,
+        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedRequest ? ` • Deducted from ${linkedRequest.customer_name}'s sales submission` : ''}`,
       });
 
       setPaymentDialogOpen(false);
@@ -1687,6 +1693,7 @@ const AccountantDashboard = () => {
       setPaymentMethod('cash');
       setPaymentReference('');
       setPaymentNotes('');
+      setPaymentSalesRequestId('none');
       setCustomerInvoices([]);
       setPaymentAllocation([]);
       fetchAllData();
@@ -3839,6 +3846,26 @@ const AccountantDashboard = () => {
                         rows={3}
                       />
                     </div>
+
+                    <div className="grid gap-2 border-t pt-4">
+                      <Label htmlFor="payment-sales-link">Link to Sales Submission (Optional)</Label>
+                      <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
+                        <SelectTrigger id="payment-sales-link">
+                          <SelectValue placeholder="No sales link" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          <SelectItem value="none">No sales link</SelectItem>
+                          {salesRequests.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.customer_name} — {(r.description || '').slice(0, 40)}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        If linked, this amount is deducted from the salesperson's submitted total on their dashboard.
+                      </p>
+                    </div>
                   </>
                 )}
                   </div>
@@ -3852,6 +3879,7 @@ const AccountantDashboard = () => {
                   setPaymentMethod('cash');
                   setPaymentReference('');
                   setPaymentNotes('');
+                  setPaymentSalesRequestId('none');
                   setCustomerInvoices([]);
                   setPaymentAllocation([]);
                 }}>

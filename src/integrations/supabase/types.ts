@@ -923,6 +923,7 @@ export type Database = {
           receipt_url: string | null
           recorded_by: string | null
           reference_number: string | null
+          sales_request_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -941,6 +942,7 @@ export type Database = {
           receipt_url?: string | null
           recorded_by?: string | null
           reference_number?: string | null
+          sales_request_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -959,6 +961,7 @@ export type Database = {
           receipt_url?: string | null
           recorded_by?: string | null
           reference_number?: string | null
+          sales_request_id?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -974,6 +977,13 @@ export type Database = {
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_sales_request_id_fkey"
+            columns: ["sales_request_id"]
+            isOneToOne: false
+            referencedRelation: "sales_order_requests"
             referencedColumns: ["id"]
           },
         ]
