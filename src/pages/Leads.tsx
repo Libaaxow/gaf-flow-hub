@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Send } from 'lucide-react';
+import { Plus, Send, Paperclip, X } from 'lucide-react';
 
 interface Lead {
   id: string;
@@ -43,6 +43,9 @@ const Leads = () => {
   const [quantity, setQuantity] = useState('');
   const [amount, setAmount] = useState('');
   const [designerAssign, setDesignerAssign] = useState<string>('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [sendingId, setSendingId] = useState<string | null>(null);
 
@@ -126,11 +129,40 @@ const Leads = () => {
       assigned_designer_id:
         role === 'designer' ? user.id : (designerAssign || null),
     };
-    const { error } = await supabase.from('leads').insert(payload);
-    if (error) return toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    toast({ title: 'Lead created' });
+    setUploading(true);
+    const { data: created, error } = await supabase.from('leads').insert(payload).select('id').single();
+    if (error) {
+      setUploading(false);
+      return toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    }
+
+    // Upload attachments at original full resolution (no compression / resizing)
+    if (files.length) {
+      for (const f of files) {
+        const safeName = f.name.replace(/[^\w.\-]/g, '_');
+        const path = `${created.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from('lead-files')
+          .upload(path, f, { contentType: f.type || 'application/octet-stream', upsert: false, cacheControl: '3600' });
+        if (upErr) {
+          toast({ title: 'Upload failed', description: `${f.name}: ${upErr.message}`, variant: 'destructive' });
+          continue;
+        }
+        await (supabase as any).from('lead_files').insert({
+          lead_id: created.id,
+          file_name: f.name,
+          file_path: path,
+          file_type: f.type || null,
+          file_size: f.size,
+          uploaded_by: user.id,
+        });
+      }
+    }
+    setUploading(false);
+    toast({ title: 'Lead created', description: files.length ? `${files.length} file(s) attached` : undefined });
     setOpen(false);
     setCustomerName(''); setCustomerPhone(''); setJobSize(''); setQuantity(''); setAmount(''); setDesignerAssign('');
+    setFiles([]); if (fileInputRef.current) fileInputRef.current.value = '';
     fetchLeads(); fetchCustomers();
   };
 
@@ -194,7 +226,31 @@ const Leads = () => {
                   {role === 'designer' && (
                     <p className="text-xs text-muted-foreground">You will be auto-assigned as the designer.</p>
                   )}
-                  <Button className="w-full" onClick={handleCreate}>Create Lead</Button>
+                  <div className="space-y-1">
+                    <Label>Attachments (original quality)</Label>
+                    <Input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                    />
+                    <p className="text-xs text-muted-foreground">Files are stored exactly as uploaded — no compression or resizing.</p>
+                    {files.length > 0 && (
+                      <div className="flex flex-col gap-1 pt-1">
+                        {files.map((f, i) => (
+                          <div key={i} className="flex items-center justify-between gap-2 rounded border bg-muted/30 px-2 py-1 text-xs">
+                            <span className="truncate flex items-center gap-1"><Paperclip className="h-3 w-3" />{f.name}</span>
+                            <button type="button" onClick={() => setFiles(files.filter((_, x) => x !== i))}>
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <Button className="w-full" onClick={handleCreate} disabled={uploading}>
+                    {uploading ? 'Saving...' : 'Create Lead'}
+                  </Button>
                 </div>
               </DialogContent>
             </Dialog>
