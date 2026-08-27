@@ -348,8 +348,15 @@ const SalesDashboard = () => {
       title: 'Total Amount',
       value: formatMoney(stats.totalAmount),
       icon: FileText,
-      description: 'Value of my submissions',
+      description: `Submitted • ${formatMoney(stats.deductedAmount)} collected`,
       color: 'text-primary',
+    },
+    {
+      title: 'Remaining Balance',
+      value: formatMoney(Math.max(stats.totalAmount - stats.deductedAmount, 0)),
+      icon: CheckCircle,
+      description: `${formatMoney(stats.deductedAmount)} deducted by payments`,
+      color: 'text-success',
     },
   ];
 
