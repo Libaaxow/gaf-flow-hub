@@ -301,8 +301,13 @@ export const SalesRequestsPanel = () => {
                 <CheckCircle2 className="h-4 w-4" /> Proceed
               </Button>
             ) : (
-              <Button className="gap-2 mt-2" onClick={() => openInvoiceCreate(detail)}>
-                <FileText className="h-4 w-4" /> Create Invoice
+              <Button
+                className="gap-2 mt-2"
+                disabled={detail.status === 'created' || !!detail.linked_invoice_id}
+                onClick={() => openInvoiceCreate(detail)}
+              >
+                <FileText className="h-4 w-4" />
+                {detail.status === 'created' || !!detail.linked_invoice_id ? 'Invoice Created' : 'Create Invoice'}
               </Button>
             )}
           </DialogContent>
