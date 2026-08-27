@@ -3946,6 +3946,8 @@ const AccountantDashboard = () => {
                   setPaymentReference('');
                   setPaymentNotes('');
                   setPaymentSalesRequestId('none');
+                  setPaymentSalesUserId('none');
+
                   setCustomerInvoices([]);
                   setPaymentAllocation([]);
                 }}>
