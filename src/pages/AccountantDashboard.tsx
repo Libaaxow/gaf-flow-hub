@@ -63,6 +63,7 @@ import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
+import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
 
@@ -3047,6 +3048,8 @@ const AccountantDashboard = () => {
         </div>
 
         {/* Stats Grid */}
+        <FinanceNotesPanel />
+
         <AllWorkLogsPanel />
 
         <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-5">
