@@ -1698,6 +1698,7 @@ const AccountantDashboard = () => {
             notes: paymentNotes || null,
             recorded_by: user?.id,
             sales_request_id: paymentSalesRequestId !== 'none' ? paymentSalesRequestId : null,
+            sales_user_id: paymentSalesUserId !== 'none' ? paymentSalesUserId : null,
             discount_type: alloc.discountType,
             discount_value: alloc.discountValue,
             discount_amount: discountAmount,
@@ -1710,10 +1711,13 @@ const AccountantDashboard = () => {
       const linkedRequest = paymentSalesRequestId !== 'none'
         ? salesRequests.find(r => r.id === paymentSalesRequestId)
         : null;
+      const linkedSalesperson = paymentSalesUserId !== 'none'
+        ? salespeople.find(s => s.id === paymentSalesUserId)
+        : null;
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedRequest ? ` • Deducted from ${linkedRequest.customer_name}'s sales submission` : ''}`,
+        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedSalesperson ? ` • Deducted from ${linkedSalesperson.full_name}'s total${linkedRequest ? ` (${linkedRequest.customer_name})` : ''}` : ''}`,
       });
 
       setPaymentDialogOpen(false);
@@ -1723,6 +1727,8 @@ const AccountantDashboard = () => {
       setPaymentReference('');
       setPaymentNotes('');
       setPaymentSalesRequestId('none');
+      setPaymentSalesUserId('none');
+
       setCustomerInvoices([]);
       setPaymentAllocation([]);
       fetchAllData();
