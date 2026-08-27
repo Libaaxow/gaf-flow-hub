@@ -364,9 +364,9 @@ const SalesDashboard = () => {
     },
     {
       title: 'Remaining Balance',
-      value: formatMoney(Math.max(stats.totalAmount - stats.deductedAmount, 0)),
+      value: formatMoney(stats.remainingAmount),
       icon: CheckCircle,
-      description: `${formatMoney(stats.deductedAmount)} deducted by payments`,
+      description: 'Unpaid balance across your submissions',
       color: 'text-success',
     },
   ];
@@ -659,9 +659,14 @@ const SalesDashboard = () => {
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
                           {(paidByRequest[request.id] || 0) > 0 && (
-                            <p className="text-xs text-success font-normal">
-                              -{formatMoney(paidByRequest[request.id])} collected
-                            </p>
+                            <>
+                              <p className="text-xs text-success font-normal">
+                                -{formatMoney(Math.min(paidByRequest[request.id], parseAmount(request.notes) || paidByRequest[request.id]))} collected
+                              </p>
+                              <p className="text-xs text-muted-foreground font-normal">
+                                {formatMoney(Math.max(parseAmount(request.notes) - (paidByRequest[request.id] || 0), 0))} left
+                              </p>
+                            </>
                           )}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
