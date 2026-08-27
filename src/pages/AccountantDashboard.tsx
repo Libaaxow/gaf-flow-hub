@@ -151,6 +151,14 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
+  // Amount is stored inside the compiled note as "Amount: 1234"
+  const parseSalesRequestAmount = (notes: string | null): number => {
+    if (!notes) return 0;
+    const m = notes.match(/Amount:\s*([\d.,]+)/i);
+    if (!m) return 0;
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
   const [viewSalesRequest, setViewSalesRequest] = useState<any | null>(null);
   const [requestFiles, setRequestFiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -3855,15 +3863,18 @@ const AccountantDashboard = () => {
                         </SelectTrigger>
                         <SelectContent className="max-h-72">
                           <SelectItem value="none">No sales link</SelectItem>
-                          {salesRequests.map((r) => (
-                            <SelectItem key={r.id} value={r.id}>
-                              {r.customer_name} — {(r.description || '').slice(0, 40)}
-                            </SelectItem>
-                          ))}
+                          {salesRequests.map((r) => {
+                            const amt = parseSalesRequestAmount(r.notes);
+                            return (
+                              <SelectItem key={r.id} value={r.id}>
+                                {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        If linked, this amount is deducted from the salesperson's submitted total on their dashboard.
+                        If linked, this payment deducts from that specific order only — the salesperson's other orders are not affected.
                       </p>
                     </div>
                   </>

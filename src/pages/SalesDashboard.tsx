@@ -40,6 +40,7 @@ interface DashboardStats {
   processedRequests: number;
   totalAmount: number;
   deductedAmount: number;
+  remainingAmount: number;
 }
 
 // Amount is stored inside the compiled note as "Amount: 1234"
@@ -66,6 +67,7 @@ const SalesDashboard = () => {
     processedRequests: 0,
     totalAmount: 0,
     deductedAmount: 0,
+    remainingAmount: 0,
   });
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -142,12 +144,21 @@ const SalesDashboard = () => {
       setPaidByRequest(paidMap);
       const deductedAmount = Object.values(paidMap).reduce((s, n) => s + n, 0);
 
+      // Deductions apply per order/request only — never against the user's other orders.
+      // Each request's balance = its own amount minus payments linked to that request (min 0).
+      const remainingAmount = (data || []).reduce((sum: number, r: any) => {
+        const reqAmount = parseAmount(r.notes);
+        const paid = paidMap[r.id] || 0;
+        return sum + Math.max(reqAmount - paid, 0);
+      }, 0);
+
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
         totalAmount,
         deductedAmount,
+        remainingAmount,
       });
     } catch (error: any) {
       toast({
@@ -353,9 +364,9 @@ const SalesDashboard = () => {
     },
     {
       title: 'Remaining Balance',
-      value: formatMoney(Math.max(stats.totalAmount - stats.deductedAmount, 0)),
+      value: formatMoney(stats.remainingAmount),
       icon: CheckCircle,
-      description: `${formatMoney(stats.deductedAmount)} deducted by payments`,
+      description: 'Unpaid balance across your submissions',
       color: 'text-success',
     },
   ];
@@ -648,9 +659,14 @@ const SalesDashboard = () => {
                         <TableCell className="text-right font-medium whitespace-nowrap">
                           {parseAmount(request.notes) > 0 ? formatMoney(parseAmount(request.notes)) : '-'}
                           {(paidByRequest[request.id] || 0) > 0 && (
-                            <p className="text-xs text-success font-normal">
-                              -{formatMoney(paidByRequest[request.id])} collected
-                            </p>
+                            <>
+                              <p className="text-xs text-success font-normal">
+                                -{formatMoney(Math.min(paidByRequest[request.id], parseAmount(request.notes) || paidByRequest[request.id]))} collected
+                              </p>
+                              <p className="text-xs text-muted-foreground font-normal">
+                                {formatMoney(Math.max(parseAmount(request.notes) - (paidByRequest[request.id] || 0), 0))} left
+                              </p>
+                            </>
                           )}
                         </TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
