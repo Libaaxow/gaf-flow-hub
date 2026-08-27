@@ -151,6 +151,8 @@ const AccountantDashboard = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [salesRequests, setSalesRequests] = useState<any[]>([]);
+  const [salespeople, setSalespeople] = useState<any[]>([]);
+
   // Amount is stored inside the compiled note as "Amount: 1234"
   const parseSalesRequestAmount = (notes: string | null): number => {
     if (!notes) return 0;
@@ -184,6 +186,8 @@ const AccountantDashboard = () => {
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
   const [paymentSalesRequestId, setPaymentSalesRequestId] = useState<string>('none');
+  const [paymentSalesUserId, setPaymentSalesUserId] = useState<string>('none');
+
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [paymentInvoice, setPaymentInvoice] = useState('');
   const [paymentDiscount, setPaymentDiscount] = useState('');
@@ -476,7 +480,24 @@ const AccountantDashboard = () => {
       return;
     }
     setSalesRequests(data || []);
+
+    // Load salespeople (sales + marketing roles) for payment linking
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('user_id, role')
+      .in('role', ['sales', 'marketing']);
+    const ids = Array.from(new Set((roleRows || []).map((r: any) => r.user_id)));
+    if (ids.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', ids);
+      setSalespeople(profs || []);
+    } else {
+      setSalespeople([]);
+    }
   };
+
 
   const handleUpdateSalesRequestStatus = async (requestId: string, newStatus: string, request?: any) => {
     // Find the request if not provided
@@ -1677,6 +1698,7 @@ const AccountantDashboard = () => {
             notes: paymentNotes || null,
             recorded_by: user?.id,
             sales_request_id: paymentSalesRequestId !== 'none' ? paymentSalesRequestId : null,
+            sales_user_id: paymentSalesUserId !== 'none' ? paymentSalesUserId : null,
             discount_type: alloc.discountType,
             discount_value: alloc.discountValue,
             discount_amount: discountAmount,
@@ -1689,10 +1711,13 @@ const AccountantDashboard = () => {
       const linkedRequest = paymentSalesRequestId !== 'none'
         ? salesRequests.find(r => r.id === paymentSalesRequestId)
         : null;
+      const linkedSalesperson = paymentSalesUserId !== 'none'
+        ? salespeople.find(s => s.id === paymentSalesUserId)
+        : null;
 
       toast({
         title: 'Payment Recorded',
-        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedRequest ? ` • Deducted from ${linkedRequest.customer_name}'s sales submission` : ''}`,
+        description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedSalesperson ? ` • Deducted from ${linkedSalesperson.full_name}'s total${linkedRequest ? ` (${linkedRequest.customer_name})` : ''}` : ''}`,
       });
 
       setPaymentDialogOpen(false);
@@ -1702,6 +1727,8 @@ const AccountantDashboard = () => {
       setPaymentReference('');
       setPaymentNotes('');
       setPaymentSalesRequestId('none');
+      setPaymentSalesUserId('none');
+
       setCustomerInvoices([]);
       setPaymentAllocation([]);
       fetchAllData();
@@ -3856,27 +3883,55 @@ const AccountantDashboard = () => {
                     </div>
 
                     <div className="grid gap-2 border-t pt-4">
-                      <Label htmlFor="payment-sales-link">Link to Sales Submission (Optional)</Label>
-                      <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
-                        <SelectTrigger id="payment-sales-link">
-                          <SelectValue placeholder="No sales link" />
+                      <Label htmlFor="payment-salesperson">Link to Salesperson (Optional)</Label>
+                      <Select
+                        value={paymentSalesUserId}
+                        onValueChange={(v) => {
+                          setPaymentSalesUserId(v);
+                          setPaymentSalesRequestId('none');
+                        }}
+                      >
+                        <SelectTrigger id="payment-salesperson">
+                          <SelectValue placeholder="No salesperson" />
                         </SelectTrigger>
                         <SelectContent className="max-h-72">
-                          <SelectItem value="none">No sales link</SelectItem>
-                          {salesRequests.map((r) => {
-                            const amt = parseSalesRequestAmount(r.notes);
-                            return (
-                              <SelectItem key={r.id} value={r.id}>
-                                {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
-                              </SelectItem>
-                            );
-                          })}
+                          <SelectItem value="none">No salesperson</SelectItem>
+                          {salespeople.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.full_name || s.email}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                       <p className="text-xs text-muted-foreground">
-                        If linked, this payment deducts from that specific order only — the salesperson's other orders are not affected.
+                        This amount is deducted from the selected salesperson's total submitted amount.
                       </p>
                     </div>
+
+                    {paymentSalesUserId !== 'none' && (
+                      <div className="grid gap-2">
+                        <Label htmlFor="payment-sales-link">Specific Order (Optional)</Label>
+                        <Select value={paymentSalesRequestId} onValueChange={setPaymentSalesRequestId}>
+                          <SelectTrigger id="payment-sales-link">
+                            <SelectValue placeholder="Apply to total only" />
+                          </SelectTrigger>
+                          <SelectContent className="max-h-72">
+                            <SelectItem value="none">Apply to total only</SelectItem>
+                            {salesRequests
+                              .filter((r) => r.created_by === paymentSalesUserId)
+                              .map((r) => {
+                                const amt = parseSalesRequestAmount(r.notes);
+                                return (
+                                  <SelectItem key={r.id} value={r.id}>
+                                    {r.customer_name} — {(r.description || '').slice(0, 30)}{amt > 0 ? ` — $${amt.toLocaleString()}` : ''} — {format(new Date(r.created_at), 'MMM d')}
+                                  </SelectItem>
+                                );
+                              })}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
                   </>
                 )}
                   </div>
@@ -3891,6 +3946,8 @@ const AccountantDashboard = () => {
                   setPaymentReference('');
                   setPaymentNotes('');
                   setPaymentSalesRequestId('none');
+                  setPaymentSalesUserId('none');
+
                   setCustomerInvoices([]);
                   setPaymentAllocation([]);
                 }}>

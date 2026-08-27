@@ -142,15 +142,25 @@ const SalesDashboard = () => {
         });
       }
       setPaidByRequest(paidMap);
-      const deductedAmount = Object.values(paidMap).reduce((s, n) => s + n, 0);
 
-      // Deductions apply per order/request only — never against the user's other orders.
-      // Each request's balance = its own amount minus payments linked to that request (min 0).
-      const remainingAmount = (data || []).reduce((sum: number, r: any) => {
-        const reqAmount = parseAmount(r.notes);
-        const paid = paidMap[r.id] || 0;
-        return sum + Math.max(reqAmount - paid, 0);
-      }, 0);
+      // Payments linked directly to this salesperson (not tied to one order)
+      const { data: userPayments } = await supabase
+        .from('payments')
+        .select('amount, sales_request_id, sales_user_id, payment_date')
+        .eq('sales_user_id', user.id)
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
+
+      const userLevelPaid = (userPayments || [])
+        .filter((p: any) => !p.sales_request_id)
+        .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
+
+      const perOrderPaid = Object.values(paidMap).reduce((s, n) => s + n, 0);
+      const deductedAmount = perOrderPaid + userLevelPaid;
+
+      // Total remaining for the salesperson = everything he submitted minus everything collected from him
+      const remainingAmount = Math.max(totalAmount - deductedAmount, 0);
+
 
       setStats({
         totalRequests,
@@ -366,7 +376,7 @@ const SalesDashboard = () => {
       title: 'Remaining Balance',
       value: formatMoney(stats.remainingAmount),
       icon: CheckCircle,
-      description: 'Unpaid balance across your submissions',
+      description: 'Your total submitted minus money collected from you',
       color: 'text-success',
     },
   ];
