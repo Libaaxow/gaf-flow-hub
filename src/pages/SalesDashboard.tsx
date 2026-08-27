@@ -126,11 +126,27 @@ const SalesDashboard = () => {
       const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
       const totalAmount = (data || []).reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
+      // Payments the accountant linked to these submissions
+      const requestIds = (data || []).map((r: any) => r.id);
+      let paidMap: Record<string, number> = {};
+      if (requestIds.length > 0) {
+        const { data: linkedPayments } = await supabase
+          .from('payments')
+          .select('amount, sales_request_id')
+          .in('sales_request_id', requestIds);
+        (linkedPayments || []).forEach((p: any) => {
+          paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
+        });
+      }
+      setPaidByRequest(paidMap);
+      const deductedAmount = Object.values(paidMap).reduce((s, n) => s + n, 0);
+
       setStats({
         totalRequests,
         pendingRequests,
         processedRequests,
         totalAmount,
+        deductedAmount,
       });
     } catch (error: any) {
       toast({
