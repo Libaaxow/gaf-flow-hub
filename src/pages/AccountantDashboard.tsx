@@ -2426,11 +2426,11 @@ const AccountantDashboard = () => {
         setPendingLeadId(null);
       }
 
-      // Mark the linked sales order request as invoiced
+      // Mark the linked sales order request as created (invoice created)
       if (pendingRequestId) {
         await supabase
           .from('sales_order_requests')
-          .update({ status: 'processed', linked_invoice_id: invoiceData?.id, processed_at: new Date().toISOString() })
+          .update({ status: 'created', linked_invoice_id: invoiceData?.id, processed_at: new Date().toISOString() })
           .eq('id', pendingRequestId);
         setPendingRequestId(null);
       }
