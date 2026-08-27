@@ -5241,8 +5241,6 @@ const AccountantDashboard = () => {
                           step="0.01"
                           value={item.unit_price}
                           onChange={(e) => updateInvoiceItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
-                          disabled={!!item.product_id}
-                          className={item.product_id ? 'bg-muted' : ''}
                         />
                       </div>
                       <div className="grid gap-2">
