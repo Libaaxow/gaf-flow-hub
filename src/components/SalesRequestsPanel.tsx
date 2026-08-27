@@ -255,12 +255,22 @@ export const SalesRequestsPanel = () => {
               <div className="grid gap-2">
                 <p className="text-sm font-medium">Attachments</p>
                 {(files[detail.id] || []).map(f => (
-                  <Button key={f.id} variant="outline" size="sm" className="justify-start gap-2" onClick={() => openFile(f.file_path)}>
-                    <Download className="h-4 w-4" />
-                    <span className="truncate">{f.file_name}</span>
-                  </Button>
+                  <div key={f.id} className="flex gap-2">
+                    <Button variant="outline" size="sm" className="justify-start gap-2 flex-1 min-w-0" onClick={() => openFile(f.file_path)}>
+                      <Paperclip className="h-4 w-4" />
+                      <span className="truncate">{f.file_name}</span>
+                    </Button>
+                    <Button variant="secondary" size="sm" className="gap-1" onClick={() => downloadFile(f.file_path, f.file_name)}>
+                      <Download className="h-4 w-4" />
+                    </Button>
+                  </div>
                 ))}
               </div>
+            )}
+            {detail.status === 'pending' && (
+              <Button className="gap-2 mt-2" disabled={processingId === detail.id} onClick={() => markProcessed(detail)}>
+                <CheckCircle2 className="h-4 w-4" /> Proceed
+              </Button>
             )}
           </DialogContent>
         </Dialog>
