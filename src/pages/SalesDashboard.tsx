@@ -97,7 +97,15 @@ const SalesDashboard = () => {
           fetchData();
         }
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        () => {
+          fetchData();
+        }
+      )
       .subscribe();
+
 
     return () => {
       supabase.removeChannel(channel);
@@ -141,8 +149,6 @@ const SalesDashboard = () => {
           paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
         });
       }
-      setPaidByRequest(paidMap);
-
       // Payments linked directly to this salesperson (not tied to one order)
       const { data: userPayments } = await supabase
         .from('payments')
@@ -155,11 +161,27 @@ const SalesDashboard = () => {
         .filter((p: any) => !p.sales_request_id)
         .reduce((s: number, p: any) => s + Number(p.amount || 0), 0);
 
+      // Spread salesperson-level payments across their unpaid jobs (oldest first) for display
+      let remainingToSpread = userLevelPaid;
+      const ordered = [...(data || [])].sort(
+        (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
+      ordered.forEach((r: any) => {
+        if (remainingToSpread <= 0) return;
+        const owed = Math.max(parseAmount(r.notes) - (paidMap[r.id] || 0), 0);
+        if (owed <= 0) return;
+        const applied = Math.min(owed, remainingToSpread);
+        paidMap[r.id] = (paidMap[r.id] || 0) + applied;
+        remainingToSpread -= applied;
+      });
+      setPaidByRequest({ ...paidMap });
+
       const perOrderPaid = Object.values(paidMap).reduce((s, n) => s + n, 0);
-      const deductedAmount = perOrderPaid + userLevelPaid;
+      const deductedAmount = perOrderPaid;
 
       // Total remaining for the salesperson = everything he submitted minus everything collected from him
       const remainingAmount = Math.max(totalAmount - deductedAmount, 0);
+
 
 
       setStats({
