@@ -325,6 +325,13 @@ const SalesDashboard = () => {
       description: 'Completed by accountant',
       color: 'text-success',
     },
+    {
+      title: 'Total Amount',
+      value: formatMoney(stats.totalAmount),
+      icon: FileText,
+      description: 'Value of my submissions',
+      color: 'text-primary',
+    },
   ];
 
   if (loading) {
