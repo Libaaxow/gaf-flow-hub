@@ -175,6 +175,7 @@ const AccountantDashboard = () => {
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [paymentReference, setPaymentReference] = useState('');
   const [paymentNotes, setPaymentNotes] = useState('');
+  const [paymentSalesRequestId, setPaymentSalesRequestId] = useState<string>('none');
   const [paymentCustomer, setPaymentCustomer] = useState('');
   const [paymentInvoice, setPaymentInvoice] = useState('');
   const [paymentDiscount, setPaymentDiscount] = useState('');
