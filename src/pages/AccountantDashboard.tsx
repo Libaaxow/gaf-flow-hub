@@ -269,6 +269,8 @@ const AccountantDashboard = () => {
   const [createInvoiceDialogOpen, setCreateInvoiceDialogOpen] = useState(false);
   const [pendingLeadId, setPendingLeadId] = useState<string | null>(null);
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const customersRef = useRef<Customer[]>([]);
+  useEffect(() => { customersRef.current = customers; }, [customers]);
 
   // Open the invoice creation dialog when triggered from the Finance Notes panel
   useEffect(() => {
