@@ -46,7 +46,7 @@ interface DashboardStats {
 // Amount is stored inside the compiled note as "Amount: 1234"
 const parseAmount = (notes: string | null): number => {
   if (!notes) return 0;
-  const m = notes.match(/Amount:\s*([\d.,]+)/i);
+  const m = notes.match(/Amount:\s*(?:\$|USD)?\s*([\d.,]+)/i);
   if (!m) return 0;
   const n = parseFloat(m[1].replace(/,/g, ''));
   return isNaN(n) ? 0 : n;
