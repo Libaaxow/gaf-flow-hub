@@ -46,7 +46,7 @@ interface DashboardStats {
 // Amount is stored inside the compiled note as "Amount: 1234"
 const parseAmount = (notes: string | null): number => {
   if (!notes) return 0;
-  const m = notes.match(/Amount:\s*([\d.,]+)/i);
+  const m = notes.match(/Amount:\s*(?:\$|USD)?\s*([\d.,]+)/i);
   if (!m) return 0;
   const n = parseFloat(m[1].replace(/,/g, ''));
   return isNaN(n) ? 0 : n;
@@ -119,26 +119,29 @@ const SalesDashboard = () => {
       const startDate = startOfDay(dateFilter).toISOString();
       const endDate = endOfDay(dateFilter).toISOString();
 
-      const { data, error } = await supabase
+      // All submissions by this salesperson (balances must span every day)
+      const { data: allRequests, error } = await supabase
         .from('sales_order_requests')
         .select('*')
         .eq('created_by', user.id)
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      setOrderRequests(data || []);
+      const all = allRequests || [];
+      // The table only shows the selected day
+      const data = all.filter((r: any) => r.created_at >= startDate && r.created_at <= endDate);
+
+      setOrderRequests(data);
 
       // Calculate stats
       const totalRequests = data?.length || 0;
       const pendingRequests = data?.filter(r => r.status === 'pending').length || 0;
       const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
-      const totalAmount = (data || []).reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
+      const totalAmount = all.reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
       // Payments the accountant linked to these submissions
-      const requestIds = (data || []).map((r: any) => r.id);
+      const requestIds = all.map((r: any) => r.id);
       let paidMap: Record<string, number> = {};
       if (requestIds.length > 0) {
         const { data: linkedPayments } = await supabase
@@ -149,13 +152,11 @@ const SalesDashboard = () => {
           paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
         });
       }
-      // Payments linked directly to this salesperson (not tied to one order)
+      // Payments linked directly to this salesperson (not tied to one order), any date
       const { data: userPayments } = await supabase
         .from('payments')
         .select('amount, sales_request_id, sales_user_id, payment_date')
-        .eq('sales_user_id', user.id)
-        .gte('payment_date', startDate)
-        .lte('payment_date', endDate);
+        .eq('sales_user_id', user.id);
 
       const userLevelPaid = (userPayments || [])
         .filter((p: any) => !p.sales_request_id)
@@ -163,7 +164,7 @@ const SalesDashboard = () => {
 
       // Spread salesperson-level payments across their unpaid jobs (oldest first) for display
       let remainingToSpread = userLevelPaid;
-      const ordered = [...(data || [])].sort(
+      const ordered = [...all].sort(
         (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       ordered.forEach((r: any) => {
@@ -177,7 +178,8 @@ const SalesDashboard = () => {
       setPaidByRequest({ ...paidMap });
 
       const perOrderPaid = Object.values(paidMap).reduce((s, n) => s + n, 0);
-      const deductedAmount = perOrderPaid;
+      // Payments that exceeded the jobs they could be applied to still count as collected
+      const deductedAmount = Math.min(perOrderPaid + remainingToSpread, totalAmount);
 
       // Total remaining for the salesperson = everything he submitted minus everything collected from him
       const remainingAmount = Math.max(totalAmount - deductedAmount, 0);
