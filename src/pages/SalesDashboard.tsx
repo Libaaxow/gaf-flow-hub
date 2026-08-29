@@ -709,7 +709,7 @@ const SalesDashboard = () => {
           <CardHeader>
             <CardTitle>My Order Requests</CardTitle>
             <CardDescription>
-              Order requests submitted for {format(dateFilter, "MMMM d, yyyy")}
+              Order requests submitted for {rangeLabelText}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -718,7 +718,7 @@ const SalesDashboard = () => {
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-semibold">No order requests</h3>
                 <p className="text-muted-foreground">
-                  Submit your first order request for today.
+                  Submit your first order request for {rangeLabelText.toLowerCase()}.
                 </p>
                 <Button className="mt-4" onClick={() => setIsDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
