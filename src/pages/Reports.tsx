@@ -773,7 +773,13 @@ const Reports = () => {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Liabilities Tab */}
+          <TabsContent value="liabilities" className="space-y-4">
+            <CompanyLiabilitiesPanel />
+          </TabsContent>
         </Tabs>
+
       </div>
     </Layout>
   );
