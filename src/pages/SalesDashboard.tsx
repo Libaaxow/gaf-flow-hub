@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye, Paperclip, X } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye, Paperclip, X, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
