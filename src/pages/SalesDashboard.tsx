@@ -112,7 +112,7 @@ const SalesDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, dateFilter]);
+  }, [user, rangeFilter]);
 
   const fetchData = async () => {
     if (!user?.id) return;
