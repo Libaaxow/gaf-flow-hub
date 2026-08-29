@@ -2,14 +2,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Banknote, AlertCircle, Receipt, Package } from 'lucide-react';
+import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins } from 'lucide-react';
 
 interface Shareholder {
   id: string;
   full_name: string;
   share_percentage: number;
-  asset_value: number;
-  asset_description: string | null;
 }
 
 interface Transaction {
@@ -18,41 +16,55 @@ interface Transaction {
   amount: number;
 }
 
+// Company reserve rate (configurable)
+const RESERVE_PERCENTAGE = 0.30;
+
 export function ShareholdersSummary() {
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [netProfit, setNetProfit] = useState(0);
-  const [totalReceivable, setTotalReceivable] = useState(0);
-  const [totalCompanyAssets, setTotalCompanyAssets] = useState(0);
+  const [cashBalance, setCashBalance] = useState(0);
+  const [totalReceivables, setTotalReceivables] = useState(0);
+  const [fixedAssets, setFixedAssets] = useState(0);
+  const [companyLiabilities, setCompanyLiabilities] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes] = await Promise.all([
-        supabase.from('shareholders').select('id, full_name, share_percentage, asset_value, asset_description').eq('status', 'active'),
+      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes] = await Promise.all([
+        supabase.from('shareholders').select('id, full_name, share_percentage').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
         supabase.from('payments').select('amount'),
         supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
         supabase.from('beginning_balances').select('amount, account_type'),
         supabase.from('company_assets').select('total_value'),
+        supabase.from('vendor_bills').select('total_amount, amount_paid'),
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
 
+      // Cash balance = opening balance + collected payments - approved expenses
       const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
       const collected = (paymentsRes.data || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
       const expenses = (expensesRes.data || []).reduce((sum: number, e: any) => sum + (e.amount || 0), 0);
-      setNetProfit(openingBalance + collected - expenses);
+      setCashBalance(openingBalance + collected - expenses);
 
+      // Total receivables = unpaid customer invoices (non-draft)
       const receivable = (invoicesRes.data || []).reduce((sum: number, inv: any) => {
         const outstanding = (inv.total_amount || 0) - (inv.amount_paid || 0);
         return sum + Math.max(0, outstanding);
       }, 0);
-      setTotalReceivable(receivable);
+      setTotalReceivables(receivable);
 
-      const companyAssetsTotal = (assetsRes.data || []).reduce((sum: number, a: any) => sum + (a.total_value || 0), 0);
-      setTotalCompanyAssets(companyAssetsTotal);
+      // Fixed assets
+      const assetsTotal = (assetsRes.data || []).reduce((sum: number, a: any) => sum + (a.total_value || 0), 0);
+      setFixedAssets(assetsTotal);
+
+      // Company liabilities = unpaid vendor bills
+      const liabilities = (billsRes.data || []).reduce((sum: number, b: any) => {
+        return sum + Math.max(0, (b.total_amount || 0) - (b.amount_paid || 0));
+      }, 0);
+      setCompanyLiabilities(liabilities);
 
       setLoading(false);
     };
@@ -61,7 +73,8 @@ export function ShareholdersSummary() {
 
   if (loading || shareholders.length === 0) return null;
 
-  const getDebtBalance = (id: string) => {
+  // Per-shareholder outstanding loan (debt_taken - debt_repayment)
+  const getOutstandingLoan = (id: string) => {
     const shTx = transactions.filter(t => t.shareholder_id === id);
     let debt = 0;
     shTx.forEach(t => {
@@ -70,6 +83,18 @@ export function ShareholdersSummary() {
     });
     return Math.max(0, debt);
   };
+
+  const loans = shareholders.map(sh => ({ id: sh.id, loan: getOutstandingLoan(sh.id) }));
+  const totalShareholderLoans = loans.reduce((sum, l) => sum + l.loan, 0);
+
+  // A. Net Company Worth (balance sheet perspective)
+  const totalAssets = cashBalance + totalReceivables + fixedAssets + totalShareholderLoans;
+  const netCompanyWorth = totalAssets - companyLiabilities;
+
+  // B. Cash distribution & settlement (payout perspective)
+  const cashAfterPayables = Math.max(0, cashBalance - companyLiabilities);
+  const companyReserve = cashAfterPayables * RESERVE_PERCENTAGE;
+  const distributableCash = cashAfterPayables - companyReserve;
 
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -82,31 +107,73 @@ export function ShareholdersSummary() {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Total Outstanding Receivable */}
-        <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Receipt className="h-4 w-4 text-orange-500" />
-            <span className="text-sm font-medium">Total Outstanding Receivable</span>
+        {/* Company financial position */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">Cash Balance</span>
+            </div>
+            <span className="text-lg font-bold text-green-600">${fmt(cashBalance)}</span>
           </div>
-          <span className="text-lg font-bold text-orange-600">${fmt(totalReceivable)}</span>
+          <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-4 w-4 text-orange-500" />
+              <span className="text-sm font-medium">Total Receivables</span>
+            </div>
+            <span className="text-lg font-bold text-orange-600">${fmt(totalReceivables)}</span>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="h-4 w-4 text-blue-500" />
+              <span className="text-sm font-medium">Fixed Assets</span>
+            </div>
+            <span className="text-lg font-bold text-blue-600">${fmt(fixedAssets)}</span>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-red-500" />
+              <span className="text-sm font-medium">Company Liabilities</span>
+            </div>
+            <span className="text-lg font-bold text-red-600">${fmt(companyLiabilities)}</span>
+          </div>
         </div>
 
-        {/* Total Company Assets */}
-        <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-4 w-4 text-blue-500" />
-            <span className="text-sm font-medium">Total Company Assets</span>
+        {/* Distribution summary */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+          <div className="border rounded-lg p-3 flex items-center justify-between">
+            <span className="text-muted-foreground">Net Company Worth</span>
+            <span className={`font-bold ${netCompanyWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>${fmt(netCompanyWorth)}</span>
           </div>
-          <span className="text-lg font-bold text-blue-600">${fmt(totalCompanyAssets)}</span>
+          <div className="border rounded-lg p-3 flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-1"><PiggyBank className="h-3.5 w-3.5" /> Reserve ({RESERVE_PERCENTAGE * 100}%)</span>
+            <span className="font-bold">${fmt(companyReserve)}</span>
+          </div>
+          <div className="border rounded-lg p-3 flex items-center justify-between">
+            <span className="text-muted-foreground flex items-center gap-1"><HandCoins className="h-3.5 w-3.5" /> Distributable Cash</span>
+            <span className="font-bold text-primary">${fmt(distributableCash)}</span>
+          </div>
         </div>
 
+        {/* Per-shareholder cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {shareholders.map(sh => {
-            const profitShare = netProfit * (sh.share_percentage / 100);
-            const debt = getDebtBalance(sh.id);
-            const receivableShare = totalReceivable * (sh.share_percentage / 100);
-            const assetsShare = totalCompanyAssets * (sh.share_percentage / 100);
-            const totalShare = profitShare + receivableShare + assetsShare;
+            const pct = sh.share_percentage / 100;
+            const outstandingLoan = getOutstandingLoan(sh.id);
+
+            const netWorthShare = netCompanyWorth * pct;
+            const grossCashShare = distributableCash * pct;
+
+            let netCashPayout = 0;
+            let remainingLoan = 0;
+            if (grossCashShare >= outstandingLoan) {
+              netCashPayout = grossCashShare - outstandingLoan;
+              remainingLoan = 0;
+            } else {
+              netCashPayout = 0;
+              remainingLoan = outstandingLoan - grossCashShare;
+            }
+
             return (
               <div key={sh.id} className="border rounded-lg p-3 space-y-2">
                 <div className="flex justify-between items-center">
@@ -114,44 +181,47 @@ export function ShareholdersSummary() {
                   <Badge variant="outline" className="text-xs">{sh.share_percentage}%</Badge>
                 </div>
 
-                {/* Total Share */}
+                {/* Net Cash Payout */}
                 <div className="bg-green-50 rounded-lg p-2 flex items-center justify-between">
-                  <span className="text-xs font-medium text-green-700">Your Total Share</span>
-                  <span className={`text-sm font-bold ${totalShare >= 0 ? 'text-green-700' : 'text-red-600'}`}>${fmt(totalShare)}</span>
+                  <span className="text-xs font-medium text-green-700">Net Cash Payout</span>
+                  <span className="text-sm font-bold text-green-700">${fmt(netCashPayout)}</span>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  {/* Money (share of net profit) */}
+                  {/* Company Net Worth Share */}
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
                       <Banknote className="h-3 w-3" />
-                      <span>Net Profit</span>
+                      <span>Net Worth Share</span>
                     </div>
-                    <p className={`font-semibold text-sm ${profitShare >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ${fmt(profitShare)}
+                    <p className={`font-semibold text-sm ${netWorthShare >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      ${fmt(netWorthShare)}
                     </p>
                   </div>
 
-                  {/* Receivable share */}
+                  {/* Gross Distributable Cash Share */}
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
-                      <Receipt className="h-3 w-3" />
-                      <span>Receivable</span>
+                      <HandCoins className="h-3 w-3" />
+                      <span>Gross Cash Share</span>
                     </div>
-                    <p className="font-semibold text-sm text-orange-600">${fmt(receivableShare)}</p>
+                    <p className="font-semibold text-sm text-primary">${fmt(grossCashShare)}</p>
                   </div>
                 </div>
 
-                {/* Company Assets Share */}
-                <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 rounded px-2 py-1">
-                  <Package className="h-3 w-3" />
-                  <span>Company Assets Share: <strong>${fmt(assetsShare)}</strong></span>
-                </div>
+                {/* Loan deduction applied */}
+                {outstandingLoan > 0 && (
+                  <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1">
+                    <AlertCircle className="h-3 w-3" />
+                    <span>Loan Deduction: <strong>${fmt(Math.min(outstandingLoan, grossCashShare))}</strong></span>
+                  </div>
+                )}
 
-                {debt > 0 && (
+                {/* Outstanding remaining debt */}
+                {remainingLoan > 0 && (
                   <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
                     <AlertCircle className="h-3 w-3" />
-                    <span>Outstanding Debt: <strong>${fmt(debt)}</strong></span>
+                    <span>Remaining Debt: <strong>${fmt(remainingLoan)}</strong></span>
                   </div>
                 )}
               </div>
