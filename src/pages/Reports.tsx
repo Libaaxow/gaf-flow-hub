@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, isAfter, isBefore, parseISO } from 'date-fns';
 import { DollarSign, TrendingUp, TrendingDown, FileText, Download, BarChart3, PieChart, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RePieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
+import { CompanyLiabilitiesPanel } from '@/components/CompanyLiabilitiesPanel';
+
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { useToast } from '@/hooks/use-toast';
 
