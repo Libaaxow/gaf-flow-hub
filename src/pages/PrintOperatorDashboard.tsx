@@ -17,6 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { cn } from '@/lib/utils';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { DailyWorkLogPanel } from '@/components/DailyWorkLogPanel';
+import { PrintFilesDownloadPanel } from '@/components/PrintFilesDownloadPanel';
 
 
 interface Order {
@@ -435,6 +436,8 @@ const PrintOperatorDashboard = () => {
           </Card>
 
         </div>
+
+        <PrintFilesDownloadPanel />
 
         <FinanceNotesPanel mode="print" />
 
