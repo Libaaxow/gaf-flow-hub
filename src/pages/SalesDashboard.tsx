@@ -73,6 +73,7 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [rangeFilter, setRangeFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'all'>('today');
   const [submitting, setSubmitting] = useState(false);
   const [viewRequest, setViewRequest] = useState<OrderRequest | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
