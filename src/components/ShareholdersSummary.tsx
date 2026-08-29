@@ -30,7 +30,7 @@ export function ShareholdersSummary() {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes] = await Promise.all([
+      const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes, liabilitiesRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
@@ -39,6 +39,7 @@ export function ShareholdersSummary() {
         supabase.from('beginning_balances').select('amount, account_type'),
         supabase.from('company_assets').select('total_value'),
         supabase.from('vendor_bills').select('total_amount, amount_paid'),
+        supabase.from('company_liabilities').select('amount, paid_amount'),
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
@@ -60,16 +61,24 @@ export function ShareholdersSummary() {
       const assetsTotal = (assetsRes.data || []).reduce((sum: number, a: any) => sum + (a.total_value || 0), 0);
       setFixedAssets(assetsTotal);
 
-      // Company liabilities = unpaid vendor bills
-      const liabilities = (billsRes.data || []).reduce((sum: number, b: any) => {
+      // Company liabilities = unpaid vendor bills + outstanding company payables
+      const billsDue = (billsRes.data || []).reduce((sum: number, b: any) => {
         return sum + Math.max(0, (b.total_amount || 0) - (b.amount_paid || 0));
       }, 0);
-      setCompanyLiabilities(liabilities);
+      const payablesDue = (liabilitiesRes.data || []).reduce((sum: number, l: any) => {
+        return sum + Math.max(0, (l.amount || 0) - (l.paid_amount || 0));
+      }, 0);
+      setCompanyLiabilities(billsDue + payablesDue);
 
       setLoading(false);
     };
     fetchData();
+    const onUpdate = () => fetchData();
+    window.addEventListener('liabilities-updated', onUpdate);
+    return () => window.removeEventListener('liabilities-updated', onUpdate);
   }, []);
+
+
 
   if (loading || shareholders.length === 0) return null;
 

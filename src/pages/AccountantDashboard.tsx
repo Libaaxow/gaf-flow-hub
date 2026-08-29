@@ -65,6 +65,8 @@ import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { SalesRequestsPanel } from '@/components/SalesRequestsPanel';
+import { CompanyLiabilitiesPanel } from '@/components/CompanyLiabilitiesPanel';
+
 
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
@@ -3146,15 +3148,23 @@ const AccountantDashboard = () => {
         {/* Main Content Tabs */}
         <Tabs defaultValue="invoices" className="space-y-3 sm:space-y-4 w-full">
           <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-6 gap-1">
+            <TabsList className="inline-flex w-auto sm:grid sm:w-full sm:grid-cols-3 lg:grid-cols-7 gap-1">
               <TabsTrigger value="invoices" className="text-xs sm:text-sm whitespace-nowrap">Invoices</TabsTrigger>
               <TabsTrigger value="customers" className="text-xs sm:text-sm whitespace-nowrap">Customers</TabsTrigger>
               <TabsTrigger value="payments" className="text-xs sm:text-sm whitespace-nowrap">Payments</TabsTrigger>
               <TabsTrigger value="expenses" className="text-xs sm:text-sm whitespace-nowrap">Expenses</TabsTrigger>
+              <TabsTrigger value="liabilities" className="text-xs sm:text-sm whitespace-nowrap">Liabilities</TabsTrigger>
               <TabsTrigger value="commissions" className="text-xs sm:text-sm whitespace-nowrap">Commissions</TabsTrigger>
               <TabsTrigger value="reports" className="text-xs sm:text-sm whitespace-nowrap">Reports</TabsTrigger>
             </TabsList>
           </div>
+
+          {/* Liabilities Tab */}
+          <TabsContent value="liabilities" className="space-y-3 sm:space-y-4">
+            <CompanyLiabilitiesPanel />
+          </TabsContent>
+
+
 
           {/* Invoices Tab */}
           <TabsContent value="invoices" className="space-y-3 sm:space-y-4">
