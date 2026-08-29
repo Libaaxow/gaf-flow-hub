@@ -118,10 +118,47 @@ const SalesDashboard = () => {
     if (!user?.id) return;
     
     try {
-      const startDate = startOfDay(dateFilter).toISOString();
-      const endDate = endOfDay(dateFilter).toISOString();
+      // Determine visible date range
+      const now = new Date();
+      let startDate: string;
+      let endDate: string;
+      let rangeLabel = '';
+      switch (rangeFilter) {
+        case 'today':
+          startDate = startOfDay(now).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = format(now, 'MMMM d, yyyy');
+          break;
+        case 'yesterday':
+          startDate = startOfDay(subDays(now, 1)).toISOString();
+          endDate = endOfDay(subDays(now, 1)).toISOString();
+          rangeLabel = format(subDays(now, 1), 'MMMM d, yyyy');
+          break;
+        case 'week':
+          startDate = startOfDay(subDays(now, 6)).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = 'last 7 days';
+          break;
+        case 'month':
+          startDate = startOfMonth(now).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = format(now, 'MMMM yyyy');
+          break;
+        case 'last_month':
+          const lm = subMonths(now, 1);
+          startDate = startOfMonth(lm).toISOString();
+          endDate = endOfMonth(lm).toISOString();
+          rangeLabel = format(lm, 'MMMM yyyy');
+          break;
+        case 'all':
+        default:
+          startDate = '1970-01-01T00:00:00.000Z';
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = 'all time';
+          break;
+      }
 
-      // All submissions by this salesperson (balances must span every day)
+      // All submissions by this salesperson
       const { data: allRequests, error } = await supabase
         .from('sales_order_requests')
         .select('*')
@@ -131,19 +168,18 @@ const SalesDashboard = () => {
       if (error) throw error;
 
       const all = allRequests || [];
-      // The table only shows the selected day
       const data = all.filter((r: any) => r.created_at >= startDate && r.created_at <= endDate);
 
       setOrderRequests(data);
 
-      // Calculate stats
-      const totalRequests = data?.length || 0;
-      const pendingRequests = data?.filter(r => r.status === 'pending').length || 0;
-      const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
-      const totalAmount = all.reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
+      // Calculate stats for the selected range
+      const totalRequests = data.length;
+      const pendingRequests = data.filter(r => r.status === 'pending').length;
+      const processedRequests = data.filter(r => r.status === 'processed').length;
+      const totalAmount = data.reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
-      // Payments the accountant linked to these submissions
-      const requestIds = all.map((r: any) => r.id);
+      // Payments the accountant linked to these submissions (range-aware)
+      const requestIds = data.map((r: any) => r.id);
       let paidMap: Record<string, number> = {};
       if (requestIds.length > 0) {
         const { data: linkedPayments } = await supabase
@@ -154,11 +190,14 @@ const SalesDashboard = () => {
           paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
         });
       }
-      // Payments linked directly to this salesperson (not tied to one order), any date
+
+      // Payments linked directly to this salesperson (not tied to one order), within range
       const { data: userPayments } = await supabase
         .from('payments')
         .select('amount, sales_request_id, sales_user_id, payment_date')
-        .eq('sales_user_id', user.id);
+        .eq('sales_user_id', user.id)
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
 
       const userLevelPaid = (userPayments || [])
         .filter((p: any) => !p.sales_request_id)
@@ -166,7 +205,7 @@ const SalesDashboard = () => {
 
       // Spread salesperson-level payments across their unpaid jobs (oldest first) for display
       let remainingToSpread = userLevelPaid;
-      const ordered = [...all].sort(
+      const ordered = [...data].sort(
         (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       ordered.forEach((r: any) => {
@@ -185,8 +224,6 @@ const SalesDashboard = () => {
 
       // Total remaining for the salesperson = everything he submitted minus everything collected from him
       const remainingAmount = Math.max(totalAmount - deductedAmount, 0);
-
-
 
       setStats({
         totalRequests,
