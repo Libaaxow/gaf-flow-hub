@@ -79,10 +79,6 @@ export function ShareholdersSummary() {
   }, []);
 
 
-      setLoading(false);
-    };
-    fetchData();
-  }, []);
 
   if (loading || shareholders.length === 0) return null;
 
