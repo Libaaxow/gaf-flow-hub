@@ -406,12 +406,21 @@ const SalesDashboard = () => {
     }
   };
 
+  const rangeLabelText = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    week: 'Last 7 days',
+    month: 'This month',
+    last_month: 'Last month',
+    all: 'All time',
+  }[rangeFilter];
+
   const statCards = [
     {
       title: 'Total Requests',
       value: stats.totalRequests,
       icon: FileText,
-      description: 'Today\'s requests',
+      description: `${rangeLabelText}'s requests`,
       color: 'text-primary',
     },
     {
@@ -429,11 +438,25 @@ const SalesDashboard = () => {
       color: 'text-success',
     },
     {
+      title: 'Total Amount',
+      value: formatMoney(stats.totalAmount),
+      icon: DollarSign,
+      description: `${rangeLabelText} submitted value`,
+      color: 'text-primary',
+    },
+    {
+      title: 'Collected',
+      value: formatMoney(stats.deductedAmount),
+      icon: CheckCircle,
+      description: `${rangeLabelText} payments received`,
+      color: 'text-success',
+    },
+    {
       title: 'Remaining',
       value: formatMoney(stats.remainingAmount),
-      icon: CheckCircle,
-      description: `Submitted ${formatMoney(stats.totalAmount)} • ${formatMoney(stats.deductedAmount)} collected`,
-      color: 'text-success',
+      icon: Clock,
+      description: `${rangeLabelText} unpaid balance`,
+      color: 'text-warning',
     },
   ];
 
