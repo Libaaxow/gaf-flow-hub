@@ -10,6 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, startOfDay, endOfDay, subMonths, isAfter, isBefore, parseISO } from 'date-fns';
 import { DollarSign, TrendingUp, TrendingDown, FileText, Download, BarChart3, PieChart, ArrowUpRight, ArrowDownRight, Wallet } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart as RePieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts';
+import { CompanyLiabilitiesPanel } from '@/components/CompanyLiabilitiesPanel';
+
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { useToast } from '@/hooks/use-toast';
 
@@ -305,6 +307,8 @@ const Reports = () => {
             <TabsTrigger value="sales" className="text-xs">Sales</TabsTrigger>
             <TabsTrigger value="expenses" className="text-xs">Expenses</TabsTrigger>
             <TabsTrigger value="invoices" className="text-xs">Invoices</TabsTrigger>
+            <TabsTrigger value="liabilities" className="text-xs">Liabilities</TabsTrigger>
+
           </TabsList>
 
           {/* Overview Tab */}
@@ -773,7 +777,13 @@ const Reports = () => {
               </Card>
             </div>
           </TabsContent>
+
+          {/* Liabilities Tab */}
+          <TabsContent value="liabilities" className="space-y-4">
+            <CompanyLiabilitiesPanel />
+          </TabsContent>
         </Tabs>
+
       </div>
     </Layout>
   );
