@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye, Paperclip, X } from 'lucide-react';
+import { FileText, Plus, Clock, CheckCircle, Calendar as CalendarIcon, Send, Eye, Paperclip, X, DollarSign } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { JobDetailsDialog } from '@/components/JobDetailsDialog';
@@ -14,9 +14,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { CommissionPanel } from '@/components/CommissionPanel';
 
@@ -72,6 +73,7 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
+  const [rangeFilter, setRangeFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'all'>('today');
   const [submitting, setSubmitting] = useState(false);
   const [viewRequest, setViewRequest] = useState<OrderRequest | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -110,16 +112,53 @@ const SalesDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, dateFilter]);
+  }, [user, rangeFilter]);
 
   const fetchData = async () => {
     if (!user?.id) return;
     
     try {
-      const startDate = startOfDay(dateFilter).toISOString();
-      const endDate = endOfDay(dateFilter).toISOString();
+      // Determine visible date range
+      const now = new Date();
+      let startDate: string;
+      let endDate: string;
+      let rangeLabel = '';
+      switch (rangeFilter) {
+        case 'today':
+          startDate = startOfDay(now).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = format(now, 'MMMM d, yyyy');
+          break;
+        case 'yesterday':
+          startDate = startOfDay(subDays(now, 1)).toISOString();
+          endDate = endOfDay(subDays(now, 1)).toISOString();
+          rangeLabel = format(subDays(now, 1), 'MMMM d, yyyy');
+          break;
+        case 'week':
+          startDate = startOfDay(subDays(now, 6)).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = 'last 7 days';
+          break;
+        case 'month':
+          startDate = startOfMonth(now).toISOString();
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = format(now, 'MMMM yyyy');
+          break;
+        case 'last_month':
+          const lm = subMonths(now, 1);
+          startDate = startOfMonth(lm).toISOString();
+          endDate = endOfMonth(lm).toISOString();
+          rangeLabel = format(lm, 'MMMM yyyy');
+          break;
+        case 'all':
+        default:
+          startDate = '1970-01-01T00:00:00.000Z';
+          endDate = endOfDay(now).toISOString();
+          rangeLabel = 'all time';
+          break;
+      }
 
-      // All submissions by this salesperson (balances must span every day)
+      // All submissions by this salesperson
       const { data: allRequests, error } = await supabase
         .from('sales_order_requests')
         .select('*')
@@ -129,19 +168,18 @@ const SalesDashboard = () => {
       if (error) throw error;
 
       const all = allRequests || [];
-      // The table only shows the selected day
       const data = all.filter((r: any) => r.created_at >= startDate && r.created_at <= endDate);
 
       setOrderRequests(data);
 
-      // Calculate stats
-      const totalRequests = data?.length || 0;
-      const pendingRequests = data?.filter(r => r.status === 'pending').length || 0;
-      const processedRequests = data?.filter(r => r.status === 'processed').length || 0;
-      const totalAmount = all.reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
+      // Calculate stats for the selected range
+      const totalRequests = data.length;
+      const pendingRequests = data.filter(r => r.status === 'pending').length;
+      const processedRequests = data.filter(r => r.status === 'processed').length;
+      const totalAmount = data.reduce((sum, r: any) => sum + parseAmount(r.notes), 0);
 
-      // Payments the accountant linked to these submissions
-      const requestIds = all.map((r: any) => r.id);
+      // Payments the accountant linked to these submissions (range-aware)
+      const requestIds = data.map((r: any) => r.id);
       let paidMap: Record<string, number> = {};
       if (requestIds.length > 0) {
         const { data: linkedPayments } = await supabase
@@ -152,11 +190,14 @@ const SalesDashboard = () => {
           paidMap[p.sales_request_id] = (paidMap[p.sales_request_id] || 0) + Number(p.amount || 0);
         });
       }
-      // Payments linked directly to this salesperson (not tied to one order), any date
+
+      // Payments linked directly to this salesperson (not tied to one order), within range
       const { data: userPayments } = await supabase
         .from('payments')
         .select('amount, sales_request_id, sales_user_id, payment_date')
-        .eq('sales_user_id', user.id);
+        .eq('sales_user_id', user.id)
+        .gte('payment_date', startDate)
+        .lte('payment_date', endDate);
 
       const userLevelPaid = (userPayments || [])
         .filter((p: any) => !p.sales_request_id)
@@ -164,7 +205,7 @@ const SalesDashboard = () => {
 
       // Spread salesperson-level payments across their unpaid jobs (oldest first) for display
       let remainingToSpread = userLevelPaid;
-      const ordered = [...all].sort(
+      const ordered = [...data].sort(
         (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       ordered.forEach((r: any) => {
@@ -183,8 +224,6 @@ const SalesDashboard = () => {
 
       // Total remaining for the salesperson = everything he submitted minus everything collected from him
       const remainingAmount = Math.max(totalAmount - deductedAmount, 0);
-
-
 
       setStats({
         totalRequests,
@@ -367,12 +406,21 @@ const SalesDashboard = () => {
     }
   };
 
+  const rangeLabelText = {
+    today: 'Today',
+    yesterday: 'Yesterday',
+    week: 'Last 7 days',
+    month: 'This month',
+    last_month: 'Last month',
+    all: 'All time',
+  }[rangeFilter];
+
   const statCards = [
     {
       title: 'Total Requests',
       value: stats.totalRequests,
       icon: FileText,
-      description: 'Today\'s requests',
+      description: `${rangeLabelText}'s requests`,
       color: 'text-primary',
     },
     {
@@ -390,11 +438,25 @@ const SalesDashboard = () => {
       color: 'text-success',
     },
     {
+      title: 'Total Amount',
+      value: formatMoney(stats.totalAmount),
+      icon: DollarSign,
+      description: `${rangeLabelText} submitted value`,
+      color: 'text-primary',
+    },
+    {
+      title: 'Collected',
+      value: formatMoney(stats.deductedAmount),
+      icon: CheckCircle,
+      description: `${rangeLabelText} payments received`,
+      color: 'text-success',
+    },
+    {
       title: 'Remaining',
       value: formatMoney(stats.remainingAmount),
-      icon: CheckCircle,
-      description: `Submitted ${formatMoney(stats.totalAmount)} • ${formatMoney(stats.deductedAmount)} collected`,
-      color: 'text-success',
+      icon: Clock,
+      description: `${rangeLabelText} unpaid balance`,
+      color: 'text-warning',
     },
   ];
 
@@ -427,18 +489,32 @@ const SalesDashboard = () => {
               <p className="text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Select value={rangeFilter} onValueChange={(v) => setRangeFilter(v as any)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="week">Last 7 days</SelectItem>
+                <SelectItem value="month">This month</SelectItem>
+                <SelectItem value="last_month">Last month</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
+                  size="icon"
                   className={cn(
-                    "justify-start text-left font-normal",
+                    "justify-center text-left font-normal",
                     !dateFilter && "text-muted-foreground"
                   )}
+                  title="Pick a custom date"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                  <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -448,6 +524,7 @@ const SalesDashboard = () => {
                   onSelect={(date) => {
                     if (date) {
                       setDateFilter(date);
+                      setRangeFilter('today');
                     }
                   }}
                   initialFocus
@@ -591,7 +668,7 @@ const SalesDashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {statCards.map((stat, index) => (
             <Card key={index}>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -632,7 +709,7 @@ const SalesDashboard = () => {
           <CardHeader>
             <CardTitle>My Order Requests</CardTitle>
             <CardDescription>
-              Order requests submitted for {format(dateFilter, "MMMM d, yyyy")}
+              Order requests submitted for {rangeLabelText}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -641,7 +718,7 @@ const SalesDashboard = () => {
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground/50" />
                 <h3 className="mt-4 text-lg font-semibold">No order requests</h3>
                 <p className="text-muted-foreground">
-                  Submit your first order request for today.
+                  Submit your first order request for {rangeLabelText.toLowerCase()}.
                 </p>
                 <Button className="mt-4" onClick={() => setIsDialogOpen(true)}>
                   <Plus className="mr-2 h-4 w-4" />
