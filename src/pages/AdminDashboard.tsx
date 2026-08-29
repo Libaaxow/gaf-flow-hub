@@ -23,6 +23,7 @@ import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { ShareholdersPanel } from '@/components/ShareholdersPanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
+import { ClosingReportCard } from '@/components/ClosingReportCard';
 import { CompanyAssetsPanel } from '@/components/CompanyAssetsPanel';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -1447,6 +1448,7 @@ export default function AdminDashboard() {
   return (
     <Layout>
       <div className="space-y-4">
+      <ClosingReportCard />
       <ShareholdersSummary />
       <FinanceNotesPanel />
       <Tabs defaultValue="orders" className="w-full">
