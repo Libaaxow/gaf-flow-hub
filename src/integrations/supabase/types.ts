@@ -302,6 +302,47 @@ export type Database = {
           },
         ]
       }
+      company_liability_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_name: string
+          liability_id: string
+          line_total: number
+          quantity: number
+          unit_price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_name: string
+          liability_id: string
+          line_total?: number
+          quantity?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_name?: string
+          liability_id?: string
+          line_total?: number
+          quantity?: number
+          unit_price?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_liability_items_liability_id_fkey"
+            columns: ["liability_id"]
+            isOneToOne: false
+            referencedRelation: "company_liabilities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           company_name: string | null
