@@ -307,6 +307,8 @@ const Reports = () => {
             <TabsTrigger value="sales" className="text-xs">Sales</TabsTrigger>
             <TabsTrigger value="expenses" className="text-xs">Expenses</TabsTrigger>
             <TabsTrigger value="invoices" className="text-xs">Invoices</TabsTrigger>
+            <TabsTrigger value="liabilities" className="text-xs">Liabilities</TabsTrigger>
+
           </TabsList>
 
           {/* Overview Tab */}
