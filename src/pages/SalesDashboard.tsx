@@ -489,18 +489,32 @@ const SalesDashboard = () => {
               <p className="text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            <Select value={rangeFilter} onValueChange={(v) => setRangeFilter(v as any)}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">Today</SelectItem>
+                <SelectItem value="yesterday">Yesterday</SelectItem>
+                <SelectItem value="week">Last 7 days</SelectItem>
+                <SelectItem value="month">This month</SelectItem>
+                <SelectItem value="last_month">Last month</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
+              </SelectContent>
+            </Select>
             <Popover>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
+                  size="icon"
                   className={cn(
-                    "justify-start text-left font-normal",
+                    "justify-center text-left font-normal",
                     !dateFilter && "text-muted-foreground"
                   )}
+                  title="Pick a custom date"
                 >
-                  <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateFilter ? format(dateFilter, "PPP") : "Pick a date"}
+                  <CalendarIcon className="h-4 w-4" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
@@ -510,6 +524,7 @@ const SalesDashboard = () => {
                   onSelect={(date) => {
                     if (date) {
                       setDateFilter(date);
+                      setRangeFilter('today');
                     }
                   }}
                   initialFocus
