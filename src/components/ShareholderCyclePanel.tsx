@@ -337,10 +337,14 @@ export function ShareholderCyclePanel() {
               </CardTitle>
               <CardDescription>Each company year closes on 20 December and the new year starts on 21 December.</CardDescription>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
               {!openYear && <Button size="sm" onClick={startCycle} disabled={busy}><Plus className="h-4 w-4 mr-1" />Start Year Cycle</Button>}
-              {openYear && <Button size="sm" variant="destructive" onClick={() => setCloseOpen(true)} disabled={busy}><Lock className="h-4 w-4 mr-1" />Close {openYear.year_label}</Button>}
+              {openYear && (
+                <Button size="sm" variant="secondary" disabled title="The year closes automatically on 20 December">
+                  <Lock className="h-4 w-4 mr-1" />Closes automatically on 20 Dec
+                </Button>
+              )}
             </div>
           </div>
         </CardHeader>
