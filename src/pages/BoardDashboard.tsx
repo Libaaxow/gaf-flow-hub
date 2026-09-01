@@ -393,6 +393,7 @@ const BoardDashboard = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        <ShareYearCycleBanner />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
