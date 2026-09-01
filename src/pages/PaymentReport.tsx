@@ -529,9 +529,26 @@ export default function PaymentReport() {
           </CardContent>
         </Card>
 
-        <p className="text-sm font-medium text-muted-foreground">
-          {customerFilter !== 'all' ? `All activity — ${selectedCustomerName}` : label}
+        <p className="text-sm font-semibold text-muted-foreground">
+          PAYMENT ALLOCATION REPORT — {label}
+          {customerFilter !== 'all' ? ` • ${selectedCustomerName}` : ''}
         </p>
+
+        {customerSnapshot && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Customer Accounting Snapshot — {selectedCustomerName}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div><p className="text-xs text-muted-foreground">Total Billed</p><p className="font-semibold">{money(customerSnapshot.billed)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total Paid</p><p className="font-semibold">{money(customerSnapshot.paid)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total Outstanding</p><p className="font-semibold">{money(customerSnapshot.outstanding)}</p></div>
+              <p className="sm:col-span-3 text-xs text-muted-foreground">
+                Read from the existing customer accounting records (informational only — not changed by this report).
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Hero metric + summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
