@@ -2265,6 +2265,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      auto_manage_fiscal_year: { Args: never; Returns: undefined }
       generate_draft_invoice_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
@@ -2286,6 +2287,7 @@ export type Database = {
         Args: { p_invoice_id: string }
         Returns: undefined
       }
+      send_annual_shareholder_report: { Args: never; Returns: undefined }
       send_pending_whatsapp_notifications: { Args: never; Returns: undefined }
       send_whatsapp_notification: {
         Args: {

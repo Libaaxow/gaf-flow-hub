@@ -37,6 +37,7 @@ import { ChartContainer } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell, Tooltip } from 'recharts';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
+import { ShareYearCycleBanner } from '@/components/ShareYearCycleBanner';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -393,6 +394,7 @@ const BoardDashboard = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        <ShareYearCycleBanner />
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
