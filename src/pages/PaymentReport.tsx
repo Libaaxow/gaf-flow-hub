@@ -87,6 +87,7 @@ export default function PaymentReport() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedCustomer, setExpandedCustomer] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
+  const [customerSnapshot, setCustomerSnapshot] = useState<{ billed: number; paid: number; outstanding: number } | null>(null);
 
   const { from, to, label } = useMemo(() => {
     const now = new Date();
