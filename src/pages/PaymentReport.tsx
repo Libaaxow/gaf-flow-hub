@@ -289,7 +289,7 @@ export default function PaymentReport() {
     const q = search.trim().toLowerCase();
     return transactions.filter((t) => {
       if (methodFilter !== 'all' && t.method !== methodFilter) return false;
-      if (customerFilter !== 'all' && t.customer !== customerFilter) return false;
+      if (customerFilter !== 'all' && t.customerId !== customerFilter) return false;
       if (!q) return true;
       return (
         t.payment_id.toLowerCase().includes(q) ||
@@ -508,7 +508,9 @@ export default function PaymentReport() {
           </CardContent>
         </Card>
 
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium text-muted-foreground">
+          {customerFilter !== 'all' ? `All activity — ${selectedCustomerName}` : label}
+        </p>
 
         {/* Hero metric + summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
