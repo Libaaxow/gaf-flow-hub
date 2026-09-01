@@ -81,6 +81,8 @@ export default function PaymentReport() {
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
+  const [allCustomers, setAllCustomers] = useState<{ id: string; name: string }[]>([]);
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedCustomer, setExpandedCustomer] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
