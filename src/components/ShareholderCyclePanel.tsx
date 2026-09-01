@@ -335,7 +335,10 @@ export function ShareholderCyclePanel() {
                 <CalendarClock className="h-4 w-4 text-primary" />
                 Shareholder Year Cycle
               </CardTitle>
-              <CardDescription>Each company year closes on 20 December and the new year starts on 21 December.</CardDescription>
+              <CardDescription>
+                Fully automatic: the year closes itself on 20 December, the 30% company reserve is moved into company
+                assets, the new year opens on 21 December and the full report is emailed to admins and the board.
+              </CardDescription>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
