@@ -51,6 +51,8 @@ const navItems: NavItem[] = [
   { href: '/customer-reports', label: 'Customer Reports', icon: FileText, roles: ['admin', 'accountant', 'board'] },
   { href: '/financial-analyst', label: 'AI Analyst', icon: Brain, roles: ['admin', 'accountant', 'board'] },
   { href: '/beginning-balances', label: 'Beginning Balances', icon: Receipt, roles: ['admin', 'accountant'] },
+  { href: '/corporate', label: 'Corporate & Shares', icon: Building2, roles: ['admin', 'board', 'accountant', 'auditor'] },
+
   
   { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
   { href: '/github-settings', label: 'GitHub', icon: Settings, roles: ['admin'] },
