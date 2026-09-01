@@ -37,6 +37,7 @@ import { ChartContainer } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, PieChart as RechartPie, Pie, Cell, Tooltip } from 'recharts';
 import { CommissionPanel } from '@/components/CommissionPanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
+import { ShareYearCycleBanner } from '@/components/ShareYearCycleBanner';
 
 interface FinancialStats {
   totalRevenue: number;
