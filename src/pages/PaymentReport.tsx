@@ -34,7 +34,7 @@ import {
 import { toast } from 'sonner';
 import { generatePaymentReportPDF } from '@/utils/generatePaymentReportPDF';
 
-type RangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
+type RangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all' | 'custom';
 
 interface Allocation {
   paymentRowId: string;
