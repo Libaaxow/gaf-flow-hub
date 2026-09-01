@@ -695,17 +695,19 @@ export default function PaymentReport() {
                                             <TableRow>
                                               <TableHead>Invoice</TableHead>
                                               <TableHead>Invoice Date</TableHead>
-                                              <TableHead className="text-right">Original Amount</TableHead>
-                                              <TableHead className="text-right">Previous Balance</TableHead>
-                                              <TableHead className="text-right">Allocated</TableHead>
-                                              <TableHead className="text-right">Remaining Balance</TableHead>
-                                              <TableHead>Status</TableHead>
+                                              <TableHead className="text-right">Original Total</TableHead>
+                                              <TableHead className="text-right">Balance Before Payment</TableHead>
+                                              <TableHead className="text-right">Allocated From This Payment</TableHead>
+                                              <TableHead className="text-right">Discount</TableHead>
+                                              <TableHead className="text-right">Balance After Payment</TableHead>
+                                              <TableHead>Status After This Payment</TableHead>
+                                              <TableHead>Current Invoice Status</TableHead>
                                             </TableRow>
                                           </TableHeader>
                                           <TableBody>
                                             {t.allocations.length === 0 ? (
                                               <TableRow>
-                                                <TableCell colSpan={7} className="text-sm text-muted-foreground">
+                                                <TableCell colSpan={9} className="text-sm text-muted-foreground">
                                                   This payment is not linked to any invoice (unallocated).
                                                 </TableCell>
                                               </TableRow>
@@ -717,8 +719,12 @@ export default function PaymentReport() {
                                                   <TableCell className="text-right">{money(a.original_amount)}</TableCell>
                                                   <TableCell className="text-right">{money(a.previous_balance)}</TableCell>
                                                   <TableCell className="text-right font-semibold">{money(a.allocated)}</TableCell>
+                                                  <TableCell className="text-right">{a.discount ? money(a.discount) : '—'}</TableCell>
                                                   <TableCell className="text-right">{money(a.remaining)}</TableCell>
                                                   <TableCell>{statusBadge(a.status)}</TableCell>
+                                                  <TableCell className="capitalize text-xs text-muted-foreground">
+                                                    {String(a.current_status || '').replace(/_/g, ' ')}
+                                                  </TableCell>
                                                 </TableRow>
                                               ))
                                             )}
