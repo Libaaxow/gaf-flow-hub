@@ -343,6 +343,233 @@ export type Database = {
           },
         ]
       }
+      compliance_items: {
+        Row: {
+          authority: string | null
+          category: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string
+          id: string
+          notes: string | null
+          reference_no: string | null
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          authority?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date: string
+          id?: string
+          notes?: string | null
+          reference_no?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          authority?: string | null
+          category?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string
+          id?: string
+          notes?: string | null
+          reference_no?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      corporate_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_role: string | null
+          approval_status: string | null
+          comments: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          new_value: Json | null
+          previous_value: Json | null
+          reference_no: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_role?: string | null
+          approval_status?: string | null
+          comments?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reference_no?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_role?: string | null
+          approval_status?: string | null
+          comments?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          reference_no?: string | null
+        }
+        Relationships: []
+      }
+      corporate_request_documents: {
+        Row: {
+          created_at: string
+          document_type: string | null
+          file_name: string
+          file_path: string
+          id: string
+          request_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          request_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          request_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "corporate_request_documents_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      corporate_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_comment: string | null
+          description: string | null
+          details: Json
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          prepared_by: string | null
+          reason: string | null
+          reference_no: string
+          request_type: string
+          status: string
+          submitted_at: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          description?: string | null
+          details?: Json
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          prepared_by?: string | null
+          reason?: string | null
+          reference_no: string
+          request_type: string
+          status?: string
+          submitted_at?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_comment?: string | null
+          description?: string | null
+          details?: Json
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          prepared_by?: string | null
+          reason?: string | null
+          reference_no?: string
+          request_type?: string
+          status?: string
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      corporate_settings: {
+        Row: {
+          authorized_shares: number
+          company_name: string
+          created_at: string
+          currency: string
+          id: string
+          incorporation_date: string | null
+          par_value: number
+          registration_number: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          authorized_shares?: number
+          company_name?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          incorporation_date?: string | null
+          par_value?: number
+          registration_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          authorized_shares?: number
+          company_name?: string
+          created_at?: string
+          currency?: string
+          id?: string
+          incorporation_date?: string | null
+          par_value?: number
+          registration_number?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       customers: {
         Row: {
           company_name: string | null
@@ -375,6 +602,110 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      dividend_declarations: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          declaration_date: string
+          dividend_amount: number
+          dividend_per_share: number
+          id: string
+          notes: string | null
+          payment_date: string | null
+          profit_available: number
+          reference_no: string
+          request_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          declaration_date?: string
+          dividend_amount?: number
+          dividend_per_share?: number
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          profit_available?: number
+          reference_no: string
+          request_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          declaration_date?: string
+          dividend_amount?: number
+          dividend_per_share?: number
+          id?: string
+          notes?: string | null
+          payment_date?: string | null
+          profit_available?: number
+          reference_no?: string
+          request_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dividend_declarations_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dividend_entitlements: {
+        Row: {
+          amount: number
+          created_at: string
+          declaration_id: string
+          id: string
+          paid_at: string | null
+          payment_status: string
+          shareholder_id: string
+          shares: number
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          declaration_id: string
+          id?: string
+          paid_at?: string | null
+          payment_status?: string
+          shareholder_id: string
+          shares?: number
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          declaration_id?: string
+          id?: string
+          paid_at?: string | null
+          payment_status?: string
+          shareholder_id?: string
+          shares?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dividend_entitlements_declaration_id_fkey"
+            columns: ["declaration_id"]
+            isOneToOne: false
+            referencedRelation: "dividend_declarations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dividend_entitlements_shareholder_id_fkey"
+            columns: ["shareholder_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       expenses: {
         Row: {
@@ -1795,6 +2126,85 @@ export type Database = {
           },
         ]
       }
+      share_transactions: {
+        Row: {
+          amount: number | null
+          counterparty_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          percentage_after: number | null
+          percentage_before: number | null
+          price_per_share: number | null
+          request_id: string | null
+          shareholder_id: string | null
+          shares_after: number | null
+          shares_before: number | null
+          shares_delta: number
+          transaction_date: string
+          transaction_type: string
+        }
+        Insert: {
+          amount?: number | null
+          counterparty_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          percentage_after?: number | null
+          percentage_before?: number | null
+          price_per_share?: number | null
+          request_id?: string | null
+          shareholder_id?: string | null
+          shares_after?: number | null
+          shares_before?: number | null
+          shares_delta?: number
+          transaction_date?: string
+          transaction_type: string
+        }
+        Update: {
+          amount?: number | null
+          counterparty_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          percentage_after?: number | null
+          percentage_before?: number | null
+          price_per_share?: number | null
+          request_id?: string | null
+          shareholder_id?: string | null
+          shares_after?: number | null
+          shares_before?: number | null
+          shares_delta?: number
+          transaction_date?: string
+          transaction_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_transactions_counterparty_id_fkey"
+            columns: ["counterparty_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_transactions_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "corporate_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_transactions_shareholder_id_fkey"
+            columns: ["shareholder_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shareholder_transactions: {
         Row: {
           amount: number
@@ -1850,42 +2260,63 @@ export type Database = {
         Row: {
           asset_description: string | null
           asset_value: number
+          certificate_number: string | null
           created_at: string
           created_by: string | null
+          date_acquired: string | null
           email: string | null
           full_name: string
           id: string
           notes: string | null
+          paid_up_amount: number
+          par_value: number
           phone: string | null
+          share_class: string
           share_percentage: number | null
+          shareholder_code: string | null
+          shares_owned: number
           status: string
           updated_at: string
         }
         Insert: {
           asset_description?: string | null
           asset_value?: number
+          certificate_number?: string | null
           created_at?: string
           created_by?: string | null
+          date_acquired?: string | null
           email?: string | null
           full_name: string
           id?: string
           notes?: string | null
+          paid_up_amount?: number
+          par_value?: number
           phone?: string | null
+          share_class?: string
           share_percentage?: number | null
+          shareholder_code?: string | null
+          shares_owned?: number
           status?: string
           updated_at?: string
         }
         Update: {
           asset_description?: string | null
           asset_value?: number
+          certificate_number?: string | null
           created_at?: string
           created_by?: string | null
+          date_acquired?: string | null
           email?: string | null
           full_name?: string
           id?: string
           notes?: string | null
+          paid_up_amount?: number
+          par_value?: number
           phone?: string | null
+          share_class?: string
           share_percentage?: number | null
+          shareholder_code?: string | null
+          shares_owned?: number
           status?: string
           updated_at?: string
         }
@@ -2266,6 +2697,10 @@ export type Database = {
     }
     Functions: {
       auto_manage_fiscal_year: { Args: never; Returns: undefined }
+      generate_corporate_reference: {
+        Args: { _prefix: string }
+        Returns: string
+      }
       generate_draft_invoice_number: { Args: never; Returns: string }
       generate_invoice_number: { Args: never; Returns: string }
       generate_po_number: { Args: never; Returns: string }
@@ -2281,6 +2716,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_role_text: {
+        Args: { _role: string; _user_id: string }
+        Returns: boolean
+      }
+      is_corporate_viewer: { Args: { _user_id: string }; Returns: boolean }
       process_daily_salary_credits: { Args: never; Returns: undefined }
       process_pending_notifications: { Args: never; Returns: undefined }
       recompute_invoice_payment_status: {
@@ -2307,6 +2747,7 @@ export type Database = {
         | "accountant"
         | "marketing"
         | "board"
+        | "auditor"
       order_status:
         | "pending"
         | "designing"
@@ -2502,6 +2943,7 @@ export const Constants = {
         "accountant",
         "marketing",
         "board",
+        "auditor",
       ],
       order_status: [
         "pending",
