@@ -22,6 +22,7 @@ import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { z } from 'zod';
 import { InvoiceDialog } from '@/components/InvoiceDialog';
 import { ShareholdersPanel } from '@/components/ShareholdersPanel';
+import { ShareholderCyclePanel } from '@/components/ShareholderCyclePanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
 import { ClosingReportCard } from '@/components/ClosingReportCard';
 import { CompanyAssetsPanel } from '@/components/CompanyAssetsPanel';
@@ -2110,6 +2111,7 @@ export default function AdminDashboard() {
     </TabsContent>
 
     <TabsContent value="shareholders" className="space-y-4">
+      <ShareholderCyclePanel />
       <ShareholdersPanel />
     </TabsContent>
 

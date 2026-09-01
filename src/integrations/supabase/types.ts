@@ -438,6 +438,82 @@ export type Database = {
           },
         ]
       }
+      fiscal_years: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closing_net_worth: number | null
+          closing_notes: string | null
+          created_at: string
+          created_by: string | null
+          distributed_amount: number | null
+          end_date: string
+          id: string
+          reserve_amount: number | null
+          reserve_asset_id: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          year_label: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_net_worth?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          distributed_amount?: number | null
+          end_date: string
+          id?: string
+          reserve_amount?: number | null
+          reserve_asset_id?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+          year_label: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closing_net_worth?: number | null
+          closing_notes?: string | null
+          created_at?: string
+          created_by?: string | null
+          distributed_amount?: number | null
+          end_date?: string
+          id?: string
+          reserve_amount?: number | null
+          reserve_asset_id?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          year_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_years_closed_by_fkey"
+            columns: ["closed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_years_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_years_reserve_asset_id_fkey"
+            columns: ["reserve_asset_id"]
+            isOneToOne: false
+            referencedRelation: "company_assets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integration_settings: {
         Row: {
           created_at: string
@@ -1626,6 +1702,95 @@ export type Database = {
             columns: ["print_operator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      share_change_requests: {
+        Row: {
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          change_type: string
+          created_at: string
+          created_by: string | null
+          document_name: string | null
+          document_path: string | null
+          effective_date: string
+          fiscal_year_id: string | null
+          id: string
+          new_percentage: number | null
+          notes: string | null
+          previous_percentage: number | null
+          shareholder_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_path?: string | null
+          effective_date?: string
+          fiscal_year_id?: string | null
+          id?: string
+          new_percentage?: number | null
+          notes?: string | null
+          previous_percentage?: number | null
+          shareholder_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          change_type?: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_path?: string | null
+          effective_date?: string
+          fiscal_year_id?: string | null
+          id?: string
+          new_percentage?: number | null
+          notes?: string | null
+          previous_percentage?: number | null
+          shareholder_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "share_change_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_change_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_change_requests_fiscal_year_id_fkey"
+            columns: ["fiscal_year_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_years"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "share_change_requests_shareholder_id_fkey"
+            columns: ["shareholder_id"]
+            isOneToOne: false
+            referencedRelation: "shareholders"
             referencedColumns: ["id"]
           },
         ]
