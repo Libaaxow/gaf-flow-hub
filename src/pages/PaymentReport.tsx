@@ -594,6 +594,21 @@ export default function PaymentReport() {
             <div className="flex justify-between"><span>Total Payment Received</span><span className="font-semibold">{money(summary.totalReceived)}</span></div>
             <div className="flex justify-between"><span>− Allocated to Invoices</span><span>{money(summary.totalAllocated)}</span></div>
             <div className="flex justify-between border-t pt-2"><span className="font-medium">= Unallocated</span><span className="font-semibold">{money(summary.totalUnallocated)}</span></div>
+            {customerSnapshot && (
+              <>
+                <div className="flex justify-between border-t pt-2"><span>Customer Current Paid (ledger)</span><span className="font-semibold">{money(customerSnapshot.paid)}</span></div>
+                <div className="flex justify-between"><span>Payments Found in Selected Period</span><span>{money(summary.totalReceived)}</span></div>
+                {rangeKey === 'all' && Math.abs(customerSnapshot.paid - summary.totalReceived) > 0.005 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Reconciliation Difference: {money(Math.abs(customerSnapshot.paid - summary.totalReceived))}. This may indicate
+                      discounts, reversed, excluded or unmatched transactions. No accounting data was changed.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
             {Math.abs(summary.discrepancy) > 0.005 && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
