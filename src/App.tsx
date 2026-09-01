@@ -263,7 +263,16 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/corporate"
+              element={
+                <ProtectedRoute>
+                  <CorporateAdmin />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
+
           </Routes>
         </AuthProvider>
       </BrowserRouter>
