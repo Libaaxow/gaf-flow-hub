@@ -141,14 +141,21 @@ export default function PaymentReport() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // When a specific customer is chosen, show their full activity (all dates)
+      // Customer accounting snapshot (read-only, mirrors the Customer Report)
       let invoiceIdsForCustomer: string[] | null = null;
       if (customerFilter !== 'all') {
         const { data: invs } = await supabase
           .from('invoices')
-          .select('id')
+          .select('id, total_amount, amount_paid, status')
           .eq('customer_id', customerFilter);
-        invoiceIdsForCustomer = ((invs as any) || []).map((i: any) => i.id);
+        const list = ((invs as any) || []) as any[];
+        invoiceIdsForCustomer = list.map((i) => i.id);
+        const nonDraft = list.filter((i) => i.status !== 'draft');
+        const billed = nonDraft.reduce((s, i) => s + Number(i.total_amount || 0), 0);
+        const paid = nonDraft.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+        setCustomerSnapshot({ billed, paid, outstanding: billed - paid });
+      } else {
+        setCustomerSnapshot(null);
       }
 
       // 1. Payments received in the selected period (read-only)
@@ -156,7 +163,9 @@ export default function PaymentReport() {
         .from('payments')
         .select(
           'id, amount, discount_amount, payment_method, payment_date, reference_number, notes, recorded_by, invoice_id, order_id, invoices:invoice_id(id, invoice_number, invoice_date, total_amount, amount_paid, status, customer_id, customers(name)), orders:order_id(customer_id, job_title, customers(name))',
-        );
+        )
+        .gte('payment_date', from.toISOString())
+        .lte('payment_date', to.toISOString());
 
       if (invoiceIdsForCustomer) {
         if (invoiceIdsForCustomer.length === 0) {
@@ -166,12 +175,9 @@ export default function PaymentReport() {
           return;
         }
         query = query.in('invoice_id', invoiceIdsForCustomer);
-      } else {
-        query = query.gte('payment_date', from.toISOString()).lte('payment_date', to.toISOString());
       }
 
       const { data: rows, error } = await query.order('payment_date', { ascending: false });
-
 
       if (error) throw error;
       const payments = rows || [];
