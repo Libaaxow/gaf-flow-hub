@@ -81,6 +81,8 @@ export default function PaymentReport() {
   const [search, setSearch] = useState('');
   const [methodFilter, setMethodFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
+  const [allCustomers, setAllCustomers] = useState<{ id: string; name: string }[]>([]);
+
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedCustomer, setExpandedCustomer] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
@@ -113,22 +115,51 @@ export default function PaymentReport() {
   }, [rangeKey, customFrom, customTo]);
 
   useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('customers').select('id, name').order('name');
+      setAllCustomers((data as any) || []);
+    })();
+  }, []);
+
+  useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from.getTime(), to.getTime()]);
+  }, [from.getTime(), to.getTime(), customerFilter]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // When a specific customer is chosen, show their full activity (all dates)
+      let invoiceIdsForCustomer: string[] | null = null;
+      if (customerFilter !== 'all') {
+        const { data: invs } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('customer_id', customerFilter);
+        invoiceIdsForCustomer = ((invs as any) || []).map((i: any) => i.id);
+      }
+
       // 1. Payments received in the selected period (read-only)
-      const { data: rows, error } = await supabase
+      let query = supabase
         .from('payments')
         .select(
           'id, amount, discount_amount, payment_method, payment_date, reference_number, notes, recorded_by, invoice_id, order_id, invoices:invoice_id(id, invoice_number, invoice_date, total_amount, amount_paid, status, customer_id, customers(name)), orders:order_id(customer_id, job_title, customers(name))',
-        )
-        .gte('payment_date', from.toISOString())
-        .lte('payment_date', to.toISOString())
-        .order('payment_date', { ascending: false });
+        );
+
+      if (invoiceIdsForCustomer) {
+        if (invoiceIdsForCustomer.length === 0) {
+          setTransactions([]);
+          setPage(1);
+          setLoading(false);
+          return;
+        }
+        query = query.in('invoice_id', invoiceIdsForCustomer);
+      } else {
+        query = query.gte('payment_date', from.toISOString()).lte('payment_date', to.toISOString());
+      }
+
+      const { data: rows, error } = await query.order('payment_date', { ascending: false });
+
 
       if (error) throw error;
       const payments = rows || [];
@@ -244,10 +275,11 @@ export default function PaymentReport() {
     }
   };
 
-  const customers = useMemo(
-    () => Array.from(new Set(transactions.map((t) => t.customer))).sort(),
-    [transactions],
+  const selectedCustomerName = useMemo(
+    () => allCustomers.find((c) => c.id === customerFilter)?.name || '',
+    [allCustomers, customerFilter],
   );
+
   const methods = useMemo(
     () => Array.from(new Set(transactions.map((t) => t.method))).sort(),
     [transactions],
@@ -257,7 +289,7 @@ export default function PaymentReport() {
     const q = search.trim().toLowerCase();
     return transactions.filter((t) => {
       if (methodFilter !== 'all' && t.method !== methodFilter) return false;
-      if (customerFilter !== 'all' && t.customer !== customerFilter) return false;
+      if (customerFilter !== 'all' && t.customerId !== customerFilter) return false;
       if (!q) return true;
       return (
         t.payment_id.toLowerCase().includes(q) ||
@@ -445,15 +477,16 @@ export default function PaymentReport() {
                 <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
               </>
             )}
-            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+            <Select value={customerFilter} onValueChange={(v) => { setCustomerFilter(v); setPage(1); }}>
               <SelectTrigger><SelectValue placeholder="Customer" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {customers.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {allCustomers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={methodFilter} onValueChange={setMethodFilter}>
               <SelectTrigger><SelectValue placeholder="Method" /></SelectTrigger>
               <SelectContent>
@@ -475,7 +508,9 @@ export default function PaymentReport() {
           </CardContent>
         </Card>
 
-        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        <p className="text-sm font-medium text-muted-foreground">
+          {customerFilter !== 'all' ? `All activity — ${selectedCustomerName}` : label}
+        </p>
 
         {/* Hero metric + summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
