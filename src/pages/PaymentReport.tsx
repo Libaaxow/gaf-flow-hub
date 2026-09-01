@@ -147,11 +147,13 @@ export default function PaymentReport() {
       if (customerFilter !== 'all') {
         const { data: invs } = await supabase
           .from('invoices')
-          .select('id, total_amount, amount_paid, status')
+          .select('id, total_amount, amount_paid, status, is_draft')
           .eq('customer_id', customerFilter);
         const list = ((invs as any) || []) as any[];
         invoiceIdsForCustomer = list.map((i) => i.id);
-        const nonDraft = list.filter((i) => i.status !== 'draft');
+        // Only sales-team drafts (is_draft = true) are excluded. Finalised invoices
+        // still flagged status='draft' are real billed documents and must count.
+        const nonDraft = list.filter((i) => i.is_draft !== true);
         const billed = nonDraft.reduce((s, i) => s + Number(i.total_amount || 0), 0);
         const paid = nonDraft.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
         setCustomerSnapshot({ billed, paid, outstanding: billed - paid });
