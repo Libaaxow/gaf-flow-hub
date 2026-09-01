@@ -244,10 +244,11 @@ export default function PaymentReport() {
     }
   };
 
-  const customers = useMemo(
-    () => Array.from(new Set(transactions.map((t) => t.customer))).sort(),
-    [transactions],
+  const selectedCustomerName = useMemo(
+    () => allCustomers.find((c) => c.id === customerFilter)?.name || '',
+    [allCustomers, customerFilter],
   );
+
   const methods = useMemo(
     () => Array.from(new Set(transactions.map((t) => t.method))).sort(),
     [transactions],
