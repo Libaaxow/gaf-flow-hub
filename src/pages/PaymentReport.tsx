@@ -15,6 +15,7 @@ import {
   startOfDay,
   endOfDay,
   subDays,
+  subMonths,
   startOfWeek,
   startOfMonth,
   endOfMonth,
@@ -34,7 +35,7 @@ import {
 import { toast } from 'sonner';
 import { generatePaymentReportPDF } from '@/utils/generatePaymentReportPDF';
 
-type RangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'custom';
+type RangeKey = 'today' | 'yesterday' | 'week' | 'month' | 'lastMonth' | 'all' | 'custom';
 
 interface Allocation {
   paymentRowId: string;
@@ -86,30 +87,42 @@ export default function PaymentReport() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedCustomer, setExpandedCustomer] = useState<Record<string, boolean>>({});
   const [page, setPage] = useState(1);
+  const [customerSnapshot, setCustomerSnapshot] = useState<{ billed: number; paid: number; outstanding: number } | null>(null);
 
   const { from, to, label } = useMemo(() => {
     const now = new Date();
     switch (rangeKey) {
       case 'today':
-        return { from: startOfDay(now), to: endOfDay(now), label: `Today — ${format(now, 'dd MMMM yyyy')}` };
+        return { from: startOfDay(now), to: endOfDay(now), label: `TODAY — ${format(now, 'dd MMM yyyy').toUpperCase()}` };
       case 'yesterday': {
         const y = subDays(now, 1);
-        return { from: startOfDay(y), to: endOfDay(y), label: `Yesterday — ${format(y, 'dd MMMM yyyy')}` };
+        return { from: startOfDay(y), to: endOfDay(y), label: `YESTERDAY — ${format(y, 'dd MMM yyyy').toUpperCase()}` };
       }
       case 'week': {
         const s = startOfWeek(now, { weekStartsOn: 1 });
-        return { from: s, to: endOfDay(now), label: `This Week — ${format(s, 'dd MMM')} to ${format(now, 'dd MMM yyyy')}` };
+        return { from: s, to: endOfDay(now), label: `THIS WEEK — ${format(s, 'dd MMM yyyy').toUpperCase()} to ${format(now, 'dd MMM yyyy').toUpperCase()}` };
       }
       case 'month':
         return {
           from: startOfMonth(now),
           to: endOfDay(endOfMonth(now) > now ? now : endOfMonth(now)),
-          label: `This Month — ${format(now, 'MMMM yyyy')}`,
+          label: `THIS MONTH — ${format(startOfMonth(now), 'dd MMM yyyy').toUpperCase()} to ${format(now, 'dd MMM yyyy').toUpperCase()}`,
         };
+      case 'lastMonth': {
+        const s = startOfMonth(subMonths(now, 1));
+        const e = endOfMonth(subMonths(now, 1));
+        return {
+          from: s,
+          to: endOfDay(e),
+          label: `LAST MONTH — ${format(s, 'dd MMM yyyy').toUpperCase()} to ${format(e, 'dd MMM yyyy').toUpperCase()}`,
+        };
+      }
+      case 'all':
+        return { from: new Date('2000-01-01T00:00:00Z'), to: endOfDay(now), label: 'ALL TIME' };
       default: {
         const f = startOfDay(parseISO(customFrom));
         const t = endOfDay(parseISO(customTo));
-        return { from: f, to: t, label: `${format(f, 'dd MMM yyyy')} to ${format(t, 'dd MMM yyyy')}` };
+        return { from: f, to: t, label: `${format(f, 'dd MMM yyyy').toUpperCase()} to ${format(t, 'dd MMM yyyy').toUpperCase()}` };
       }
     }
   }, [rangeKey, customFrom, customTo]);
@@ -129,14 +142,21 @@ export default function PaymentReport() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // When a specific customer is chosen, show their full activity (all dates)
+      // Customer accounting snapshot (read-only, mirrors the Customer Report)
       let invoiceIdsForCustomer: string[] | null = null;
       if (customerFilter !== 'all') {
         const { data: invs } = await supabase
           .from('invoices')
-          .select('id')
+          .select('id, total_amount, amount_paid, status')
           .eq('customer_id', customerFilter);
-        invoiceIdsForCustomer = ((invs as any) || []).map((i: any) => i.id);
+        const list = ((invs as any) || []) as any[];
+        invoiceIdsForCustomer = list.map((i) => i.id);
+        const nonDraft = list.filter((i) => i.status !== 'draft');
+        const billed = nonDraft.reduce((s, i) => s + Number(i.total_amount || 0), 0);
+        const paid = nonDraft.reduce((s, i) => s + Number(i.amount_paid || 0), 0);
+        setCustomerSnapshot({ billed, paid, outstanding: billed - paid });
+      } else {
+        setCustomerSnapshot(null);
       }
 
       // 1. Payments received in the selected period (read-only)
@@ -144,7 +164,9 @@ export default function PaymentReport() {
         .from('payments')
         .select(
           'id, amount, discount_amount, payment_method, payment_date, reference_number, notes, recorded_by, invoice_id, order_id, invoices:invoice_id(id, invoice_number, invoice_date, total_amount, amount_paid, status, customer_id, customers(name)), orders:order_id(customer_id, job_title, customers(name))',
-        );
+        )
+        .gte('payment_date', from.toISOString())
+        .lte('payment_date', to.toISOString());
 
       if (invoiceIdsForCustomer) {
         if (invoiceIdsForCustomer.length === 0) {
@@ -154,12 +176,9 @@ export default function PaymentReport() {
           return;
         }
         query = query.in('invoice_id', invoiceIdsForCustomer);
-      } else {
-        query = query.gte('payment_date', from.toISOString()).lte('payment_date', to.toISOString());
       }
 
       const { data: rows, error } = await query.order('payment_date', { ascending: false });
-
 
       if (error) throw error;
       const payments = rows || [];
@@ -468,6 +487,8 @@ export default function PaymentReport() {
                 <SelectItem value="yesterday">Yesterday</SelectItem>
                 <SelectItem value="week">This Week</SelectItem>
                 <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="lastMonth">Last Month</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
                 <SelectItem value="custom">Custom Range</SelectItem>
               </SelectContent>
             </Select>
@@ -508,9 +529,26 @@ export default function PaymentReport() {
           </CardContent>
         </Card>
 
-        <p className="text-sm font-medium text-muted-foreground">
-          {customerFilter !== 'all' ? `All activity — ${selectedCustomerName}` : label}
+        <p className="text-sm font-semibold text-muted-foreground">
+          PAYMENT ALLOCATION REPORT — {label}
+          {customerFilter !== 'all' ? ` • ${selectedCustomerName}` : ''}
         </p>
+
+        {customerSnapshot && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Customer Accounting Snapshot — {selectedCustomerName}</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div><p className="text-xs text-muted-foreground">Total Billed</p><p className="font-semibold">{money(customerSnapshot.billed)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total Paid</p><p className="font-semibold">{money(customerSnapshot.paid)}</p></div>
+              <div><p className="text-xs text-muted-foreground">Total Outstanding</p><p className="font-semibold">{money(customerSnapshot.outstanding)}</p></div>
+              <p className="sm:col-span-3 text-xs text-muted-foreground">
+                Read from the existing customer accounting records (informational only — not changed by this report).
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Hero metric + summary */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -556,6 +594,21 @@ export default function PaymentReport() {
             <div className="flex justify-between"><span>Total Payment Received</span><span className="font-semibold">{money(summary.totalReceived)}</span></div>
             <div className="flex justify-between"><span>− Allocated to Invoices</span><span>{money(summary.totalAllocated)}</span></div>
             <div className="flex justify-between border-t pt-2"><span className="font-medium">= Unallocated</span><span className="font-semibold">{money(summary.totalUnallocated)}</span></div>
+            {customerSnapshot && (
+              <>
+                <div className="flex justify-between border-t pt-2"><span>Customer Current Paid (ledger)</span><span className="font-semibold">{money(customerSnapshot.paid)}</span></div>
+                <div className="flex justify-between"><span>Payments Found in Selected Period</span><span>{money(summary.totalReceived)}</span></div>
+                {rangeKey === 'all' && Math.abs(customerSnapshot.paid - summary.totalReceived) > 0.005 && (
+                  <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Reconciliation Difference: {money(Math.abs(customerSnapshot.paid - summary.totalReceived))}. This may indicate
+                      discounts, reversed, excluded or unmatched transactions. No accounting data was changed.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </>
+            )}
             {Math.abs(summary.discrepancy) > 0.005 && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
@@ -581,8 +634,11 @@ export default function PaymentReport() {
                   <div className="p-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
                   <div className="p-10 text-center text-sm text-muted-foreground">
-                    No payments received in this period.
+                    {rangeKey === 'today'
+                      ? 'No payments received today.'
+                      : `No payments received in this period (${label}).`}
                   </div>
+
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
@@ -639,17 +695,19 @@ export default function PaymentReport() {
                                             <TableRow>
                                               <TableHead>Invoice</TableHead>
                                               <TableHead>Invoice Date</TableHead>
-                                              <TableHead className="text-right">Original Amount</TableHead>
-                                              <TableHead className="text-right">Previous Balance</TableHead>
-                                              <TableHead className="text-right">Allocated</TableHead>
-                                              <TableHead className="text-right">Remaining Balance</TableHead>
-                                              <TableHead>Status</TableHead>
+                                              <TableHead className="text-right">Original Total</TableHead>
+                                              <TableHead className="text-right">Balance Before Payment</TableHead>
+                                              <TableHead className="text-right">Allocated From This Payment</TableHead>
+                                              <TableHead className="text-right">Discount</TableHead>
+                                              <TableHead className="text-right">Balance After Payment</TableHead>
+                                              <TableHead>Status After This Payment</TableHead>
+                                              <TableHead>Current Invoice Status</TableHead>
                                             </TableRow>
                                           </TableHeader>
                                           <TableBody>
                                             {t.allocations.length === 0 ? (
                                               <TableRow>
-                                                <TableCell colSpan={7} className="text-sm text-muted-foreground">
+                                                <TableCell colSpan={9} className="text-sm text-muted-foreground">
                                                   This payment is not linked to any invoice (unallocated).
                                                 </TableCell>
                                               </TableRow>
@@ -661,8 +719,12 @@ export default function PaymentReport() {
                                                   <TableCell className="text-right">{money(a.original_amount)}</TableCell>
                                                   <TableCell className="text-right">{money(a.previous_balance)}</TableCell>
                                                   <TableCell className="text-right font-semibold">{money(a.allocated)}</TableCell>
+                                                  <TableCell className="text-right">{a.discount ? money(a.discount) : '—'}</TableCell>
                                                   <TableCell className="text-right">{money(a.remaining)}</TableCell>
                                                   <TableCell>{statusBadge(a.status)}</TableCell>
+                                                  <TableCell className="capitalize text-xs text-muted-foreground">
+                                                    {String(a.current_status || '').replace(/_/g, ' ')}
+                                                  </TableCell>
                                                 </TableRow>
                                               ))
                                             )}
