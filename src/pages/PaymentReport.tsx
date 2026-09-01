@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -565,9 +565,8 @@ export default function PaymentReport() {
                       </TableHeader>
                       <TableBody>
                         {paged.map((t) => (
-                          <>
+                          <Fragment key={t.key}>
                             <TableRow
-                              key={t.key}
                               className="cursor-pointer"
                               onClick={() => setExpanded((p) => ({ ...p, [t.key]: !p[t.key] }))}
                             >
@@ -583,7 +582,7 @@ export default function PaymentReport() {
                               <TableCell className="text-right">{money(t.unallocated)}</TableCell>
                             </TableRow>
                             {expanded[t.key] && (
-                              <TableRow key={`${t.key}-d`}>
+                              <TableRow>
                                 <TableCell colSpan={8} className="bg-muted/40">
                                   <div className="space-y-4 p-2">
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -646,7 +645,7 @@ export default function PaymentReport() {
                                 </TableCell>
                               </TableRow>
                             )}
-                          </>
+                          </Fragment>
                         ))}
                       </TableBody>
                     </Table>
@@ -682,9 +681,8 @@ export default function PaymentReport() {
                   </TableHeader>
                   <TableBody>
                     {customerBreakdown.map((c) => (
-                      <>
+                      <Fragment key={c.customer}>
                         <TableRow
-                          key={c.customer}
                           className="cursor-pointer"
                           onClick={() => setExpandedCustomer((p) => ({ ...p, [c.customer]: !p[c.customer] }))}
                         >
@@ -696,7 +694,7 @@ export default function PaymentReport() {
                           <TableCell className="text-right">{c.invoices.size}</TableCell>
                         </TableRow>
                         {expandedCustomer[c.customer] && (
-                          <TableRow key={`${c.customer}-d`}>
+                          <TableRow>
                             <TableCell colSpan={6} className="bg-muted/40">
                               <div className="space-y-3 p-2">
                                 {c.txs.map((t) => (
@@ -724,7 +722,7 @@ export default function PaymentReport() {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
