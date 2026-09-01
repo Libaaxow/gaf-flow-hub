@@ -115,22 +115,51 @@ export default function PaymentReport() {
   }, [rangeKey, customFrom, customTo]);
 
   useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('customers').select('id, name').order('name');
+      setAllCustomers((data as any) || []);
+    })();
+  }, []);
+
+  useEffect(() => {
     fetchData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [from.getTime(), to.getTime()]);
+  }, [from.getTime(), to.getTime(), customerFilter]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      // When a specific customer is chosen, show their full activity (all dates)
+      let invoiceIdsForCustomer: string[] | null = null;
+      if (customerFilter !== 'all') {
+        const { data: invs } = await supabase
+          .from('invoices')
+          .select('id')
+          .eq('customer_id', customerFilter);
+        invoiceIdsForCustomer = ((invs as any) || []).map((i: any) => i.id);
+      }
+
       // 1. Payments received in the selected period (read-only)
-      const { data: rows, error } = await supabase
+      let query = supabase
         .from('payments')
         .select(
           'id, amount, discount_amount, payment_method, payment_date, reference_number, notes, recorded_by, invoice_id, order_id, invoices:invoice_id(id, invoice_number, invoice_date, total_amount, amount_paid, status, customer_id, customers(name)), orders:order_id(customer_id, job_title, customers(name))',
-        )
-        .gte('payment_date', from.toISOString())
-        .lte('payment_date', to.toISOString())
-        .order('payment_date', { ascending: false });
+        );
+
+      if (invoiceIdsForCustomer) {
+        if (invoiceIdsForCustomer.length === 0) {
+          setTransactions([]);
+          setPage(1);
+          setLoading(false);
+          return;
+        }
+        query = query.in('invoice_id', invoiceIdsForCustomer);
+      } else {
+        query = query.gte('payment_date', from.toISOString()).lte('payment_date', to.toISOString());
+      }
+
+      const { data: rows, error } = await query.order('payment_date', { ascending: false });
+
 
       if (error) throw error;
       const payments = rows || [];
