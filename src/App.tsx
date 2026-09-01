@@ -35,6 +35,8 @@ import FinancialAnalyst from "./pages/FinancialAnalyst";
 import Leads from "./pages/Leads";
 import PaymentReport from "./pages/PaymentReport";
 import GitHubSettings from "./pages/GitHubSettings";
+import CorporateAdmin from "./pages/CorporateAdmin";
+
 
 import NotFound from "./pages/NotFound";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
@@ -261,7 +263,16 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="/corporate"
+              element={
+                <ProtectedRoute>
+                  <CorporateAdmin />
+                </ProtectedRoute>
+              }
+            />
             <Route path="*" element={<NotFound />} />
+
           </Routes>
         </AuthProvider>
       </BrowserRouter>
