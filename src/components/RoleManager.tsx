@@ -21,7 +21,9 @@ const AVAILABLE_ROLES = [
   { value: 'print_operator', label: 'Print Operator', color: 'bg-accent' },
   { value: 'accountant', label: 'Accountant', color: 'bg-warning' },
   { value: 'board', label: 'Board', color: 'bg-secondary' },
+  { value: 'auditor', label: 'Auditor (read-only)', color: 'bg-muted' },
 ];
+
 
 export const RoleManager = ({ userId, currentRoles, onUpdate }: RoleManagerProps) => {
   const [open, setOpen] = useState(false);
