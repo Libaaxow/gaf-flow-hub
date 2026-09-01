@@ -634,8 +634,11 @@ export default function PaymentReport() {
                   <div className="p-10 flex justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
                 ) : filtered.length === 0 ? (
                   <div className="p-10 text-center text-sm text-muted-foreground">
-                    No payments received in this period.
+                    {rangeKey === 'today'
+                      ? 'No payments received today.'
+                      : `No payments received in this period (${label}).`}
                   </div>
+
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
