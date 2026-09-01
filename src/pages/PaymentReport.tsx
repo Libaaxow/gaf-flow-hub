@@ -448,15 +448,16 @@ export default function PaymentReport() {
                 <Input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)} />
               </>
             )}
-            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+            <Select value={customerFilter} onValueChange={(v) => { setCustomerFilter(v); setPage(1); }}>
               <SelectTrigger><SelectValue placeholder="Customer" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Customers</SelectItem>
-                {customers.map((c) => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                {allCustomers.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
             <Select value={methodFilter} onValueChange={setMethodFilter}>
               <SelectTrigger><SelectValue placeholder="Method" /></SelectTrigger>
               <SelectContent>
