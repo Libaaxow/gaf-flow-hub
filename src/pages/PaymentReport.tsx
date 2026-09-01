@@ -92,25 +92,36 @@ export default function PaymentReport() {
     const now = new Date();
     switch (rangeKey) {
       case 'today':
-        return { from: startOfDay(now), to: endOfDay(now), label: `Today — ${format(now, 'dd MMMM yyyy')}` };
+        return { from: startOfDay(now), to: endOfDay(now), label: `TODAY — ${format(now, 'dd MMM yyyy').toUpperCase()}` };
       case 'yesterday': {
         const y = subDays(now, 1);
-        return { from: startOfDay(y), to: endOfDay(y), label: `Yesterday — ${format(y, 'dd MMMM yyyy')}` };
+        return { from: startOfDay(y), to: endOfDay(y), label: `YESTERDAY — ${format(y, 'dd MMM yyyy').toUpperCase()}` };
       }
       case 'week': {
         const s = startOfWeek(now, { weekStartsOn: 1 });
-        return { from: s, to: endOfDay(now), label: `This Week — ${format(s, 'dd MMM')} to ${format(now, 'dd MMM yyyy')}` };
+        return { from: s, to: endOfDay(now), label: `THIS WEEK — ${format(s, 'dd MMM yyyy').toUpperCase()} to ${format(now, 'dd MMM yyyy').toUpperCase()}` };
       }
       case 'month':
         return {
           from: startOfMonth(now),
           to: endOfDay(endOfMonth(now) > now ? now : endOfMonth(now)),
-          label: `This Month — ${format(now, 'MMMM yyyy')}`,
+          label: `THIS MONTH — ${format(startOfMonth(now), 'dd MMM yyyy').toUpperCase()} to ${format(now, 'dd MMM yyyy').toUpperCase()}`,
         };
+      case 'lastMonth': {
+        const s = startOfMonth(subMonths(now, 1));
+        const e = endOfMonth(subMonths(now, 1));
+        return {
+          from: s,
+          to: endOfDay(e),
+          label: `LAST MONTH — ${format(s, 'dd MMM yyyy').toUpperCase()} to ${format(e, 'dd MMM yyyy').toUpperCase()}`,
+        };
+      }
+      case 'all':
+        return { from: new Date('2000-01-01T00:00:00Z'), to: endOfDay(now), label: 'ALL TIME' };
       default: {
         const f = startOfDay(parseISO(customFrom));
         const t = endOfDay(parseISO(customTo));
-        return { from: f, to: t, label: `${format(f, 'dd MMM yyyy')} to ${format(t, 'dd MMM yyyy')}` };
+        return { from: f, to: t, label: `${format(f, 'dd MMM yyyy').toUpperCase()} to ${format(t, 'dd MMM yyyy').toUpperCase()}` };
       }
     }
   }, [rangeKey, customFrom, customTo]);
