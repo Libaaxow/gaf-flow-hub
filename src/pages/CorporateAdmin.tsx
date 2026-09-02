@@ -875,7 +875,7 @@ export default function CorporateAdmin() {
               </Card>
             )}
 
-            {isAccountant && (
+            {(isAccountant || isAdmin) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Finance / Accounting Tasks</CardTitle>
