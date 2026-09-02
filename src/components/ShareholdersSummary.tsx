@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins, FileText } from 'lucide-react';
 
 interface Shareholder {
   id: string;
@@ -16,17 +17,35 @@ interface Transaction {
   amount: number;
 }
 
+interface Dividend {
+  id: string;
+  reference_no: string;
+  declaration_date: string;
+  payment_date: string | null;
+  dividend_amount: number;
+  dividend_per_share: number;
+  status: string;
+}
+
 // Company reserve rate (configurable)
 const RESERVE_PERCENTAGE = 0.30;
 
-export function ShareholdersSummary() {
+/**
+ * variant:
+ *  - 'full'  → Admin / Accountant: full operational payout + debt details
+ *  - 'board' → Board / Shareholder: governance-only equity overview
+ */
+export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | 'board' }) {
+  const isBoard = variant === 'board';
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dividends, setDividends] = useState<Dividend[]>([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [fixedAssets, setFixedAssets] = useState(0);
   const [companyLiabilities, setCompanyLiabilities] = useState(0);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     const fetchData = async () => {
