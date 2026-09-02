@@ -404,7 +404,51 @@ export default function CorporateAdmin() {
     }
   };
 
+  const [executedInfo, setExecutedInfo] = useState<any>(null);
+
+  /** Build the double-entry journal lines for a resolution (used for both simulation and real posting). */
+  const buildJournal = (r: any) => {
+    const d = r.details || {};
+    const lines: { account: string; debit: number; credit: number; memo: string }[] = [];
+    if (r.request_type === 'dividend_settlement') {
+      const plan: any[] = Array.isArray(d.settlement) ? d.settlement : [];
+      const gross = plan.reduce((s, p) => s + num(p.gross), 0);
+      lines.push({ account: 'Distributable Cash / Retained Earnings', debit: Number(gross.toFixed(2)), credit: 0, memo: `Dividend settlement ${r.reference_no}` });
+      for (const p of plan) {
+        const name = shareholders.find((h) => h.id === p.shareholder_id)?.full_name || 'Shareholder';
+        if (num(p.deduction) > 0) lines.push({ account: 'Shareholder Loan Ledger', debit: 0, credit: Number(num(p.deduction).toFixed(2)), memo: `${name} — loan offset` });
+        if (num(p.net) > 0) lines.push({ account: 'Cash / Bank Disbursement', debit: 0, credit: Number(num(p.net).toFixed(2)), memo: `${name} — net payout PAID` });
+      }
+    } else if (r.request_type === 'dividend') {
+      lines.push({ account: 'Retained Earnings', debit: num(d.dividend_amount), credit: 0, memo: `Dividend declared ${r.reference_no}` });
+      lines.push({ account: 'Dividends Payable', debit: 0, credit: num(d.dividend_amount), memo: 'Entitlements raised' });
+    } else if (['share_issuance', 'capital_increase', 'new_shareholder'].includes(r.request_type)) {
+      const amt = (d.allocations || []).reduce((s: number, a: any) => s + num(a.amount), 0) || num(d.capital_amount);
+      lines.push({ account: 'Cash / Bank', debit: amt, credit: 0, memo: 'Share subscription received' });
+      lines.push({ account: 'Share Capital', debit: 0, credit: amt, memo: `Shares issued ${r.reference_no}` });
+    } else if (r.request_type === 'capital_decrease') {
+      const amt = num(d.capital_amount) || (d.allocations || []).reduce((s: number, a: any) => s + num(a.amount), 0);
+      lines.push({ account: 'Share Capital', debit: amt, credit: 0, memo: `Capital reduction ${r.reference_no}` });
+      lines.push({ account: 'Cash / Bank', debit: 0, credit: amt, memo: 'Repayment to shareholders' });
+    } else if (r.request_type === 'share_transfer') {
+      const amt = num(d.transfer_shares) * (num(d.transfer_price) || parValue);
+      lines.push({ account: 'Share Register — Transferee', debit: amt, credit: 0, memo: 'Shares acquired' });
+      lines.push({ account: 'Share Register — Transferor', debit: 0, credit: amt, memo: 'Shares disposed' });
+    }
+    return lines;
+  };
+
   const execute = async (r: any) => {
+    // Workflow Test Mode must never post real money — run a simulation instead.
+    if (testRole) {
+      const journal = buildJournal(r);
+      setExecutedInfo({
+        simulated: true, reference_no: r.reference_no,
+        request_type: REQUEST_TYPES.find((t) => t.value === r.request_type)?.label || r.request_type,
+        journal, effect: 'Simulation only — no balances, ledgers or cash were changed.',
+      });
+      return;
+    }
     setBusy(true);
     try {
       const d = r.details || {};
@@ -412,6 +456,7 @@ export default function CorporateAdmin() {
       const byId = (id: string) => current.find((h) => h.id === id);
       const txRows: any[] = [];
       const parV = num(d.nominal_value) || parValue;
+
 
       const applyDelta = async (holder: any, delta: number, amount: number, type: string, extra: any = {}) => {
         const before = num(holder.shares_owned);
