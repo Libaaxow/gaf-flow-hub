@@ -106,6 +106,28 @@ export default function CorporateAdmin() {
     setAudit(al.data || []);
     setProfiles(Object.fromEntries((pf.data || []).map((p: any) => [p.id, p.full_name])));
     setLoading(false);
+
+    // live equity position (same basis as the Shareholders Overview)
+    const [shTx, invRes, payRes, expRes, balRes, assetRes, billRes, liabRes] = await Promise.all([
+      supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+      supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
+      supabase.from('payments').select('amount'),
+      supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
+      supabase.from('beginning_balances').select('amount'),
+      supabase.from('company_assets').select('total_value'),
+      supabase.from('vendor_bills').select('total_amount, amount_paid'),
+      supabase.from('company_liabilities').select('amount, paid_amount'),
+    ]);
+    const sum = (rows: any[] | null, f: (r: any) => number) => (rows || []).reduce((a, r) => a + f(r), 0);
+    setEquity({
+      loanTx: (shTx.data || []) as any[],
+      cash: sum(balRes.data, (b) => num(b.amount)) + sum(payRes.data, (p) => num(p.amount)) - sum(expRes.data, (e) => num(e.amount)),
+      receivables: sum(invRes.data, (i) => Math.max(0, num(i.total_amount) - num(i.amount_paid))),
+      fixedAssets: sum(assetRes.data, (a) => num(a.total_value)),
+      liabilities:
+        sum(billRes.data, (b) => Math.max(0, num(b.total_amount) - num(b.amount_paid))) +
+        sum(liabRes.data, (l) => Math.max(0, num(l.amount) - num(l.paid_amount))),
+    });
   };
 
   useEffect(() => {
@@ -119,13 +141,37 @@ export default function CorporateAdmin() {
   }, [user]);
 
   // ---- derived share register figures ----
-  const totalIssued = useMemo(() => shareholders.reduce((s, h) => s + num(h.shares_owned), 0), [shareholders]);
   const totalPaidUp = useMemo(() => shareholders.reduce((s, h) => s + num(h.paid_up_amount), 0), [shareholders]);
   const authorized = num(settings?.authorized_shares);
   const parValue = num(settings?.par_value) || 1;
+
+  // outstanding shareholder loan (debt_taken - debt_repayment)
+  const loanOf = (id: string) =>
+    Math.max(
+      0,
+      equity.loanTx
+        .filter((t: any) => t.shareholder_id === id)
+        .reduce((s: number, t: any) => s + (t.transaction_type === 'debt_taken' ? num(t.amount) : t.transaction_type === 'debt_repayment' ? -num(t.amount) : 0), 0),
+    );
+  const activeShareholders = shareholders.filter((h) => h.status === 'active');
+  const totalLoans = activeShareholders.reduce((s, h) => s + loanOf(h.id), 0);
+  const netCompanyWorth = equity.cash + equity.receivables + equity.fixedAssets + totalLoans - equity.liabilities;
+
+  // Issued shares are backed by the company's equity: net worth ÷ par value
+  const recordedIssued = shareholders.reduce((s, h) => s + num(h.shares_owned), 0);
+  const equityIssued = parValue > 0 ? netCompanyWorth / parValue : 0;
+  const totalIssued = recordedIssued > 0 ? recordedIssued : Math.max(0, equityIssued);
   const shareCapital = totalIssued * parValue;
   const unissued = Math.max(0, authorized - totalIssued);
-  const pct = (h: any) => (totalIssued > 0 ? (num(h.shares_owned) / totalIssued) * 100 : 0);
+  const pct = (h: any) =>
+    recordedIssued > 0 ? (num(h.shares_owned) / recordedIssued) * 100 : num(h.share_percentage);
+  const sharesOf = (h: any) => (recordedIssued > 0 ? num(h.shares_owned) : (totalIssued * num(h.share_percentage)) / 100);
+  const shareNum = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // cash distribution (30% company reserve), then loan settlement per shareholder
+  const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
+  const distributableCash = cashAfterPayables * 0.7;
+
 
   const logAudit = async (entry: any) => {
     await supabase.from('corporate_audit_log').insert({
