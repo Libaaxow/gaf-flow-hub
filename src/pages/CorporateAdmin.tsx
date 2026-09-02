@@ -52,7 +52,7 @@ const STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   pending_approval: 'Pending Approval',
   changes_requested: 'Changes Requested',
-  approved: 'Approved',
+  approved: 'Approved by Board — Pending Execution',
   rejected: 'Rejected',
   executed: 'Executed',
   cancelled: 'Cancelled',
