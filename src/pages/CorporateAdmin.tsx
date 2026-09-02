@@ -1183,6 +1183,8 @@ export default function CorporateAdmin() {
                 <div><Label>Full name</Label><Input value={form.new_name} onChange={(e) => set('new_name', e.target.value)} /></div>
                 <div><Label>Email</Label><Input value={form.new_email} onChange={(e) => set('new_email', e.target.value)} /></div>
                 <div><Label>Phone</Label><Input value={form.new_phone} onChange={(e) => set('new_phone', e.target.value)} /></div>
+                <div><Label>National / Corporate ID</Label><Input value={form.national_id} onChange={(e) => set('national_id', e.target.value)} /></div>
+                <div><Label>Par value per share</Label><Input type="number" step="0.01" value={form.new_par_value} onChange={(e) => set('new_par_value', e.target.value)} placeholder={String(parValue)} /></div>
                 <div><Label>Shares to allocate</Label>
                   <Input type="number" value={allocations[0]?.shares || ''} onChange={(e) => setAllocations([{ shareholder_id: '', shares: e.target.value, amount: allocations[0]?.amount || '' }])} /></div>
                 <div><Label>Amount paid</Label>
