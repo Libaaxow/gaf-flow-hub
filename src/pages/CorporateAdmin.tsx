@@ -80,6 +80,10 @@ export default function CorporateAdmin() {
   const isAuditor = roles.includes('auditor');
   const isAccountant = roles.includes('accountant');
   const canView = isAdmin || isBoard || isAuditor || isAccountant;
+  const [equity, setEquity] = useState<{ loanTx: any[]; cash: number; receivables: number; fixedAssets: number; liabilities: number }>({
+    loanTx: [], cash: 0, receivables: 0, fixedAssets: 0, liabilities: 0,
+  });
+
 
   // ---- data ----
   const fetchAll = async () => {
