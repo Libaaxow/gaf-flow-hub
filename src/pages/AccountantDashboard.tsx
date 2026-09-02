@@ -66,6 +66,7 @@ import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { SalesRequestsPanel } from '@/components/SalesRequestsPanel';
 import { CompanyLiabilitiesPanel } from '@/components/CompanyLiabilitiesPanel';
+import { PayrollPanel } from '@/components/PayrollPanel';
 
 
 import { defaultDueDate } from '@/utils/dueDate';
