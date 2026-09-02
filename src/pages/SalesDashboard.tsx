@@ -124,6 +124,13 @@ const SalesDashboard = () => {
       let endDate: string;
       let rangeLabel = '';
       switch (rangeFilter) {
+        case 'custom': {
+          const d = dateFilter || now;
+          startDate = startOfDay(d).toISOString();
+          endDate = endOfDay(d).toISOString();
+          rangeLabel = format(d, 'MMMM d, yyyy');
+          break;
+        }
         case 'today':
           startDate = startOfDay(now).toISOString();
           endDate = endOfDay(now).toISOString();
