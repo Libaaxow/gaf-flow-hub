@@ -363,14 +363,31 @@ export function PayrollPanel() {
           <div className="space-y-3">
             <div>
               <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
+              <Select
+                value={form.employee_id}
+                onValueChange={(v) => {
+                  const salary = salaryOf(v);
+                  setForm({
+                    ...form,
+                    employee_id: v,
+                    gross_amount: salary > 0 ? String(salary) : form.gross_amount,
+                  });
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                  ))}
+                  {employees.filter((e) => e.status !== 'inactive').length === 0 ? (
+                    <div className="px-2 py-3 text-xs text-muted-foreground">No employees recorded yet</div>
+                  ) : (
+                    employees
+                      .filter((e) => e.status !== 'inactive')
+                      .map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                      ))
+                  )}
                 </SelectContent>
               </Select>
+
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
