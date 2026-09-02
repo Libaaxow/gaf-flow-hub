@@ -1493,7 +1493,7 @@ export default function CorporateAdmin() {
                   </>
                 )}
                 {(isAdmin || isAccountant) && detail.status === 'approved' && (
-                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute Transaction</Button>
+                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute &amp; Post Journal Entries</Button>
                 )}
 
                 {detail.status === 'executed' && (
@@ -1504,6 +1504,52 @@ export default function CorporateAdmin() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Execution completion popup */}
+      <Dialog open={!!executedInfo} onOpenChange={(o) => !o && setExecutedInfo(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-success" />
+              {executedInfo?.simulated
+                ? `Simulation: Resolution ${executedInfo?.reference_no}`
+                : `Resolution ${executedInfo?.reference_no} Executed Successfully!`}
+            </DialogTitle>
+            <DialogDescription>
+              {executedInfo?.simulated
+                ? 'Test mode — journal entries below are a preview only. No money, debt balance or ledger was changed.'
+                : 'Journal entries posted & debt balances updated.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="text-sm"><span className="text-muted-foreground">Request type: </span>{executedInfo?.request_type}</div>
+            {executedInfo?.effect && <div className="text-sm">{executedInfo.effect}</div>}
+            {(executedInfo?.journal || []).length > 0 && (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader><TableRow><TableHead>Account</TableHead><TableHead className="text-right">Debit</TableHead><TableHead className="text-right">Credit</TableHead></TableRow></TableHeader>
+                  <TableBody>
+                    {executedInfo.journal.map((l: any, i: number) => (
+                      <TableRow key={i}>
+                        <TableCell className="text-xs">{l.account}<div className="text-muted-foreground">{l.memo}</div></TableCell>
+                        <TableCell className="text-right text-xs">{l.debit ? money(l.debit) : '—'}</TableCell>
+                        <TableCell className="text-right text-xs">{l.credit ? money(l.credit) : '—'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            {!executedInfo?.simulated && (
+              <Badge variant="outline" className={STATUS_STYLE.executed}>EXECUTED &amp; COMPLETED</Badge>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setExecutedInfo(null)}>Close</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </Layout>
   );
 }
