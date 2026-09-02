@@ -170,7 +170,11 @@ export default function CorporateAdmin() {
   const pct = (h: any) =>
     recordedIssued > 0 ? (num(h.shares_owned) / recordedIssued) * 100 : num(h.share_percentage);
   const sharesOf = (h: any) => (recordedIssued > 0 ? num(h.shares_owned) : (totalIssued * num(h.share_percentage)) / 100);
+  // Paid-up amount per shareholder = shares held x par value (falls back to recorded value when larger)
+  const paidUpOf = (h: any) => Math.max(sharesOf(h) * parValue, num(h.paid_up_amount));
+  const totalPaidUp = shareholders.reduce((s, h) => s + paidUpOf(h), 0);
   const shareNum = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
   // cash distribution (30% company reserve), then loan settlement per shareholder
   const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
