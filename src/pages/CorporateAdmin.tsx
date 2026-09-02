@@ -308,7 +308,7 @@ export default function CorporateAdmin() {
           cash_after_payables: Number(cashAfterPayables.toFixed(2)),
           company_reserve: Number((cashAfterPayables * 0.3).toFixed(2)),
           distributable_cash: Number(distributableCash.toFixed(2)),
-          net_worth: Number(netWorth.toFixed(2)),
+          net_worth: Number(netCompanyWorth.toFixed(2)),
           settlement: settlementPlan,
         },
         status: 'pending_approval',
