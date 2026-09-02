@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { InstallPWAButton } from '@/components/InstallPWAButton';
 import { OverdueInvoicesAlert } from '@/components/OverdueInvoicesAlert';
 import { TestRoleSwitcher } from '@/components/TestRoleSwitcher';
+import { CorporateActionPopup } from '@/components/CorporateActionPopup';
 import { applyTestRole, useTestRole } from '@/lib/testRole';
 
 
@@ -250,6 +251,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         </main>
       </div>
       {(userRole === 'accountant' || userRole === 'admin') && <OverdueInvoicesAlert />}
+      <CorporateActionPopup />
     </div>
   );
 };

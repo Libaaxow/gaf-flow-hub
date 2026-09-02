@@ -151,6 +151,25 @@ export default function CorporateAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // live refresh so status badges, cards and tables update without a page reload
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { fetchAll(); }, 800);
+    };
+    const channel = supabase
+      .channel('corporate-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'corporate_requests' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'corporate_audit_log' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shareholders' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dividend_declarations' }, refresh)
+      .subscribe();
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // ---- derived share register figures ----
   // paid-up capital is derived from shares held x par value (see paidUpOf below)
   const authorized = num(settings?.authorized_shares);
@@ -235,6 +254,26 @@ export default function CorporateAdmin() {
     new_name: '',
     new_email: '',
     new_phone: '',
+    // capital changes
+    capital_amount: '',
+    new_authorized_shares: '',
+    valuation_impact: '',
+    // new shareholder
+    national_id: '',
+    new_par_value: '',
+    // remove shareholder
+    reallocation_option: 'buyback',
+    // structure change
+    amendment_summary: '',
+    charter_text: '',
+    // officer change
+    officer_name: '',
+    officer_role: 'director',
+    officer_status: 'appointed',
+    effective_date: new Date().toISOString().slice(0, 10),
+    // liquidation
+    liquidation_plan: '',
+    asset_distribution: '',
   };
   const [form, setForm] = useState<any>(emptyForm);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
@@ -498,7 +537,32 @@ export default function CorporateAdmin() {
           }
         }
         financialEffect = `Gross distributed ${money(totalGross)} · loan offsets ${money(totalDeduction)} · cash paid ${money(totalNet)}`;
+      } else if (r.request_type === 'structure_change') {
+        financialEffect = `Charter / structure amended: ${d.amendment_summary || r.title}`;
+      } else if (r.request_type === 'officer_change') {
+        financialEffect = `${d.officer_status === 'removed' ? 'Removed' : 'Appointed'} ${d.officer_name || '—'} as ${d.officer_role || 'officer'} effective ${d.effective_date || new Date().toISOString().slice(0, 10)}`;
+        await supabase.from('compliance_items').insert({
+          title: financialEffect, category: 'registration', authority: 'Company Registrar',
+          due_date: d.effective_date || new Date().toISOString().slice(0, 10),
+          reference_no: r.reference_no, notes: r.description || null, created_by: user?.id,
+        });
+      } else if (r.request_type === 'closure') {
+        financialEffect = `Liquidation authorised — assets distributed per plan (net worth ${money(netCompanyWorth)})`;
+        await supabase.from('compliance_items').insert({
+          title: `Company closure / liquidation — ${r.reference_no}`, category: 'filing',
+          authority: 'Company Registrar', due_date: new Date().toISOString().slice(0, 10),
+          reference_no: r.reference_no, notes: d.liquidation_plan || r.description || null, created_by: user?.id,
+        });
       }
+
+      // Authorized capital changes recorded on the company record
+      if (['capital_increase', 'capital_decrease'].includes(r.request_type) && num(d.new_authorized_shares) > 0 && settings?.id) {
+        await supabase.from('corporate_settings').update({
+          authorized_shares: num(d.new_authorized_shares), updated_by: user?.id,
+        }).eq('id', settings.id);
+        financialEffect = `${financialEffect ? financialEffect + ' · ' : ''}Authorized shares set to ${num(d.new_authorized_shares).toLocaleString()}${num(d.capital_amount) ? ` · capital ${r.request_type === 'capital_decrease' ? 'reduced' : 'increased'} by ${money(num(d.capital_amount))}` : ''}`;
+      }
+
 
       if (txRows.length) await supabase.from('share_transactions').insert(txRows);
       await recalcPercentages(current);
@@ -513,7 +577,14 @@ export default function CorporateAdmin() {
         entity_id: r.id, reference_no: r.reference_no,
         action: r.request_type === 'dividend_settlement' ? 'dividend_settlement_executed' : 'share_register_updated',
         approval_status: 'executed',
-        new_value: { financial_effect: financialEffect, board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at },
+        new_value: {
+          request_type: REQUEST_TYPES.find((t) => t.value === r.request_type)?.label || r.request_type,
+          created_by: profiles[r.prepared_by] || '—',
+          approved_by: profiles[r.decided_by] || '—',
+          executed_by: profiles[user?.id || ''] || '—',
+          financial_effect: financialEffect,
+          board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at,
+        },
         comments: financialEffect || `Register updated after Board approval of ${r.reference_no}`,
       });
       toast({ title: 'Transaction executed', description: financialEffect || 'Share register updated and recorded.' });
@@ -1016,20 +1087,24 @@ export default function CorporateAdmin() {
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>User</TableHead><TableHead>Role</TableHead><TableHead>Action</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead><TableHead>Comments</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>Request type</TableHead><TableHead>Created by</TableHead><TableHead>Approved by</TableHead><TableHead>Executed by</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead><TableHead>Financial / equity impact</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {audit.map((a) => (
+                    {audit.map((a) => {
+                      const v = (a.new_value || {}) as any;
+                      return (
                       <TableRow key={a.id}>
                         <TableCell className="text-xs whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</TableCell>
-                        <TableCell className="text-sm">{profiles[a.actor_id] || 'System'}</TableCell>
-                        <TableCell className="text-xs capitalize">{a.actor_role || '—'}</TableCell>
-                        <TableCell className="text-sm capitalize">{String(a.action).replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="text-sm">{v.request_type || String(a.action).replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="text-xs">{v.created_by || profiles[a.actor_id] || 'System'}</TableCell>
+                        <TableCell className="text-xs">{v.approved_by || (v.decided_by ? profiles[v.decided_by] : '—') || '—'}</TableCell>
+                        <TableCell className="text-xs">{v.executed_by || profiles[a.actor_id] || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">{a.reference_no || '—'}</TableCell>
                         <TableCell className="text-xs">{a.approval_status ? STATUS_LABEL[a.approval_status] || a.approval_status : '—'}</TableCell>
-                        <TableCell className="text-xs max-w-[220px] truncate">{a.comments || '—'}</TableCell>
+                        <TableCell className="text-xs max-w-[260px] truncate">{v.financial_effect || a.comments || '—'}</TableCell>
                       </TableRow>
-                    ))}
-                    {audit.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No audit entries yet.</TableCell></TableRow>}
+                      );
+                    })}
+                    {audit.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">No audit entries yet.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -1084,9 +1159,25 @@ export default function CorporateAdmin() {
                   <div><Label>Nominal value</Label><Input type="number" step="0.01" value={form.nominal_value} onChange={(e) => set('nominal_value', e.target.value)} placeholder={String(parValue)} /></div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 text-sm">
-                  <div><Label>Additional shares</Label><Input type="number" value={form.additional_shares} onChange={(e) => set('additional_shares', e.target.value)} /></div>
+                  <div><Label>{form.request_type === 'share_issuance' ? 'Share count' : 'Additional shares'}</Label><Input type="number" value={form.additional_shares} onChange={(e) => set('additional_shares', e.target.value)} /></div>
                   <div><Label>New share capital</Label>
                     <Input readOnly value={money((totalIssued + (form.request_type === 'capital_decrease' ? -1 : 1) * num(form.additional_shares)) * (num(form.nominal_value) || parValue))} /></div>
+                  {form.request_type === 'share_issuance' && (
+                    <div className="md:col-span-2"><Label>Valuation impact</Label>
+                      <Input value={form.valuation_impact} onChange={(e) => set('valuation_impact', e.target.value)} placeholder="e.g. increases equity by $50,000" /></div>
+                  )}
+                  {form.request_type === 'capital_increase' && (
+                    <>
+                      <div><Label>Additional capital amount</Label><Input type="number" value={form.capital_amount} onChange={(e) => set('capital_amount', e.target.value)} /></div>
+                      <div><Label>New authorized shares limit</Label><Input type="number" value={form.new_authorized_shares} onChange={(e) => set('new_authorized_shares', e.target.value)} placeholder={String(authorized)} /></div>
+                    </>
+                  )}
+                  {form.request_type === 'capital_decrease' && (
+                    <>
+                      <div><Label>Reduction amount</Label><Input type="number" value={form.capital_amount} onChange={(e) => set('capital_amount', e.target.value)} /></div>
+                      <div><Label>Adjusted authorized capital (shares)</Label><Input type="number" value={form.new_authorized_shares} onChange={(e) => set('new_authorized_shares', e.target.value)} placeholder={String(authorized)} /></div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between"><Label>Proposed allocation</Label>
@@ -1111,6 +1202,8 @@ export default function CorporateAdmin() {
                 <div><Label>Full name</Label><Input value={form.new_name} onChange={(e) => set('new_name', e.target.value)} /></div>
                 <div><Label>Email</Label><Input value={form.new_email} onChange={(e) => set('new_email', e.target.value)} /></div>
                 <div><Label>Phone</Label><Input value={form.new_phone} onChange={(e) => set('new_phone', e.target.value)} /></div>
+                <div><Label>National / Corporate ID</Label><Input value={form.national_id} onChange={(e) => set('national_id', e.target.value)} /></div>
+                <div><Label>Par value per share</Label><Input type="number" step="0.01" value={form.new_par_value} onChange={(e) => set('new_par_value', e.target.value)} placeholder={String(parValue)} /></div>
                 <div><Label>Shares to allocate</Label>
                   <Input type="number" value={allocations[0]?.shares || ''} onChange={(e) => setAllocations([{ shareholder_id: '', shares: e.target.value, amount: allocations[0]?.amount || '' }])} /></div>
                 <div><Label>Amount paid</Label>
@@ -1125,6 +1218,16 @@ export default function CorporateAdmin() {
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>{shareholders.map((h) => <SelectItem key={h.id} value={h.id}>{h.full_name} ({num(h.shares_owned).toLocaleString()})</SelectItem>)}</SelectContent>
                   </Select></div>
+                {form.request_type === 'remove_shareholder' && (
+                  <div><Label>Re-allocation option</Label>
+                    <Select value={form.reallocation_option} onValueChange={(v) => set('reallocation_option', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyback">Company buyback</SelectItem>
+                        <SelectItem value="split">Split among remaining shareholders</SelectItem>
+                      </SelectContent>
+                    </Select></div>
+                )}
                 {form.request_type === 'share_transfer' && (
                   <>
                     <div><Label>Transferee</Label>
@@ -1149,8 +1252,73 @@ export default function CorporateAdmin() {
                 <div className="md:col-span-2 text-sm text-muted-foreground">
                   Dividend per share: {money(totalIssued > 0 ? num(form.dividend_amount) / totalIssued : 0)} over {totalIssued.toLocaleString()} issued shares.
                 </div>
+                <div className="md:col-span-2 rounded-md border p-2 text-xs space-y-1">
+                  <p className="text-muted-foreground">Allocation breakdown</p>
+                  {activeShareholders.map((h) => (
+                    <div key={h.id} className="flex justify-between">
+                      <span>{h.full_name} · {pct(h).toFixed(2)}%</span>
+                      <span>{money((num(form.dividend_amount) * pct(h)) / 100)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {form.request_type === 'dividend_settlement' && (
+              <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3 text-sm">
+                <div><Label>Gross distributable amount</Label><Input readOnly value={money(distributableCash)} /></div>
+                <div><Label>Company net worth</Label><Input readOnly value={money(netCompanyWorth)} /></div>
+                <div className="md:col-span-2 rounded-md border p-2 text-xs space-y-1">
+                  <p className="text-muted-foreground">Loan offsets & net cash payouts</p>
+                  {settlementPlan.map((p) => (
+                    <div key={p.shareholder_id} className="flex flex-wrap justify-between gap-2">
+                      <span>{p.name}</span>
+                      <span>Gross {money(p.gross)} − loan {money(p.deduction)} → net {money(p.net)}{p.remaining_debt > 0 ? ` · remaining debt ${money(p.remaining_debt)}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="md:col-span-2 text-xs text-muted-foreground">Use “Prepare settlement” on the Board Requests tab to submit the calculated plan.</p>
+              </div>
+            )}
+
+            {form.request_type === 'structure_change' && (
+              <div className="grid gap-3 rounded-md border p-3">
+                <div><Label>Amendment summary</Label><Textarea rows={2} value={form.amendment_summary} onChange={(e) => set('amendment_summary', e.target.value)} /></div>
+                <div><Label>Updated company charter / articles</Label><Textarea rows={5} value={form.charter_text} onChange={(e) => set('charter_text', e.target.value)} /></div>
+              </div>
+            )}
+
+            {form.request_type === 'officer_change' && (
+              <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3">
+                <div><Label>Officer name</Label><Input value={form.officer_name} onChange={(e) => set('officer_name', e.target.value)} /></div>
+                <div><Label>Role</Label>
+                  <Select value={form.officer_role} onValueChange={(v) => set('officer_role', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="director">Director</SelectItem>
+                      <SelectItem value="officer">Officer</SelectItem>
+                      <SelectItem value="auditor">Auditor</SelectItem>
+                    </SelectContent>
+                  </Select></div>
+                <div><Label>Effective date</Label><Input type="date" value={form.effective_date} onChange={(e) => set('effective_date', e.target.value)} /></div>
+                <div><Label>Status</Label>
+                  <Select value={form.officer_status} onValueChange={(v) => set('officer_status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="appointed">Appointed</SelectItem>
+                      <SelectItem value="removed">Removed</SelectItem>
+                    </SelectContent>
+                  </Select></div>
+              </div>
+            )}
+
+            {form.request_type === 'closure' && (
+              <div className="grid gap-3 rounded-md border p-3">
+                <div><Label>Liquidation plan</Label><Textarea rows={4} value={form.liquidation_plan} onChange={(e) => set('liquidation_plan', e.target.value)} /></div>
+                <div><Label>Asset distribution summary</Label><Textarea rows={4} value={form.asset_distribution} onChange={(e) => set('asset_distribution', e.target.value)} placeholder={`Net worth ${money(netCompanyWorth)} distributed per ownership`} /></div>
+              </div>
+            )}
+
 
             <div><Label>Reason / justification</Label><Textarea value={form.reason} onChange={(e) => set('reason', e.target.value)} rows={2} /></div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>
