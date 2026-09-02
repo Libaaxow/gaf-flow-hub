@@ -427,7 +427,7 @@ const BoardDashboard = () => {
         </div>
 
         {/* Shareholders Overview */}
-        <ShareholdersSummary />
+        <ShareholdersSummary variant="board" />
 
         {/* Key Metrics */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
