@@ -45,7 +45,7 @@ const STATUS_STYLE: Record<string, string> = {
   changes_requested: 'bg-warning/15 text-warning border-warning/30',
   approved: 'bg-success/15 text-success border-success/30',
   rejected: 'bg-destructive/15 text-destructive border-destructive/30',
-  executed: 'bg-primary/15 text-primary border-primary/30',
+  executed: 'bg-success/15 text-success border-success/30',
   cancelled: 'bg-muted text-muted-foreground',
 };
 const STATUS_LABEL: Record<string, string> = {
@@ -54,7 +54,8 @@ const STATUS_LABEL: Record<string, string> = {
   changes_requested: 'Changes Requested',
   approved: 'Approved by Board — Pending Execution',
   rejected: 'Rejected',
-  executed: 'Executed',
+  executed: 'Executed & Completed',
+
   cancelled: 'Cancelled',
 };
 
