@@ -519,7 +519,7 @@ export default function CorporateAdmin() {
       } else if (r.request_type === 'remove_shareholder') {
         const holder = byId(d.transferor_id);
         if (holder) {
-          await applyDelta(holder, -num(holder.shares_owned), 0, 'remove_shareholder');
+          await applyDelta(holder, -sharesOf(holder), 0, 'remove_shareholder');
           await supabase.from('shareholders').update({ status: 'inactive' }).eq('id', holder.id);
           holder.status = 'inactive';
         }
@@ -527,11 +527,11 @@ export default function CorporateAdmin() {
         const from = byId(d.transferor_id); const to = byId(d.transferee_id);
         const qty = num(d.transfer_shares);
         if (!from || !to) throw new Error('Transferor or transferee missing');
-        if (num(from.shares_owned) < qty) throw new Error('Transferor does not hold enough shares');
+        if (sharesOf(from) < qty) throw new Error('Transferor does not hold enough shares');
         await applyDelta(from, -qty, 0, 'transfer_out', { counterparty_id: to.id, price_per_share: num(d.transfer_price) || parV });
         await applyDelta(to, qty, 0, 'transfer_in', { counterparty_id: from.id, price_per_share: num(d.transfer_price) || parV });
       } else if (r.request_type === 'dividend') {
-        const totalShares = current.reduce((s, h) => s + num(h.shares_owned), 0);
+        const totalShares = current.reduce((s, h) => s + sharesOf(h), 0);
         const amount = num(d.dividend_amount);
         const perShare = totalShares > 0 ? amount / totalShares : 0;
         const { data: decl } = await supabase.from('dividend_declarations').insert({
@@ -541,9 +541,9 @@ export default function CorporateAdmin() {
           payment_date: d.payment_date || null, status: 'approved', notes: r.description, created_by: user?.id,
         }).select().single();
         if (decl) {
-          const rows = current.filter((h) => num(h.shares_owned) > 0).map((h) => ({
-            declaration_id: decl.id, shareholder_id: h.id, shares: num(h.shares_owned),
-            amount: Number((num(h.shares_owned) * perShare).toFixed(2)),
+          const rows = current.filter((h) => sharesOf(h) > 0).map((h) => ({
+            declaration_id: decl.id, shareholder_id: h.id, shares: sharesOf(h),
+            amount: Number((sharesOf(h) * perShare).toFixed(2)),
           }));
           if (rows.length) await supabase.from('dividend_entitlements').insert(rows);
         }
@@ -553,7 +553,7 @@ export default function CorporateAdmin() {
         const totalDeduction = plan.reduce((s, p) => s + num(p.deduction), 0);
         const totalNet = plan.reduce((s, p) => s + num(p.net), 0);
         const today = new Date().toISOString().slice(0, 10);
-        const totalShares = current.reduce((s, h) => s + num(h.shares_owned), 0);
+        const totalShares = current.reduce((s, h) => s + sharesOf(h), 0);
 
         const { data: decl } = await supabase.from('dividend_declarations').insert({
           request_id: r.id, reference_no: r.reference_no, profit_available: num(d.distributable_cash),
@@ -568,7 +568,7 @@ export default function CorporateAdmin() {
           if (decl) {
             await supabase.from('dividend_entitlements').insert({
               declaration_id: decl.id, shareholder_id: p.shareholder_id,
-              shares: num(holder?.shares_owned), amount: num(p.gross),
+              shares: holder ? sharesOf(holder) : 0, amount: num(p.gross),
               payment_status: 'paid', paid_at: new Date().toISOString(),
             });
           }
