@@ -449,6 +449,8 @@ export default function CorporateAdmin() {
       });
       return;
     }
+    // Real posting: require explicit confirmation so a test run is never posted by accident.
+    if (!window.confirm(`REAL EXECUTION — this posts real money and updates shareholder balances for ${r.reference_no}.\n\nIf you are only testing, cancel and turn on the Test Mode role switcher first.\n\nContinue?`)) return;
     setBusy(true);
     try {
       const d = r.details || {};
