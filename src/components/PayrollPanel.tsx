@@ -101,7 +101,8 @@ export function PayrollPanel({ refreshKey, onPaid }: { refreshKey?: number; onPa
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [refreshKey]);
+
 
   const gross = Number(form.gross_amount) || 0;
   const allowances = Number(form.allowances) || 0;
