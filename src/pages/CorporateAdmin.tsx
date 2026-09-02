@@ -1198,6 +1198,31 @@ export default function CorporateAdmin() {
                   )}
                 </div>
 
+                {detail.request_type === 'dividend_settlement' && (
+                  <div className="rounded-md border p-3 space-y-2">
+                    <p className="font-medium">Executive context</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                      <div><span className="text-muted-foreground block">Company net worth</span>{money(num(detail.details?.net_worth))}</div>
+                      <div><span className="text-muted-foreground block">Issued shares</span>{totalIssued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      <div><span className="text-muted-foreground block">Company reserve (30%)</span>{money(num(detail.details?.company_reserve))}</div>
+                      <div><span className="text-muted-foreground block">Distributable cash</span>{money(num(detail.details?.distributable_cash))}</div>
+                    </div>
+                    <p className="text-muted-foreground pt-1">Proposed distribution</p>
+                    {(detail.details?.settlement || []).map((p: any, i: number) => (
+                      <div key={i} className="flex flex-wrap justify-between gap-2 text-xs border-t pt-1">
+                        <span className="font-medium">{p.name} · {num(p.percentage).toFixed(2)}%</span>
+                        <span>
+                          Gross {money(num(p.gross))}
+                          {num(p.deduction) > 0 && <> · loan offset −{money(num(p.deduction))}</>}
+                          {' '}→ Net {money(num(p.net))}
+                          {num(p.remaining_debt) > 0 && <> · remaining debt {money(num(p.remaining_debt))}</>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+
                 <div>
                   <p className="text-muted-foreground mb-1">Supporting documents</p>
                   {docs.filter((d) => d.request_id === detail.id).length === 0 && <p className="text-xs text-muted-foreground">None attached.</p>}
