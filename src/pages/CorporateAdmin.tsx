@@ -496,10 +496,10 @@ export default function CorporateAdmin() {
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               {[
-                { label: 'Total Authorized Shares', value: authorized > 0 ? authorized.toLocaleString() : 'Not set', icon: FileSignature },
-                { label: 'Issued Shares', value: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded', icon: PieChart },
-                { label: 'Available / Unissued Shares', value: authorized > 0 ? unissued.toLocaleString() : 'Unavailable', icon: Coins },
-                { label: 'Total Shareholders', value: shareholders.filter((h) => h.status === 'active').length, icon: Users2 },
+                { label: 'Total Authorized Shares', value: `${shareNum(authorized)} (${money(authorized * parValue)})`, icon: FileSignature },
+                { label: 'Issued Shares', value: `${shareNum(totalIssued)} (${money(shareCapital)})`, icon: PieChart },
+                { label: 'Available / Unissued Shares', value: `${shareNum(unissued)} (${money(unissued * parValue)})`, icon: Coins },
+                { label: 'Total Shareholders', value: activeShareholders.length, icon: Users2 },
               ].map((c) => (
                 <Card key={c.label}>
                   <CardContent className="p-4">
@@ -507,32 +507,60 @@ export default function CorporateAdmin() {
                       <p className="text-xs text-muted-foreground">{c.label}</p>
                       <c.icon className="h-4 w-4 text-primary" />
                     </div>
-                    <p className="text-xl font-bold mt-1 truncate">{c.value}</p>
+                    <p className="text-lg font-bold mt-1 truncate">{c.value}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-4">
               {[
-                { l: 'Authorized Share Capital', v: authorized > 0 ? money(authorized * parValue) : 'Unavailable' },
-                { l: 'Issued Share Capital', v: totalIssued > 0 ? money(shareCapital) : 'Unavailable' },
-                { l: 'Available / Unissued Capital', v: authorized > 0 ? money(unissued * parValue) : 'Unavailable' },
+                { l: 'Authorized Share Capital', v: money(authorized * parValue) },
+                { l: 'Issued Share Capital', v: money(shareCapital) },
+                { l: 'Available / Unissued Capital', v: money(unissued * parValue) },
+                { l: 'Net Company Worth', v: money(netCompanyWorth) },
               ].map((c) => (
                 <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
               ))}
             </div>
-            {(authorized === 0 || totalIssued === 0) && (
-              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>
-                  Some official values are missing in the existing Share Management records:
-                  {authorized === 0 && ' authorized shares are not set (Company tab).'}
-                  {totalIssued === 0 && ' no shareholder has a recorded share count, so issued shares and ownership % cannot be computed.'}
-                  {' '}No values are assumed by this module.
-                </span>
-              </div>
-            )}
+            <p className="text-[11px] text-muted-foreground">
+              Issued shares are backed by the company's net worth: Net Company Worth ÷ Par Value ({money(parValue)} per share).
+            </p>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Dividends & Debt Settlement</CardTitle>
+                <CardDescription>Distributable cash = (Cash − Liabilities) × 70%, then each shareholder's outstanding loan is deducted.</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Cash after payables</p><p className="font-bold">{money(cashAfterPayables)}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Company reserve (30%)</p><p className="font-bold">{money(cashAfterPayables * 0.3)}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Distributable cash</p><p className="font-bold text-primary">{money(distributableCash)}</p></div>
+                </div>
+                <div className="space-y-2">
+                  {activeShareholders.map((h) => {
+                    const gross = (distributableCash * pct(h)) / 100;
+                    const loan = loanOf(h.id);
+                    const deduction = Math.min(loan, gross);
+                    const net = gross - deduction;
+                    const remaining = loan - deduction;
+                    return (
+                      <div key={h.id} className="rounded-md border p-3 text-sm space-y-1">
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium truncate">{h.full_name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{pct(h).toFixed(2)}%</span>
+                        </div>
+                        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Gross cash distribution</span><span>{money(gross)}</span></div>
+                        {deduction > 0 && <div className="flex justify-between text-xs text-warning"><span>Loan deduction</span><span>−{money(deduction)}</span></div>}
+                        <div className="flex justify-between text-sm font-semibold"><span>Net payout</span><span className="text-success">{money(net)}</span></div>
+                        {remaining > 0 && <div className="flex justify-between text-xs text-destructive"><span>Remaining debt</span><span>{money(remaining)}</span></div>}
+                      </div>
+                    );
+                  })}
+                  {activeShareholders.length === 0 && <p className="text-sm text-muted-foreground">No active shareholders.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
