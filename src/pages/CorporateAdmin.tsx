@@ -1068,20 +1068,24 @@ export default function CorporateAdmin() {
               </CardHeader>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>User</TableHead><TableHead>Role</TableHead><TableHead>Action</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead><TableHead>Comments</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Date & time</TableHead><TableHead>Request type</TableHead><TableHead>Created by</TableHead><TableHead>Approved by</TableHead><TableHead>Executed by</TableHead><TableHead>Reference</TableHead><TableHead>Status</TableHead><TableHead>Financial / equity impact</TableHead></TableRow></TableHeader>
                   <TableBody>
-                    {audit.map((a) => (
+                    {audit.map((a) => {
+                      const v = (a.new_value || {}) as any;
+                      return (
                       <TableRow key={a.id}>
                         <TableCell className="text-xs whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</TableCell>
-                        <TableCell className="text-sm">{profiles[a.actor_id] || 'System'}</TableCell>
-                        <TableCell className="text-xs capitalize">{a.actor_role || '—'}</TableCell>
-                        <TableCell className="text-sm capitalize">{String(a.action).replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="text-sm">{v.request_type || String(a.action).replace(/_/g, ' ')}</TableCell>
+                        <TableCell className="text-xs">{v.created_by || profiles[a.actor_id] || 'System'}</TableCell>
+                        <TableCell className="text-xs">{v.approved_by || (v.decided_by ? profiles[v.decided_by] : '—') || '—'}</TableCell>
+                        <TableCell className="text-xs">{v.executed_by || profiles[a.actor_id] || '—'}</TableCell>
                         <TableCell className="font-mono text-xs">{a.reference_no || '—'}</TableCell>
                         <TableCell className="text-xs">{a.approval_status ? STATUS_LABEL[a.approval_status] || a.approval_status : '—'}</TableCell>
-                        <TableCell className="text-xs max-w-[220px] truncate">{a.comments || '—'}</TableCell>
+                        <TableCell className="text-xs max-w-[260px] truncate">{v.financial_effect || a.comments || '—'}</TableCell>
                       </TableRow>
-                    ))}
-                    {audit.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-6">No audit entries yet.</TableCell></TableRow>}
+                      );
+                    })}
+                    {audit.length === 0 && <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-6">No audit entries yet.</TableCell></TableRow>}
                   </TableBody>
                 </Table>
               </CardContent>
