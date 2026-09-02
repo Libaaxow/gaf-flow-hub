@@ -1496,6 +1496,126 @@ export type Database = {
           },
         ]
       }
+      payroll_journal_entries: {
+        Row: {
+          account: string
+          created_at: string
+          credit: number
+          debit: number
+          id: string
+          memo: string | null
+          payroll_id: string
+        }
+        Insert: {
+          account: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          memo?: string | null
+          payroll_id: string
+        }
+        Update: {
+          account?: string
+          created_at?: string
+          credit?: number
+          debit?: number
+          id?: string
+          memo?: string | null
+          payroll_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_journal_entries_payroll_id_fkey"
+            columns: ["payroll_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payments: {
+        Row: {
+          allowances: number
+          created_at: string
+          deductions: number
+          employee_id: string
+          expense_id: string | null
+          gross_amount: number
+          id: string
+          net_amount: number
+          notes: string | null
+          paid_at: string
+          payment_method: string
+          period_month: number
+          period_year: number
+          processed_by: string | null
+          reference_number: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          allowances?: number
+          created_at?: string
+          deductions?: number
+          employee_id: string
+          expense_id?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string
+          period_month: number
+          period_year: number
+          processed_by?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          allowances?: number
+          created_at?: string
+          deductions?: number
+          employee_id?: string
+          expense_id?: string | null
+          gross_amount?: number
+          id?: string
+          net_amount?: number
+          notes?: string | null
+          paid_at?: string
+          payment_method?: string
+          period_month?: number
+          period_year?: number
+          processed_by?: string | null
+          reference_number?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payments_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payments_processed_by_fkey"
+            columns: ["processed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_vendors: {
         Row: {
           created_at: string
