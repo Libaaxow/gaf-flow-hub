@@ -18,8 +18,11 @@ import { generatePayslipPDF } from '@/utils/generatePayslipPDF';
 interface Employee {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
+  monthly_salary?: number;
+  status?: string;
 }
+
 
 interface PayrollRow {
   id: string;
@@ -73,18 +76,28 @@ export function PayrollPanel() {
   const [form, setForm] = useState(emptyForm());
   const [ledgerEmployee, setLedgerEmployee] = useState<string>('all');
 
-  const nameOf = (id: string | null) => employees.find((e) => e.id === id)?.full_name || '—';
+  const [profileNames, setProfileNames] = useState<Employee[]>([]);
+
+  const nameOf = (id: string | null) =>
+    employees.find((e) => e.id === id)?.full_name ||
+    profileNames.find((p) => p.id === id)?.full_name ||
+    '—';
+
+  const salaryOf = (id: string) => Number(employees.find((e) => e.id === id)?.monthly_salary || 0);
 
   const fetchAll = async () => {
     setLoading(true);
-    const [{ data: profs }, { data: pays }] = await Promise.all([
+    const [{ data: emps }, { data: profs }, { data: pays }] = await Promise.all([
+      supabase.from('employees').select('id, full_name, email, monthly_salary, status').order('full_name'),
       supabase.from('profiles').select('id, full_name, email').order('full_name'),
       supabase.from('payroll_payments').select('*').order('paid_at', { ascending: false }),
     ]);
-    setEmployees((profs as Employee[]) || []);
+    setEmployees((emps as Employee[]) || []);
+    setProfileNames((profs as Employee[]) || []);
     setRows((pays as PayrollRow[]) || []);
     setLoading(false);
   };
+
 
   useEffect(() => {
     fetchAll();
@@ -350,14 +363,31 @@ export function PayrollPanel() {
           <div className="space-y-3">
             <div>
               <Label>Employee *</Label>
-              <Select value={form.employee_id} onValueChange={(v) => setForm({ ...form, employee_id: v })}>
+              <Select
+                value={form.employee_id}
+                onValueChange={(v) => {
+                  const salary = salaryOf(v);
+                  setForm({
+                    ...form,
+                    employee_id: v,
+                    gross_amount: salary > 0 ? String(salary) : form.gross_amount,
+                  });
+                }}
+              >
                 <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {employees.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
-                  ))}
+                  {employees.filter((e) => e.status !== 'inactive').length === 0 ? (
+                    <div className="px-2 py-3 text-xs text-muted-foreground">No employees recorded yet</div>
+                  ) : (
+                    employees
+                      .filter((e) => e.status !== 'inactive')
+                      .map((e) => (
+                        <SelectItem key={e.id} value={e.id}>{e.full_name}</SelectItem>
+                      ))
+                  )}
                 </SelectContent>
               </Select>
+
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

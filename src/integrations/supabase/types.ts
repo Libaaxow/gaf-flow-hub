@@ -707,6 +707,65 @@ export type Database = {
           },
         ]
       }
+      employees: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          department: string | null
+          email: string | null
+          full_name: string
+          hire_date: string | null
+          id: string
+          job_title: string | null
+          monthly_salary: number
+          notes: string | null
+          phone: string | null
+          profile_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          full_name: string
+          hire_date?: string | null
+          id?: string
+          job_title?: string | null
+          monthly_salary?: number
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          department?: string | null
+          email?: string | null
+          full_name?: string
+          hire_date?: string | null
+          id?: string
+          job_title?: string | null
+          monthly_salary?: number
+          notes?: string | null
+          phone?: string | null
+          profile_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       expenses: {
         Row: {
           amount: number
@@ -1593,13 +1652,6 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "payroll_payments_employee_id_fkey"
-            columns: ["employee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "payroll_payments_expense_id_fkey"
             columns: ["expense_id"]
