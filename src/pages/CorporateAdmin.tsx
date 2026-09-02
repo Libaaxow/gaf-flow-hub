@@ -145,7 +145,7 @@ export default function CorporateAdmin() {
   }, [user]);
 
   // ---- derived share register figures ----
-  const totalPaidUp = useMemo(() => shareholders.reduce((s, h) => s + num(h.paid_up_amount), 0), [shareholders]);
+  // paid-up capital is derived from shares held x par value (see paidUpOf below)
   const authorized = num(settings?.authorized_shares);
   const parValue = num(settings?.par_value) || 1;
 
