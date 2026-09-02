@@ -187,6 +187,25 @@ export default function CorporateAdmin() {
   const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
   const distributableCash = cashAfterPayables * 0.7;
 
+  // Proposed dividend & debt settlement for each active shareholder
+  const settlementPlan = activeShareholders.map((h) => {
+    const gross = (distributableCash * pct(h)) / 100;
+    const loan = loanOf(h.id);
+    const deduction = Math.min(loan, gross);
+    return {
+      shareholder_id: h.id,
+      name: h.full_name,
+      percentage: Number(pct(h).toFixed(4)),
+      gross: Number(gross.toFixed(2)),
+      deduction: Number(deduction.toFixed(2)),
+      net: Number((gross - deduction).toFixed(2)),
+      loan_before: Number(loan.toFixed(2)),
+      remaining_debt: Number((loan - deduction).toFixed(2)),
+    };
+  });
+
+
+
 
   const logAudit = async (entry: any) => {
     await supabase.from('corporate_audit_log').insert({
