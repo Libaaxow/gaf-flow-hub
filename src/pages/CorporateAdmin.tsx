@@ -339,9 +339,13 @@ export default function CorporateAdmin() {
     if (testRole !== 'board' && r.prepared_by === user?.id) {
       toast({ title: 'You cannot approve your own request', variant: 'destructive' }); return;
     }
-    await supabase.from('corporate_requests').update({
+    const { data: updated, error } = await supabase.from('corporate_requests').update({
       status, decided_by: user?.id, decided_at: new Date().toISOString(), decision_comment: decisionComment || null,
-    }).eq('id', r.id);
+    }).eq('id', r.id).select('id, status');
+    if (error || !updated || updated.length === 0) {
+      toast({ title: 'Decision was not saved', description: error?.message || 'You do not have permission to decide on this request.', variant: 'destructive' });
+      return;
+    }
     setDecisionComment(''); setDetail(null);
     toast({ title: `Request ${STATUS_LABEL[status]}` });
     fetchAll();
