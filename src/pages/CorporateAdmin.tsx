@@ -17,6 +17,8 @@ import {
   Building2, ShieldCheck, FileSignature, Coins, ClipboardList, ScrollText, Plus, Send,
   Check, X, RotateCcw, Play, Upload, RefreshCw, Users2, PieChart, AlertTriangle, Trash2,
 } from 'lucide-react';
+import { applyTestRole, useTestRole, TEST_ROLE_LABEL } from '@/lib/testRole';
+
 
 const BUCKET = 'shareholder-documents';
 
