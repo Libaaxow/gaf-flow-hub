@@ -413,6 +413,47 @@ export default function CorporateAdmin() {
           }));
           if (rows.length) await supabase.from('dividend_entitlements').insert(rows);
         }
+      } else if (r.request_type === 'dividend_settlement') {
+        const plan: any[] = Array.isArray(d.settlement) ? d.settlement : [];
+        const totalGross = plan.reduce((s, p) => s + num(p.gross), 0);
+        const totalDeduction = plan.reduce((s, p) => s + num(p.deduction), 0);
+        const totalNet = plan.reduce((s, p) => s + num(p.net), 0);
+        const today = new Date().toISOString().slice(0, 10);
+        const totalShares = current.reduce((s, h) => s + num(h.shares_owned), 0);
+
+        const { data: decl } = await supabase.from('dividend_declarations').insert({
+          request_id: r.id, reference_no: r.reference_no, profit_available: num(d.distributable_cash),
+          dividend_amount: Number(totalGross.toFixed(2)),
+          dividend_per_share: totalShares > 0 ? Number((totalGross / totalShares).toFixed(4)) : 0,
+          declaration_date: today, payment_date: today, status: 'paid',
+          notes: r.title, created_by: user?.id,
+        }).select().single();
+
+        for (const p of plan) {
+          const holder = current.find((h) => h.id === p.shareholder_id);
+          if (decl) {
+            await supabase.from('dividend_entitlements').insert({
+              declaration_id: decl.id, shareholder_id: p.shareholder_id,
+              shares: num(holder?.shares_owned), amount: num(p.gross),
+              payment_status: 'paid', paid_at: new Date().toISOString(),
+            });
+          }
+          if (num(p.deduction) > 0) {
+            await supabase.from('shareholder_transactions').insert({
+              shareholder_id: p.shareholder_id, transaction_type: 'debt_repayment',
+              amount: num(p.deduction), transaction_date: today, reference_number: r.reference_no,
+              description: `Loan offset against dividend settlement ${r.reference_no}`, created_by: user?.id,
+            });
+          }
+          if (num(p.net) > 0) {
+            await supabase.from('shareholder_transactions').insert({
+              shareholder_id: p.shareholder_id, transaction_type: 'withdrawal',
+              amount: num(p.net), transaction_date: today, reference_number: r.reference_no,
+              description: `Net dividend payout ${r.reference_no}`, created_by: user?.id,
+            });
+          }
+        }
+        financialEffect = `Gross distributed ${money(totalGross)} · loan offsets ${money(totalDeduction)} · cash paid ${money(totalNet)}`;
       }
 
       if (txRows.length) await supabase.from('share_transactions').insert(txRows);
@@ -421,11 +462,15 @@ export default function CorporateAdmin() {
         status: 'executed', executed_by: user?.id, executed_at: new Date().toISOString(),
       }).eq('id', r.id);
       await logAudit({
-        entity_type: 'share_register', entity_id: r.id, reference_no: r.reference_no,
-        action: 'share_register_updated', approval_status: 'executed',
-        comments: `Register updated after Board approval of ${r.reference_no}`,
+        entity_type: r.request_type === 'dividend_settlement' ? 'dividend' : 'share_register',
+        entity_id: r.id, reference_no: r.reference_no,
+        action: r.request_type === 'dividend_settlement' ? 'dividend_settlement_executed' : 'share_register_updated',
+        approval_status: 'executed',
+        new_value: { financial_effect: financialEffect, board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at },
+        comments: financialEffect || `Register updated after Board approval of ${r.reference_no}`,
       });
-      toast({ title: 'Executed', description: 'Share register updated and recorded.' });
+      toast({ title: 'Transaction executed', description: financialEffect || 'Share register updated and recorded.' });
+
       setDetail(null);
       fetchAll();
     } catch (e: any) {
