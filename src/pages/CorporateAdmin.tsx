@@ -641,12 +641,12 @@ export default function CorporateAdmin() {
           <TabsContent value="register" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
               {[
-                { l: 'Authorized Shares', v: authorized > 0 ? authorized.toLocaleString() : 'Not set' },
-                { l: 'Issued Shares', v: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded' },
+                { l: 'Authorized Shares', v: shareNum(authorized) },
+                { l: 'Issued Shares', v: shareNum(totalIssued) },
                 { l: 'Paid-up Amount', v: money(totalPaidUp) },
-                { l: 'Available / Unissued', v: authorized > 0 ? unissued.toLocaleString() : 'Unavailable' },
-
+                { l: 'Available / Unissued', v: shareNum(unissued) },
                 { l: 'Par Value', v: money(parValue) },
+
               ].map((c) => (
                 <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
               ))}
