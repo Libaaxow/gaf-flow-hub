@@ -66,7 +66,10 @@ interface Allocation { shareholder_id: string; new_name?: string; shares: string
 export default function CorporateAdmin() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [actualRoles, setActualRoles] = useState<Role[]>([]);
+  const testRole = useTestRole();
+  const roles = applyTestRole(actualRoles as string[], testRole) as Role[];
+
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(null);
   const [shareholders, setShareholders] = useState<any[]>([]);
