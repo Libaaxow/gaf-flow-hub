@@ -405,7 +405,10 @@ const AccountantDashboard = () => {
     fetchFilteredData();
   }, [startDate, endDate]);
 
+  const [payrollRefresh, setPayrollRefresh] = useState(0);
+
   const fetchAllData = async () => {
+
     await Promise.all([
       fetchActualStats(),
       fetchFilteredData(),
