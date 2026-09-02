@@ -268,6 +268,13 @@ export default function CorporateAdmin() {
 
       if (['share_issuance', 'capital_increase', 'capital_decrease'].includes(r.request_type)) {
         const sign = r.request_type === 'capital_decrease' ? -1 : 1;
+        if (sign > 0 && authorized > 0) {
+          const requested = (d.allocations || []).reduce((s: number, a: any) => s + num(a.shares), 0);
+          if (totalIssued + requested > authorized) {
+            throw new Error(`Issuing ${requested.toLocaleString()} shares would exceed authorized shares (${authorized.toLocaleString()}). Only ${unissued.toLocaleString()} are unissued.`);
+          }
+        }
+
         for (const a of d.allocations || []) {
           let holder = byId(a.shareholder_id);
           if (!holder && a.new_name) {
