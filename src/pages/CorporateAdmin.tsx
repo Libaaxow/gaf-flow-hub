@@ -584,23 +584,24 @@ export default function CorporateAdmin() {
                   <CardDescription>Live from the existing shareholder register · shares ÷ total issued shares × 100</CardDescription></CardHeader>
                 <CardContent className="space-y-3">
                   {shareholders.length === 0 && <p className="text-sm text-muted-foreground">No shareholders in the existing register.</p>}
-                  {shareholders.map((h) => (
+                  {activeShareholders.map((h) => (
                     <div key={h.id}>
                       <div className="flex justify-between text-sm gap-2">
                         <span className="truncate">{h.full_name}</span>
-                        <span className="shrink-0">{totalIssued > 0 ? `${pct(h).toFixed(2)}%` : 'Unavailable'}</span>
+                        <span className="shrink-0">{pct(h).toFixed(2)}%</span>
                       </div>
-                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${totalIssued > 0 ? pct(h) : 0}%` }} /></div>
+                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${Math.min(100, pct(h))}%` }} /></div>
                       <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                        {num(h.shares_owned).toLocaleString()} shares · {h.share_class || '—'} · Cert {h.certificate_number || '—'} · {h.status}
+                        {shareNum(sharesOf(h))} shares · {money(sharesOf(h) * parValue)} · {h.share_class || '—'} · Cert {h.certificate_number || '—'}
                       </p>
                     </div>
                   ))}
                   {totalIssued > 0 && (
                     <p className="text-[11px] text-muted-foreground border-t pt-2">
-                      Total ownership of issued shares: {shareholders.reduce((s, h) => s + pct(h), 0).toFixed(2)}%
+                      Total ownership of issued shares: {activeShareholders.reduce((s, h) => s + pct(h), 0).toFixed(2)}%
                     </p>
                   )}
+
                 </CardContent>
               </Card>
 
