@@ -63,6 +63,15 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
 
+      // Officially declared dividends (governance record)
+      const { data: divData } = await supabase
+        .from('dividend_declarations')
+        .select('id, reference_no, declaration_date, payment_date, dividend_amount, dividend_per_share, status')
+        .order('declaration_date', { ascending: false })
+        .limit(10);
+      setDividends((divData as any as Dividend[]) || []);
+
+
       // Cash balance = opening balance + collected payments - approved expenses
       const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
       const collected = (paymentsRes.data || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
