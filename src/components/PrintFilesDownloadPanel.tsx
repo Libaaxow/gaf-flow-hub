@@ -50,7 +50,7 @@ export const PrintFilesDownloadPanel = () => {
       const { data: fs } = await supabase
         .from('request_files')
         .select('id, request_id, file_name, file_path')
-        .in('request_id', reqIds.slice(0, 200));
+        .in('request_id', reqIds.slice(0, 500));
       const fmap: Record<string, ReqFile[]> = {};
       ((fs as any) || []).forEach((f: ReqFile) => {
         (fmap[f.request_id] ||= []).push(f);
