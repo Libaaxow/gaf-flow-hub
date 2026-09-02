@@ -150,6 +150,10 @@ export function ShareholderCyclePanel() {
     const active = shareholders.filter(s => s.status === 'active');
     const total = active.reduce((sum, s) => sum + Math.max(0, capital.get(s.id) || 0), 0);
     if (total <= 0) return null;
+    // Guard: if any active shareholder has no recorded capital, a pro-rata recalculation
+    // would silently drop them to 0%. Keep the existing register instead.
+    const wouldWipe = active.some(s => Math.max(0, capital.get(s.id) || 0) <= 0 && Number(s.share_percentage || 0) > 0);
+    if (wouldWipe) return null;
     const results: { id: string; pct: number }[] = active.map(s => ({
       id: s.id,
       pct: Math.round(((Math.max(0, capital.get(s.id) || 0) / total) * 100) * 1000) / 1000,
