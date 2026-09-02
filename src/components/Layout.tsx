@@ -176,6 +176,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
       {/* Mobile Header */}
       <div className="flex flex-1 flex-col min-w-0">
+        {actualRole === 'admin' && <TestRoleSwitcher />}
+
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
             <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />
