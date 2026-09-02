@@ -3165,10 +3165,17 @@ const AccountantDashboard = () => {
 
           {/* Payroll Tab */}
           <TabsContent value="payroll" className="space-y-3 sm:space-y-4">
-            <EmployeesPanel />
-            <PayrollPanel />
+            <EmployeesPanel onChanged={() => setPayrollRefresh((n) => n + 1)} />
+            <PayrollPanel
+              refreshKey={payrollRefresh}
+              onPaid={() => {
+                fetchActualStats();
+                fetchAllExpenses();
+              }}
+            />
 
           </TabsContent>
+
 
           {/* Liabilities Tab */}
           <TabsContent value="liabilities" className="space-y-3 sm:space-y-4">
