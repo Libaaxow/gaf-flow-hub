@@ -37,12 +37,12 @@ export const PrintFilesDownloadPanel = () => {
 
   const fetchData = async () => {
     if (!user?.id) return;
+    // Print operators can see every job sent by sales (with attachments), not only assigned ones
     const { data } = await supabase
       .from('sales_order_requests')
       .select('*')
-      .eq('print_operator_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(300);
+      .limit(500);
     const list = ((data as any) || []) as PrintFileRequest[];
 
     const reqIds = list.map(r => r.id);
