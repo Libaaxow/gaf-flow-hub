@@ -1140,9 +1140,25 @@ export default function CorporateAdmin() {
                   <div><Label>Nominal value</Label><Input type="number" step="0.01" value={form.nominal_value} onChange={(e) => set('nominal_value', e.target.value)} placeholder={String(parValue)} /></div>
                 </div>
                 <div className="grid gap-3 md:grid-cols-2 text-sm">
-                  <div><Label>Additional shares</Label><Input type="number" value={form.additional_shares} onChange={(e) => set('additional_shares', e.target.value)} /></div>
+                  <div><Label>{form.request_type === 'share_issuance' ? 'Share count' : 'Additional shares'}</Label><Input type="number" value={form.additional_shares} onChange={(e) => set('additional_shares', e.target.value)} /></div>
                   <div><Label>New share capital</Label>
                     <Input readOnly value={money((totalIssued + (form.request_type === 'capital_decrease' ? -1 : 1) * num(form.additional_shares)) * (num(form.nominal_value) || parValue))} /></div>
+                  {form.request_type === 'share_issuance' && (
+                    <div className="md:col-span-2"><Label>Valuation impact</Label>
+                      <Input value={form.valuation_impact} onChange={(e) => set('valuation_impact', e.target.value)} placeholder="e.g. increases equity by $50,000" /></div>
+                  )}
+                  {form.request_type === 'capital_increase' && (
+                    <>
+                      <div><Label>Additional capital amount</Label><Input type="number" value={form.capital_amount} onChange={(e) => set('capital_amount', e.target.value)} /></div>
+                      <div><Label>New authorized shares limit</Label><Input type="number" value={form.new_authorized_shares} onChange={(e) => set('new_authorized_shares', e.target.value)} placeholder={String(authorized)} /></div>
+                    </>
+                  )}
+                  {form.request_type === 'capital_decrease' && (
+                    <>
+                      <div><Label>Reduction amount</Label><Input type="number" value={form.capital_amount} onChange={(e) => set('capital_amount', e.target.value)} /></div>
+                      <div><Label>Adjusted authorized capital (shares)</Label><Input type="number" value={form.new_authorized_shares} onChange={(e) => set('new_authorized_shares', e.target.value)} placeholder={String(authorized)} /></div>
+                    </>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between"><Label>Proposed allocation</Label>
