@@ -25,6 +25,9 @@ import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { InstallPWAButton } from '@/components/InstallPWAButton';
 import { OverdueInvoicesAlert } from '@/components/OverdueInvoicesAlert';
+import { TestRoleSwitcher } from '@/components/TestRoleSwitcher';
+import { applyTestRole, useTestRole } from '@/lib/testRole';
+
 
 interface NavItem {
   href: string;
@@ -64,7 +67,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [actualRole, setActualRole] = useState<string | null>(null);
+  const testRole = useTestRole();
 
   useEffect(() => {
     if (user) {
@@ -85,10 +89,12 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         .eq('user_id', user.id)
         .single()
         .then(({ data }) => {
-          if (data) setUserRole(data.role);
+          if (data) setActualRole(data.role);
         });
     }
   }, [user]);
+
+  const userRole = applyTestRole(actualRole ? [actualRole] : [], testRole)[0] || actualRole;
 
   // Filter nav items based on user role
   const filteredNavItems = navItems.filter(item => {
@@ -99,6 +105,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     // Check if user role is in allowed roles
     return item.roles.includes(userRole);
   });
+
 
   const NavLinks = () => (
     <>
@@ -169,6 +176,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
 
       {/* Mobile Header */}
       <div className="flex flex-1 flex-col min-w-0">
+        {actualRole === 'admin' && <TestRoleSwitcher />}
+
         <header className="border-b bg-card lg:hidden">
           <div className="flex h-16 items-center justify-between px-4">
             <img src={gafMediaLogo} alt="GAF MEDIA" className="h-10 w-auto" />

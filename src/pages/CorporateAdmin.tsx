@@ -17,6 +17,8 @@ import {
   Building2, ShieldCheck, FileSignature, Coins, ClipboardList, ScrollText, Plus, Send,
   Check, X, RotateCcw, Play, Upload, RefreshCw, Users2, PieChart, AlertTriangle, Trash2,
 } from 'lucide-react';
+import { applyTestRole, useTestRole, TEST_ROLE_LABEL } from '@/lib/testRole';
+
 
 const BUCKET = 'shareholder-documents';
 
@@ -30,6 +32,8 @@ const REQUEST_TYPES: { value: string; label: string; prefix: string }[] = [
   { value: 'remove_shareholder', label: 'Remove Shareholder', prefix: 'SHH' },
   { value: 'share_transfer', label: 'Share Transfer', prefix: 'TRF' },
   { value: 'dividend', label: 'Dividend Declaration', prefix: 'DIV' },
+  { value: 'dividend_settlement', label: 'Dividend & Debt Settlement', prefix: 'DIV' },
+
   { value: 'structure_change', label: 'Major Structure Change', prefix: 'CRP' },
   { value: 'officer_change', label: 'Appoint / Remove Officer', prefix: 'CRP' },
   { value: 'closure', label: 'Company Closure / Liquidation', prefix: 'LIQ' },
@@ -48,7 +52,7 @@ const STATUS_LABEL: Record<string, string> = {
   draft: 'Draft',
   pending_approval: 'Pending Approval',
   changes_requested: 'Changes Requested',
-  approved: 'Approved',
+  approved: 'Approved by Board — Pending Execution',
   rejected: 'Rejected',
   executed: 'Executed',
   cancelled: 'Cancelled',
@@ -62,7 +66,10 @@ interface Allocation { shareholder_id: string; new_name?: string; shares: string
 export default function CorporateAdmin() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [actualRoles, setActualRoles] = useState<Role[]>([]);
+  const testRole = useTestRole();
+  const roles = applyTestRole(actualRoles as string[], testRole) as Role[];
+
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<any>(null);
   const [shareholders, setShareholders] = useState<any[]>([]);
@@ -138,7 +145,7 @@ export default function CorporateAdmin() {
     if (!user) return;
     (async () => {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
-      setRoles((data || []).map((r: any) => r.role));
+      setActualRoles((data || []).map((r: any) => r.role));
       await fetchAll();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -179,6 +186,25 @@ export default function CorporateAdmin() {
   // cash distribution (30% company reserve), then loan settlement per shareholder
   const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
   const distributableCash = cashAfterPayables * 0.7;
+
+  // Proposed dividend & debt settlement for each active shareholder
+  const settlementPlan = activeShareholders.map((h) => {
+    const gross = (distributableCash * pct(h)) / 100;
+    const loan = loanOf(h.id);
+    const deduction = Math.min(loan, gross);
+    return {
+      shareholder_id: h.id,
+      name: h.full_name,
+      percentage: Number(pct(h).toFixed(4)),
+      gross: Number(gross.toFixed(2)),
+      deduction: Number(deduction.toFixed(2)),
+      net: Number((gross - deduction).toFixed(2)),
+      loan_before: Number(loan.toFixed(2)),
+      remaining_debt: Number((loan - deduction).toFixed(2)),
+    };
+  });
+
+
 
 
   const logAudit = async (entry: any) => {
@@ -264,6 +290,40 @@ export default function CorporateAdmin() {
     } finally { setBusy(false); }
   };
 
+  // Step 1 — Admin Manager prepares the dividend & debt settlement request
+  const prepareSettlement = async () => {
+    if (settlementPlan.length === 0) { toast({ title: 'No active shareholders', variant: 'destructive' }); return; }
+    setBusy(true);
+    try {
+      const { data: ref, error: refErr } = await supabase.rpc('generate_corporate_reference', { _prefix: 'DIV' });
+      if (refErr) throw refErr;
+      const totalGross = settlementPlan.reduce((s, p) => s + p.gross, 0);
+      const { data, error } = await supabase.from('corporate_requests').insert({
+        reference_no: ref as string,
+        request_type: 'dividend_settlement',
+        title: `Dividend & Debt Settlement — ${money(totalGross)} distributable cash`,
+        description: settlementPlan.map((p) => `${p.name}: gross ${money(p.gross)}${p.deduction > 0 ? ` − loan ${money(p.deduction)}` : ''} = net ${money(p.net)}`).join(' | '),
+        reason: 'Periodic distribution of company distributable cash with settlement of outstanding shareholder loans.',
+        details: {
+          cash_after_payables: Number(cashAfterPayables.toFixed(2)),
+          company_reserve: Number((cashAfterPayables * 0.3).toFixed(2)),
+          distributable_cash: Number(distributableCash.toFixed(2)),
+          net_worth: Number(netCompanyWorth.toFixed(2)),
+          settlement: settlementPlan,
+        },
+        status: 'pending_approval',
+        prepared_by: user?.id,
+        submitted_at: new Date().toISOString(),
+      }).select().single();
+      if (error) throw error;
+      toast({ title: 'Submitted — Pending Board Approval', description: `${data.reference_no} sent to the Board of Directors.` });
+      fetchAll();
+    } catch (e: any) {
+      toast({ title: 'Could not prepare settlement', description: e.message, variant: 'destructive' });
+    } finally { setBusy(false); }
+  };
+
+
   const submitRequest = async (r: any) => {
     await supabase.from('corporate_requests').update({ status: 'pending_approval', submitted_at: new Date().toISOString() }).eq('id', r.id);
     toast({ title: 'Sent to the Board for approval' });
@@ -324,6 +384,10 @@ export default function CorporateAdmin() {
           price_per_share: parV, created_by: user?.id, notes: r.title, ...extra,
         });
       };
+
+      let financialEffect = '';
+
+
 
       if (['share_issuance', 'capital_increase', 'capital_decrease'].includes(r.request_type)) {
         const sign = r.request_type === 'capital_decrease' ? -1 : 1;
@@ -387,6 +451,47 @@ export default function CorporateAdmin() {
           }));
           if (rows.length) await supabase.from('dividend_entitlements').insert(rows);
         }
+      } else if (r.request_type === 'dividend_settlement') {
+        const plan: any[] = Array.isArray(d.settlement) ? d.settlement : [];
+        const totalGross = plan.reduce((s, p) => s + num(p.gross), 0);
+        const totalDeduction = plan.reduce((s, p) => s + num(p.deduction), 0);
+        const totalNet = plan.reduce((s, p) => s + num(p.net), 0);
+        const today = new Date().toISOString().slice(0, 10);
+        const totalShares = current.reduce((s, h) => s + num(h.shares_owned), 0);
+
+        const { data: decl } = await supabase.from('dividend_declarations').insert({
+          request_id: r.id, reference_no: r.reference_no, profit_available: num(d.distributable_cash),
+          dividend_amount: Number(totalGross.toFixed(2)),
+          dividend_per_share: totalShares > 0 ? Number((totalGross / totalShares).toFixed(4)) : 0,
+          declaration_date: today, payment_date: today, status: 'paid',
+          notes: r.title, created_by: user?.id,
+        }).select().single();
+
+        for (const p of plan) {
+          const holder = current.find((h) => h.id === p.shareholder_id);
+          if (decl) {
+            await supabase.from('dividend_entitlements').insert({
+              declaration_id: decl.id, shareholder_id: p.shareholder_id,
+              shares: num(holder?.shares_owned), amount: num(p.gross),
+              payment_status: 'paid', paid_at: new Date().toISOString(),
+            });
+          }
+          if (num(p.deduction) > 0) {
+            await supabase.from('shareholder_transactions').insert({
+              shareholder_id: p.shareholder_id, transaction_type: 'debt_repayment',
+              amount: num(p.deduction), transaction_date: today, reference_number: r.reference_no,
+              description: `Loan offset against dividend settlement ${r.reference_no}`, created_by: user?.id,
+            });
+          }
+          if (num(p.net) > 0) {
+            await supabase.from('shareholder_transactions').insert({
+              shareholder_id: p.shareholder_id, transaction_type: 'withdrawal',
+              amount: num(p.net), transaction_date: today, reference_number: r.reference_no,
+              description: `Net dividend payout ${r.reference_no}`, created_by: user?.id,
+            });
+          }
+        }
+        financialEffect = `Gross distributed ${money(totalGross)} · loan offsets ${money(totalDeduction)} · cash paid ${money(totalNet)}`;
       }
 
       if (txRows.length) await supabase.from('share_transactions').insert(txRows);
@@ -395,11 +500,15 @@ export default function CorporateAdmin() {
         status: 'executed', executed_by: user?.id, executed_at: new Date().toISOString(),
       }).eq('id', r.id);
       await logAudit({
-        entity_type: 'share_register', entity_id: r.id, reference_no: r.reference_no,
-        action: 'share_register_updated', approval_status: 'executed',
-        comments: `Register updated after Board approval of ${r.reference_no}`,
+        entity_type: r.request_type === 'dividend_settlement' ? 'dividend' : 'share_register',
+        entity_id: r.id, reference_no: r.reference_no,
+        action: r.request_type === 'dividend_settlement' ? 'dividend_settlement_executed' : 'share_register_updated',
+        approval_status: 'executed',
+        new_value: { financial_effect: financialEffect, board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at },
+        comments: financialEffect || `Register updated after Board approval of ${r.reference_no}`,
       });
-      toast({ title: 'Executed', description: 'Share register updated and recorded.' });
+      toast({ title: 'Transaction executed', description: financialEffect || 'Share register updated and recorded.' });
+
       setDetail(null);
       fetchAll();
     } catch (e: any) {
@@ -486,6 +595,8 @@ export default function CorporateAdmin() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{isAdmin ? 'Admin Manager' : isBoard ? 'Board Member' : isAccountant ? 'Accountant' : 'Auditor'}</Badge>
+            {testRole && <Badge variant="outline" className="text-warning border-warning">Test mode: {TEST_ROLE_LABEL[testRole]}</Badge>}
+
             <Button variant="outline" size="sm" onClick={fetchAll}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
           </div>
         </div>
@@ -725,8 +836,62 @@ export default function CorporateAdmin() {
           <TabsContent value="requests" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">Draft → Submitted → Pending Board Approval → Approved / Rejected → Executed → Recorded</p>
-              {isAdmin && <Button size="sm" onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-1" />New Corporate Request</Button>}
+              <div className="flex flex-wrap gap-2">
+                {isAdmin && (
+                  <Button size="sm" variant="outline" disabled={busy} onClick={prepareSettlement}>
+                    <Coins className="h-4 w-4 mr-1" />Prepare Dividend &amp; Debt Settlement Request
+                  </Button>
+                )}
+                {isAdmin && <Button size="sm" onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-1" />New Corporate Request</Button>}
+              </div>
             </div>
+
+            {isAdmin && settlementPlan.length > 0 && (
+              <Card className="border-dashed">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Proposed settlement · {money(distributableCash)} distributable cash</CardTitle>
+                  <CardDescription>This is what will be submitted to the Board for approval.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
+                  {settlementPlan.map((p) => (
+                    <div key={p.shareholder_id} className="flex flex-wrap justify-between gap-2 rounded-md border p-2">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Gross {money(p.gross)}{p.deduction > 0 ? ` − loan ${money(p.deduction)}` : ''} → Net {money(p.net)}
+                        {p.remaining_debt > 0 ? ` · remaining debt ${money(p.remaining_debt)}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {isAccountant && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Finance / Accounting Tasks</CardTitle>
+                  <CardDescription>Board-approved resolutions waiting to be executed and recorded.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {requests.filter((r) => r.status === 'approved').length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nothing awaiting execution.</p>
+                  )}
+                  {requests.filter((r) => r.status === 'approved').map((r) => (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">Execute Approved Resolution {r.reference_no}</p>
+                        <p className="text-xs text-muted-foreground truncate">{r.title}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setDetail(r)}>Review</Button>
+                        <Button size="sm" disabled={busy} onClick={() => execute(r)}>Execute Transaction</Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
@@ -1035,6 +1200,31 @@ export default function CorporateAdmin() {
                   )}
                 </div>
 
+                {detail.request_type === 'dividend_settlement' && (
+                  <div className="rounded-md border p-3 space-y-2">
+                    <p className="font-medium">Executive context</p>
+                    <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+                      <div><span className="text-muted-foreground block">Company net worth</span>{money(num(detail.details?.net_worth))}</div>
+                      <div><span className="text-muted-foreground block">Issued shares</span>{totalIssued.toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                      <div><span className="text-muted-foreground block">Company reserve (30%)</span>{money(num(detail.details?.company_reserve))}</div>
+                      <div><span className="text-muted-foreground block">Distributable cash</span>{money(num(detail.details?.distributable_cash))}</div>
+                    </div>
+                    <p className="text-muted-foreground pt-1">Proposed distribution</p>
+                    {(detail.details?.settlement || []).map((p: any, i: number) => (
+                      <div key={i} className="flex flex-wrap justify-between gap-2 text-xs border-t pt-1">
+                        <span className="font-medium">{p.name} · {num(p.percentage).toFixed(2)}%</span>
+                        <span>
+                          Gross {money(num(p.gross))}
+                          {num(p.deduction) > 0 && <> · loan offset −{money(num(p.deduction))}</>}
+                          {' '}→ Net {money(num(p.net))}
+                          {num(p.remaining_debt) > 0 && <> · remaining debt {money(num(p.remaining_debt))}</>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+
                 <div>
                   <p className="text-muted-foreground mb-1">Supporting documents</p>
                   {docs.filter((d) => d.request_id === detail.id).length === 0 && <p className="text-xs text-muted-foreground">None attached.</p>}
@@ -1063,12 +1253,13 @@ export default function CorporateAdmin() {
                   <>
                     <Button variant="outline" onClick={() => decide(detail, 'changes_requested')}><RotateCcw className="h-4 w-4 mr-1" />Request changes</Button>
                     <Button variant="destructive" onClick={() => decide(detail, 'rejected')}><X className="h-4 w-4 mr-1" />Reject</Button>
-                    <Button onClick={() => decide(detail, 'approved')}><Check className="h-4 w-4 mr-1" />Approve</Button>
+                    <Button onClick={() => decide(detail, 'approved')}><Check className="h-4 w-4 mr-1" />Approve Resolution</Button>
                   </>
                 )}
-                {isAdmin && detail.status === 'approved' && (
-                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute & update register</Button>
+                {(isAdmin || isAccountant) && detail.status === 'approved' && (
+                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute Transaction</Button>
                 )}
+
                 {detail.status === 'executed' && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1"><ClipboardList className="h-3 w-3" />Executed and recorded — permanent record.</span>
                 )}
