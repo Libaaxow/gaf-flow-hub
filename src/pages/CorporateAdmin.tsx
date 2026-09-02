@@ -595,6 +595,8 @@ export default function CorporateAdmin() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{isAdmin ? 'Admin Manager' : isBoard ? 'Board Member' : isAccountant ? 'Accountant' : 'Auditor'}</Badge>
+            {testRole && <Badge variant="outline" className="text-warning border-warning">Test mode: {TEST_ROLE_LABEL[testRole]}</Badge>}
+
             <Button variant="outline" size="sm" onClick={fetchAll}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
           </div>
         </div>
