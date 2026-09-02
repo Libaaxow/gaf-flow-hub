@@ -66,7 +66,7 @@ const emptyForm = () => ({
   notes: '',
 });
 
-export function PayrollPanel() {
+export function PayrollPanel({ refreshKey, onPaid }: { refreshKey?: number; onPaid?: () => void } = {}) {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [rows, setRows] = useState<PayrollRow[]>([]);
@@ -101,7 +101,8 @@ export function PayrollPanel() {
 
   useEffect(() => {
     fetchAll();
-  }, []);
+  }, [refreshKey]);
+
 
   const gross = Number(form.gross_amount) || 0;
   const allowances = Number(form.allowances) || 0;
@@ -206,10 +207,12 @@ export function PayrollPanel() {
         },
       });
 
-      toast({ title: 'Salary paid', description: `${employeeName} — ${money(net)} for ${periodLabel}` });
+      toast({ title: 'Salary paid', description: `${employeeName} — ${money(net)} deducted from company net profit` });
       setOpen(false);
       setForm(emptyForm());
       fetchAll();
+      onPaid?.();
+
     } catch (e: any) {
       toast({ title: 'Could not process salary', description: e.message, variant: 'destructive' });
     } finally {
