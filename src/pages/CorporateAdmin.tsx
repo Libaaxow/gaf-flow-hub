@@ -618,24 +618,37 @@ export default function CorporateAdmin() {
       if (closeErr || !closed || closed.length === 0) {
         throw new Error(closeErr?.message || 'You do not have permission to close this resolution.');
       }
+      const journal = buildJournal(r);
       await logAudit({
         entity_type: r.request_type === 'dividend_settlement' ? 'dividend' : 'share_register',
         entity_id: r.id, reference_no: r.reference_no,
         action: r.request_type === 'dividend_settlement' ? 'dividend_settlement_executed' : 'share_register_updated',
         approval_status: 'executed',
         new_value: {
+          resolution_id: r.reference_no,
           request_type: REQUEST_TYPES.find((t) => t.value === r.request_type)?.label || r.request_type,
           created_by: profiles[r.prepared_by] || '—',
+          created_by_id: r.prepared_by,
           approved_by: profiles[r.decided_by] || '—',
+          approved_by_id: r.decided_by,
           executed_by: profiles[user?.id || ''] || '—',
+          executed_by_id: user?.id,
+          executed_at: new Date().toISOString(),
+          resolution_status: 'EXECUTED & COMPLETED',
+          journal,
           financial_effect: financialEffect,
           board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at,
         },
         comments: financialEffect || `Register updated after Board approval of ${r.reference_no}`,
       });
-      toast({ title: 'Transaction executed', description: financialEffect || 'Share register updated and recorded.' });
+      setExecutedInfo({
+        simulated: false, reference_no: r.reference_no,
+        request_type: REQUEST_TYPES.find((t) => t.value === r.request_type)?.label || r.request_type,
+        journal, effect: financialEffect,
+      });
 
       setDetail(null);
+
       fetchAll();
     } catch (e: any) {
       toast({ title: 'Execution failed', description: e.message, variant: 'destructive' });
