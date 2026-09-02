@@ -502,9 +502,12 @@ export default function CorporateAdmin() {
 
       if (txRows.length) await supabase.from('share_transactions').insert(txRows);
       await recalcPercentages(current);
-      await supabase.from('corporate_requests').update({
+      const { data: closed, error: closeErr } = await supabase.from('corporate_requests').update({
         status: 'executed', executed_by: user?.id, executed_at: new Date().toISOString(),
-      }).eq('id', r.id);
+      }).eq('id', r.id).select('id');
+      if (closeErr || !closed || closed.length === 0) {
+        throw new Error(closeErr?.message || 'You do not have permission to close this resolution.');
+      }
       await logAudit({
         entity_type: r.request_type === 'dividend_settlement' ? 'dividend' : 'share_register',
         entity_id: r.id, reference_no: r.reference_no,
@@ -872,7 +875,7 @@ export default function CorporateAdmin() {
               </Card>
             )}
 
-            {isAccountant && (
+            {(isAccountant || isAdmin) && (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Finance / Accounting Tasks</CardTitle>
