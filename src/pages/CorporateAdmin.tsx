@@ -151,6 +151,25 @@ export default function CorporateAdmin() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
+  // live refresh so status badges, cards and tables update without a page reload
+  useEffect(() => {
+    if (!user) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { fetchAll(); }, 800);
+    };
+    const channel = supabase
+      .channel('corporate-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'corporate_requests' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'corporate_audit_log' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shareholders' }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'dividend_declarations' }, refresh)
+      .subscribe();
+    return () => { if (timer) clearTimeout(timer); supabase.removeChannel(channel); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
   // ---- derived share register figures ----
   // paid-up capital is derived from shares held x par value (see paidUpOf below)
   const authorized = num(settings?.authorized_shares);
