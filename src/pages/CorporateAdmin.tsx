@@ -677,8 +677,9 @@ export default function CorporateAdmin() {
                         <TableCell className="text-xs text-muted-foreground">{h.shareholder_code || h.id.slice(0, 8)}</TableCell>
                         <TableCell>{shareNum(sharesOf(h))}</TableCell>
                         <TableCell className="capitalize">{h.share_class}</TableCell>
-                        <TableCell>{money(num(h.par_value))}</TableCell>
-                        <TableCell>{money(num(h.paid_up_amount))}</TableCell>
+                        <TableCell>{money(parValue)}</TableCell>
+                        <TableCell>{money(paidUpOf(h))}</TableCell>
+
                         <TableCell>{pct(h).toFixed(2)}%</TableCell>
                         <TableCell>{h.date_acquired || '—'}</TableCell>
                         <TableCell>{h.certificate_number || '—'}</TableCell>
