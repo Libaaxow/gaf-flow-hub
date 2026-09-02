@@ -312,7 +312,7 @@ export default function CorporateAdmin() {
       const { data, error } = await supabase.from('corporate_requests').insert({
         reference_no: ref as string,
         request_type: form.request_type,
-        title: form.title,
+        title: `${testRole ? '[TEST] ' : ''}${form.title}`,
         description: form.description || null,
         reason: form.reason || null,
         details,
@@ -333,6 +333,19 @@ export default function CorporateAdmin() {
   // Step 1 — Admin Manager prepares the dividend & debt settlement request
   const prepareSettlement = async () => {
     if (settlementPlan.length === 0) { toast({ title: 'No active shareholders', variant: 'destructive' }); return; }
+    // Only one settlement resolution may be in flight at a time, otherwise the same
+    // distributable cash could be approved and paid out twice.
+    const openSettlement = requests.find(
+      (r) => r.request_type === 'dividend_settlement' && ['draft', 'submitted', 'pending_approval', 'approved'].includes(r.status),
+    );
+    if (openSettlement) {
+      toast({
+        title: 'A settlement request is already open',
+        description: `${openSettlement.reference_no} is ${STATUS_LABEL[openSettlement.status] || openSettlement.status}. Finish or reject it before preparing a new one.`,
+        variant: 'destructive',
+      });
+      return;
+    }
     setBusy(true);
     try {
       const { data: ref, error: refErr } = await supabase.rpc('generate_corporate_reference', { _prefix: 'DIV' });
@@ -341,7 +354,7 @@ export default function CorporateAdmin() {
       const { data, error } = await supabase.from('corporate_requests').insert({
         reference_no: ref as string,
         request_type: 'dividend_settlement',
-        title: `Dividend & Debt Settlement — ${money(totalGross)} distributable cash`,
+        title: `${testRole ? '[TEST] ' : ''}Dividend & Debt Settlement — ${money(totalGross)} distributable cash`,
         description: settlementPlan.map((p) => `${p.name}: gross ${money(p.gross)}${p.deduction > 0 ? ` − loan ${money(p.deduction)}` : ''} = net ${money(p.net)}`).join(' | '),
         reason: 'Periodic distribution of company distributable cash with settlement of outstanding shareholder loans.',
         details: {
