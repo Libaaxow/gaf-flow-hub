@@ -64,7 +64,8 @@ export const Layout = ({ children }: { children: ReactNode }) => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const [profile, setProfile] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [actualRole, setActualRole] = useState<string | null>(null);
+  const testRole = useTestRole();
 
   useEffect(() => {
     if (user) {
@@ -85,10 +86,12 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         .eq('user_id', user.id)
         .single()
         .then(({ data }) => {
-          if (data) setUserRole(data.role);
+          if (data) setActualRole(data.role);
         });
     }
   }, [user]);
+
+  const userRole = applyTestRole(actualRole ? [actualRole] : [], testRole)[0] || actualRole;
 
   // Filter nav items based on user role
   const filteredNavItems = navItems.filter(item => {
@@ -99,6 +102,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
     // Check if user role is in allowed roles
     return item.roles.includes(userRole);
   });
+
 
   const NavLinks = () => (
     <>
