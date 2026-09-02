@@ -67,6 +67,8 @@ import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
 import { SalesRequestsPanel } from '@/components/SalesRequestsPanel';
 import { CompanyLiabilitiesPanel } from '@/components/CompanyLiabilitiesPanel';
 import { PayrollPanel } from '@/components/PayrollPanel';
+import { EmployeesPanel } from '@/components/EmployeesPanel';
+
 
 
 import { defaultDueDate } from '@/utils/dueDate';
@@ -3163,7 +3165,9 @@ const AccountantDashboard = () => {
 
           {/* Payroll Tab */}
           <TabsContent value="payroll" className="space-y-3 sm:space-y-4">
+            <EmployeesPanel />
             <PayrollPanel />
+
           </TabsContent>
 
           {/* Liabilities Tab */}

@@ -18,8 +18,11 @@ import { generatePayslipPDF } from '@/utils/generatePayslipPDF';
 interface Employee {
   id: string;
   full_name: string;
-  email: string;
+  email: string | null;
+  monthly_salary?: number;
+  status?: string;
 }
+
 
 interface PayrollRow {
   id: string;
@@ -73,18 +76,28 @@ export function PayrollPanel() {
   const [form, setForm] = useState(emptyForm());
   const [ledgerEmployee, setLedgerEmployee] = useState<string>('all');
 
-  const nameOf = (id: string | null) => employees.find((e) => e.id === id)?.full_name || '—';
+  const [profileNames, setProfileNames] = useState<Employee[]>([]);
+
+  const nameOf = (id: string | null) =>
+    employees.find((e) => e.id === id)?.full_name ||
+    profileNames.find((p) => p.id === id)?.full_name ||
+    '—';
+
+  const salaryOf = (id: string) => Number(employees.find((e) => e.id === id)?.monthly_salary || 0);
 
   const fetchAll = async () => {
     setLoading(true);
-    const [{ data: profs }, { data: pays }] = await Promise.all([
+    const [{ data: emps }, { data: profs }, { data: pays }] = await Promise.all([
+      supabase.from('employees').select('id, full_name, email, monthly_salary, status').order('full_name'),
       supabase.from('profiles').select('id, full_name, email').order('full_name'),
       supabase.from('payroll_payments').select('*').order('paid_at', { ascending: false }),
     ]);
-    setEmployees((profs as Employee[]) || []);
+    setEmployees((emps as Employee[]) || []);
+    setProfileNames((profs as Employee[]) || []);
     setRows((pays as PayrollRow[]) || []);
     setLoading(false);
   };
+
 
   useEffect(() => {
     fetchAll();
