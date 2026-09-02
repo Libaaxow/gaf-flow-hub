@@ -834,8 +834,62 @@ export default function CorporateAdmin() {
           <TabsContent value="requests" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm text-muted-foreground">Draft → Submitted → Pending Board Approval → Approved / Rejected → Executed → Recorded</p>
-              {isAdmin && <Button size="sm" onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-1" />New Corporate Request</Button>}
+              <div className="flex flex-wrap gap-2">
+                {isAdmin && (
+                  <Button size="sm" variant="outline" disabled={busy} onClick={prepareSettlement}>
+                    <Coins className="h-4 w-4 mr-1" />Prepare Dividend &amp; Debt Settlement Request
+                  </Button>
+                )}
+                {isAdmin && <Button size="sm" onClick={() => setOpenNew(true)}><Plus className="h-4 w-4 mr-1" />New Corporate Request</Button>}
+              </div>
             </div>
+
+            {isAdmin && settlementPlan.length > 0 && (
+              <Card className="border-dashed">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Proposed settlement · {money(distributableCash)} distributable cash</CardTitle>
+                  <CardDescription>This is what will be submitted to the Board for approval.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1 text-sm">
+                  {settlementPlan.map((p) => (
+                    <div key={p.shareholder_id} className="flex flex-wrap justify-between gap-2 rounded-md border p-2">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        Gross {money(p.gross)}{p.deduction > 0 ? ` − loan ${money(p.deduction)}` : ''} → Net {money(p.net)}
+                        {p.remaining_debt > 0 ? ` · remaining debt ${money(p.remaining_debt)}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {isAccountant && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Finance / Accounting Tasks</CardTitle>
+                  <CardDescription>Board-approved resolutions waiting to be executed and recorded.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {requests.filter((r) => r.status === 'approved').length === 0 && (
+                    <p className="text-sm text-muted-foreground">Nothing awaiting execution.</p>
+                  )}
+                  {requests.filter((r) => r.status === 'approved').map((r) => (
+                    <div key={r.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">Execute Approved Resolution {r.reference_no}</p>
+                        <p className="text-xs text-muted-foreground truncate">{r.title}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button size="sm" variant="outline" onClick={() => setDetail(r)}>Review</Button>
+                        <Button size="sm" disabled={busy} onClick={() => execute(r)}>Execute Transaction</Button>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-0 overflow-x-auto">
                 <Table>
