@@ -145,7 +145,7 @@ export default function CorporateAdmin() {
     if (!user) return;
     (async () => {
       const { data } = await supabase.from('user_roles').select('role').eq('user_id', user.id);
-      setRoles((data || []).map((r: any) => r.role));
+      setActualRoles((data || []).map((r: any) => r.role));
       await fetchAll();
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
