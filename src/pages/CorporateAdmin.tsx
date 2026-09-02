@@ -461,8 +461,11 @@ export default function CorporateAdmin() {
 
 
       const applyDelta = async (holder: any, delta: number, amount: number, type: string, extra: any = {}) => {
-        const before = num(holder.shares_owned);
+        // Fall back to the ownership % when no explicit share count is recorded yet,
+        // otherwise every holder would start from 0 shares on the first resolution.
+        const before = sharesOf(holder);
         const after = before + delta;
+
         await supabase.from('shareholders').update({
           shares_owned: after,
           paid_up_amount: num(holder.paid_up_amount) + amount,
