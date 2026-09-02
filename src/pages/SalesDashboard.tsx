@@ -533,7 +533,7 @@ const SalesDashboard = () => {
                   onSelect={(date) => {
                     if (date) {
                       setDateFilter(date);
-                      setRangeFilter('today');
+                      setRangeFilter('custom');
                     }
                   }}
                   initialFocus
