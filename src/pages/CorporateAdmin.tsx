@@ -268,6 +268,13 @@ export default function CorporateAdmin() {
 
       if (['share_issuance', 'capital_increase', 'capital_decrease'].includes(r.request_type)) {
         const sign = r.request_type === 'capital_decrease' ? -1 : 1;
+        if (sign > 0 && authorized > 0) {
+          const requested = (d.allocations || []).reduce((s: number, a: any) => s + num(a.shares), 0);
+          if (totalIssued + requested > authorized) {
+            throw new Error(`Issuing ${requested.toLocaleString()} shares would exceed authorized shares (${authorized.toLocaleString()}). Only ${unissued.toLocaleString()} are unissued.`);
+          }
+        }
+
         for (const a of d.allocations || []) {
           let holder = byId(a.shareholder_id);
           if (!holder && a.new_name) {
@@ -439,10 +446,10 @@ export default function CorporateAdmin() {
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               {[
-                { label: 'Total Share Capital', value: money(shareCapital), icon: Coins },
-                { label: 'Issued Shares', value: totalIssued.toLocaleString(), icon: PieChart },
-                { label: 'Unissued Shares', value: unissued.toLocaleString(), icon: FileSignature },
-                { label: 'Shareholders', value: shareholders.filter((h) => h.status === 'active').length, icon: Users2 },
+                { label: 'Total Authorized Shares', value: authorized > 0 ? authorized.toLocaleString() : 'Not set', icon: FileSignature },
+                { label: 'Issued Shares', value: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded', icon: PieChart },
+                { label: 'Available / Unissued Shares', value: authorized > 0 ? unissued.toLocaleString() : 'Unavailable', icon: Coins },
+                { label: 'Total Shareholders', value: shareholders.filter((h) => h.status === 'active').length, icon: Users2 },
               ].map((c) => (
                 <Card key={c.label}>
                   <CardContent className="p-4">
@@ -455,6 +462,27 @@ export default function CorporateAdmin() {
                 </Card>
               ))}
             </div>
+
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+              {[
+                { l: 'Authorized Share Capital', v: authorized > 0 ? money(authorized * parValue) : 'Unavailable' },
+                { l: 'Issued Share Capital', v: totalIssued > 0 ? money(shareCapital) : 'Unavailable' },
+                { l: 'Available / Unissued Capital', v: authorized > 0 ? money(unissued * parValue) : 'Unavailable' },
+              ].map((c) => (
+                <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
+              ))}
+            </div>
+            {(authorized === 0 || totalIssued === 0) && (
+              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>
+                  Some official values are missing in the existing Share Management records:
+                  {authorized === 0 && ' authorized shares are not set (Company tab).'}
+                  {totalIssued === 0 && ' no shareholder has a recorded share count, so issued shares and ownership % cannot be computed.'}
+                  {' '}No values are assumed by this module.
+                </span>
+              </div>
+            )}
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
@@ -474,19 +502,30 @@ export default function CorporateAdmin() {
               </Card>
 
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><PieChart className="h-4 w-4" /> Ownership Distribution</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {shareholders.filter((h) => num(h.shares_owned) > 0).length === 0 && (
-                    <p className="text-sm text-muted-foreground">No shares issued yet.</p>
-                  )}
-                  {shareholders.filter((h) => num(h.shares_owned) > 0).map((h) => (
+                <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><PieChart className="h-4 w-4" /> Ownership Distribution</CardTitle>
+                  <CardDescription>Live from the existing shareholder register · shares ÷ total issued shares × 100</CardDescription></CardHeader>
+                <CardContent className="space-y-3">
+                  {shareholders.length === 0 && <p className="text-sm text-muted-foreground">No shareholders in the existing register.</p>}
+                  {shareholders.map((h) => (
                     <div key={h.id}>
-                      <div className="flex justify-between text-sm"><span className="truncate">{h.full_name}</span><span>{pct(h).toFixed(2)}%</span></div>
-                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${pct(h)}%` }} /></div>
+                      <div className="flex justify-between text-sm gap-2">
+                        <span className="truncate">{h.full_name}</span>
+                        <span className="shrink-0">{totalIssued > 0 ? `${pct(h).toFixed(2)}%` : 'Unavailable'}</span>
+                      </div>
+                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${totalIssued > 0 ? pct(h) : 0}%` }} /></div>
+                      <p className="text-[11px] text-muted-foreground mt-1 truncate">
+                        {num(h.shares_owned).toLocaleString()} shares · {h.share_class || '—'} · Cert {h.certificate_number || '—'} · {h.status}
+                      </p>
                     </div>
                   ))}
+                  {totalIssued > 0 && (
+                    <p className="text-[11px] text-muted-foreground border-t pt-2">
+                      Total ownership of issued shares: {shareholders.reduce((s, h) => s + pct(h), 0).toFixed(2)}%
+                    </p>
+                  )}
                 </CardContent>
               </Card>
+
 
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-base">Recent Share Transactions</CardTitle></CardHeader>
@@ -523,10 +562,11 @@ export default function CorporateAdmin() {
           <TabsContent value="register" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
               {[
-                { l: 'Authorized Shares', v: authorized.toLocaleString() },
-                { l: 'Issued Shares', v: totalIssued.toLocaleString() },
+                { l: 'Authorized Shares', v: authorized > 0 ? authorized.toLocaleString() : 'Not set' },
+                { l: 'Issued Shares', v: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded' },
                 { l: 'Paid-up Amount', v: money(totalPaidUp) },
-                { l: 'Unissued', v: unissued.toLocaleString() },
+                { l: 'Available / Unissued', v: authorized > 0 ? unissued.toLocaleString() : 'Unavailable' },
+
                 { l: 'Par Value', v: money(parValue) },
               ].map((c) => (
                 <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
