@@ -235,6 +235,26 @@ export default function CorporateAdmin() {
     new_name: '',
     new_email: '',
     new_phone: '',
+    // capital changes
+    capital_amount: '',
+    new_authorized_shares: '',
+    valuation_impact: '',
+    // new shareholder
+    national_id: '',
+    new_par_value: '',
+    // remove shareholder
+    reallocation_option: 'buyback',
+    // structure change
+    amendment_summary: '',
+    charter_text: '',
+    // officer change
+    officer_name: '',
+    officer_role: 'director',
+    officer_status: 'appointed',
+    effective_date: new Date().toISOString().slice(0, 10),
+    // liquidation
+    liquidation_plan: '',
+    asset_distribution: '',
   };
   const [form, setForm] = useState<any>(emptyForm);
   const [allocations, setAllocations] = useState<Allocation[]>([]);
