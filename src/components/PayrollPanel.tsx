@@ -66,7 +66,7 @@ const emptyForm = () => ({
   notes: '',
 });
 
-export function PayrollPanel() {
+export function PayrollPanel({ refreshKey, onPaid }: { refreshKey?: number; onPaid?: () => void } = {}) {
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [rows, setRows] = useState<PayrollRow[]>([]);
