@@ -287,8 +287,13 @@ export default function CorporateAdmin() {
 
   const recalcPercentages = async (list: any[]) => {
     const total = list.reduce((s, h) => s + num(h.shares_owned), 0);
+    if (total <= 0) return; // no share counts recorded — keep the existing register untouched
+    // Never overwrite an existing ownership % with 0 because that holder has no
+    // share count recorded yet; the Share Management register stays authoritative.
+    const wouldWipe = list.some((h) => num(h.shares_owned) <= 0 && num(h.share_percentage) > 0);
+    if (wouldWipe) return;
     for (const h of list) {
-      const p = total > 0 ? Number(((num(h.shares_owned) / total) * 100).toFixed(4)) : 0;
+      const p = Number(((num(h.shares_owned) / total) * 100).toFixed(4));
       await supabase.from('shareholders').update({ share_percentage: p }).eq('id', h.id);
     }
   };

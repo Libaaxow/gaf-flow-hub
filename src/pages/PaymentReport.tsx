@@ -171,13 +171,24 @@ export default function PaymentReport() {
         .lte('payment_date', to.toISOString());
 
       if (invoiceIdsForCustomer) {
-        if (invoiceIdsForCustomer.length === 0) {
+        // Include payments recorded straight against the customer's orders
+        // (invoice_id is null on those) so nothing is dropped by the filter.
+        const { data: ords } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('customer_id', customerFilter);
+        const orderIdsForCustomer = ((ords as any) || []).map((o: any) => o.id) as string[];
+
+        if (invoiceIdsForCustomer.length === 0 && orderIdsForCustomer.length === 0) {
           setTransactions([]);
           setPage(1);
           setLoading(false);
           return;
         }
-        query = query.in('invoice_id', invoiceIdsForCustomer);
+        const parts: string[] = [];
+        if (invoiceIdsForCustomer.length) parts.push(`invoice_id.in.(${invoiceIdsForCustomer.join(',')})`);
+        if (orderIdsForCustomer.length) parts.push(`order_id.in.(${orderIdsForCustomer.join(',')})`);
+        query = query.or(parts.join(','));
       }
 
       const { data: rows, error } = await query.order('payment_date', { ascending: false });

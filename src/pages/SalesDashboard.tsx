@@ -73,7 +73,7 @@ const SalesDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [dateFilter, setDateFilter] = useState<Date>(new Date());
-  const [rangeFilter, setRangeFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'all'>('today');
+  const [rangeFilter, setRangeFilter] = useState<'today' | 'yesterday' | 'week' | 'month' | 'last_month' | 'all' | 'custom'>('today');
   const [submitting, setSubmitting] = useState(false);
   const [viewRequest, setViewRequest] = useState<OrderRequest | null>(null);
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -112,7 +112,7 @@ const SalesDashboard = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, rangeFilter]);
+  }, [user, rangeFilter, dateFilter]);
 
   const fetchData = async () => {
     if (!user?.id) return;
@@ -124,6 +124,13 @@ const SalesDashboard = () => {
       let endDate: string;
       let rangeLabel = '';
       switch (rangeFilter) {
+        case 'custom': {
+          const d = dateFilter || now;
+          startDate = startOfDay(d).toISOString();
+          endDate = endOfDay(d).toISOString();
+          rangeLabel = format(d, 'MMMM d, yyyy');
+          break;
+        }
         case 'today':
           startDate = startOfDay(now).toISOString();
           endDate = endOfDay(now).toISOString();
@@ -406,14 +413,16 @@ const SalesDashboard = () => {
     }
   };
 
-  const rangeLabelText = {
-    today: 'Today',
-    yesterday: 'Yesterday',
-    week: 'Last 7 days',
-    month: 'This month',
-    last_month: 'Last month',
-    all: 'All time',
-  }[rangeFilter];
+  const rangeLabelText = rangeFilter === 'custom'
+    ? format(dateFilter || new Date(), 'MMMM d, yyyy')
+    : {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        week: 'Last 7 days',
+        month: 'This month',
+        last_month: 'Last month',
+        all: 'All time',
+      }[rangeFilter];
 
   const statCards = [
     {
@@ -501,6 +510,9 @@ const SalesDashboard = () => {
                 <SelectItem value="month">This month</SelectItem>
                 <SelectItem value="last_month">Last month</SelectItem>
                 <SelectItem value="all">All time</SelectItem>
+                {rangeFilter === 'custom' && (
+                  <SelectItem value="custom">{format(dateFilter || new Date(), 'MMM d, yyyy')}</SelectItem>
+                )}
               </SelectContent>
             </Select>
             <Popover>
@@ -524,7 +536,7 @@ const SalesDashboard = () => {
                   onSelect={(date) => {
                     if (date) {
                       setDateFilter(date);
-                      setRangeFilter('today');
+                      setRangeFilter('custom');
                     }
                   }}
                   initialFocus

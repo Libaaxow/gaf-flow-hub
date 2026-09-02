@@ -219,11 +219,16 @@ const handler = async (req: Request): Promise<Response> => {
           `;
 
           const emailResponse = await resend.emails.send({
-            from: "GAF Media <notifications@resend.dev>",
+            from: Deno.env.get("RESEND_FROM_EMAIL") || "GAF Media <notifications@resend.dev>",
             to: [profile.email],
             subject: subject,
             html: emailHtml,
           });
+
+          // Resend returns delivery rejections in the body — treat them as failures.
+          if ((emailResponse as any)?.error) {
+            throw new Error((emailResponse as any).error.message || "Email rejected by provider");
+          }
 
           console.log(`Email sent successfully for notification ${notification.id}:`, emailResponse);
 

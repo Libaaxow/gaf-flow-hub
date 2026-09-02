@@ -150,11 +150,21 @@ const handler = async (req: Request): Promise<Response> => {
     `;
 
     const emailResponse = await resend.emails.send({
-      from: "GAF Media <notifications@resend.dev>",
+      from: Deno.env.get("RESEND_FROM_EMAIL") || "GAF Media <notifications@resend.dev>",
       to: [to],
       subject: subject,
       html: emailHtml,
     });
+
+    // Resend reports delivery problems in the response body, not as a thrown error.
+    if ((emailResponse as any)?.error) {
+      const err = (emailResponse as any).error;
+      console.error("Email rejected by provider:", err);
+      return new Response(
+        JSON.stringify({ success: false, error: err.message || "Email rejected by provider" }),
+        { status: 502, headers: { "Content-Type": "application/json", ...corsHeaders } },
+      );
+    }
 
     console.log("Email sent successfully:", emailResponse);
 
