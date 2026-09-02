@@ -334,9 +334,9 @@ export default function CorporateAdmin() {
     if (status !== 'approved' && !decisionComment.trim()) {
       toast({ title: 'A reason is required', variant: 'destructive' }); return;
     }
-    // In Workflow Test Mode the same account plays every role, so the
-    // self-approval guard only applies to real (non-test) sessions.
-    if (!testRole && r.prepared_by === user?.id) {
+    // In simulated Board view the same admin account represents the approver.
+    // Keep self-approval blocked everywhere outside that explicit test path.
+    if (testRole !== 'board' && r.prepared_by === user?.id) {
       toast({ title: 'You cannot approve your own request', variant: 'destructive' }); return;
     }
     await supabase.from('corporate_requests').update({
