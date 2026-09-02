@@ -1251,12 +1251,13 @@ export default function CorporateAdmin() {
                   <>
                     <Button variant="outline" onClick={() => decide(detail, 'changes_requested')}><RotateCcw className="h-4 w-4 mr-1" />Request changes</Button>
                     <Button variant="destructive" onClick={() => decide(detail, 'rejected')}><X className="h-4 w-4 mr-1" />Reject</Button>
-                    <Button onClick={() => decide(detail, 'approved')}><Check className="h-4 w-4 mr-1" />Approve</Button>
+                    <Button onClick={() => decide(detail, 'approved')}><Check className="h-4 w-4 mr-1" />Approve Resolution</Button>
                   </>
                 )}
-                {isAdmin && detail.status === 'approved' && (
-                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute & update register</Button>
+                {(isAdmin || isAccountant) && detail.status === 'approved' && (
+                  <Button disabled={busy} onClick={() => execute(detail)}><Play className="h-4 w-4 mr-1" />Execute Transaction</Button>
                 )}
+
                 {detail.status === 'executed' && (
                   <span className="text-xs text-muted-foreground flex items-center gap-1"><ClipboardList className="h-3 w-3" />Executed and recorded — permanent record.</span>
                 )}
