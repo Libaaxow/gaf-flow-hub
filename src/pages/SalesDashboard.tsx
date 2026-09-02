@@ -510,6 +510,9 @@ const SalesDashboard = () => {
                 <SelectItem value="month">This month</SelectItem>
                 <SelectItem value="last_month">Last month</SelectItem>
                 <SelectItem value="all">All time</SelectItem>
+                {rangeFilter === 'custom' && (
+                  <SelectItem value="custom">{format(dateFilter || new Date(), 'MMM d, yyyy')}</SelectItem>
+                )}
               </SelectContent>
             </Select>
             <Popover>
