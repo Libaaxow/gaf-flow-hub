@@ -558,7 +558,14 @@ export default function CorporateAdmin() {
         entity_id: r.id, reference_no: r.reference_no,
         action: r.request_type === 'dividend_settlement' ? 'dividend_settlement_executed' : 'share_register_updated',
         approval_status: 'executed',
-        new_value: { financial_effect: financialEffect, board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at },
+        new_value: {
+          request_type: REQUEST_TYPES.find((t) => t.value === r.request_type)?.label || r.request_type,
+          created_by: profiles[r.prepared_by] || '—',
+          approved_by: profiles[r.decided_by] || '—',
+          executed_by: profiles[user?.id || ''] || '—',
+          financial_effect: financialEffect,
+          board_decision_id: r.id, decided_by: r.decided_by, decided_at: r.decided_at,
+        },
         comments: financialEffect || `Register updated after Board approval of ${r.reference_no}`,
       });
       toast({ title: 'Transaction executed', description: financialEffect || 'Share register updated and recorded.' });
