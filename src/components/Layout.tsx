@@ -251,6 +251,7 @@ export const Layout = ({ children }: { children: ReactNode }) => {
         </main>
       </div>
       {(userRole === 'accountant' || userRole === 'admin') && <OverdueInvoicesAlert />}
+      <CorporateActionPopup />
     </div>
   );
 };
