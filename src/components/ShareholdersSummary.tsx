@@ -135,15 +135,74 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
 
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
+  const issuedShares = parValue > 0 ? netCompanyWorth / parValue : 0;
+
+  const handleStatement = () => {
+    const rows = shareholders.map(sh => {
+      const pct = sh.share_percentage / 100;
+      const loan = getOutstandingLoan(sh.id);
+      const gross = distributableCash * pct;
+      return {
+        name: sh.full_name,
+        pct: sh.share_percentage,
+        netWorthShare: netCompanyWorth * pct,
+        gross,
+        deduction: Math.min(loan, gross),
+        net: Math.max(0, gross - loan),
+        remaining: Math.max(0, loan - gross),
+      };
+    });
+    generateDividendDebtStatementPDF({
+      netCompanyWorth,
+      cashBalance,
+      totalReceivables,
+      fixedAssets,
+      companyLiabilities,
+      companyReserve,
+      distributableCash,
+      reservePercentage: RESERVE_PERCENTAGE,
+      shareholders: rows,
+      dividends,
+    });
+  };
+
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
-          Shareholders Overview
+          {isBoard ? 'Equity & Ownership Overview' : 'Shareholders Overview'}
         </CardTitle>
+        {!isBoard && (
+          <Button size="sm" variant="outline" onClick={handleStatement} className="gap-2">
+            <FileText className="h-4 w-4" />
+            Dividend & Debt Statement
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Cap table summary (board governance view) */}
+        {isBoard && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Authorized Shares</p>
+              <p className="text-lg font-bold">{fmt(authorizedShares)}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Issued Shares</p>
+              <p className="text-lg font-bold">{fmt(issuedShares)}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Unissued Shares</p>
+              <p className="text-lg font-bold">{fmt(Math.max(0, authorizedShares - issuedShares))}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Shareholders</p>
+              <p className="text-lg font-bold">{shareholders.length}</p>
+            </div>
+          </div>
+        )}
+
         {/* Company financial position */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
