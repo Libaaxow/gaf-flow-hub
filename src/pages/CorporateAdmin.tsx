@@ -1233,8 +1233,73 @@ export default function CorporateAdmin() {
                 <div className="md:col-span-2 text-sm text-muted-foreground">
                   Dividend per share: {money(totalIssued > 0 ? num(form.dividend_amount) / totalIssued : 0)} over {totalIssued.toLocaleString()} issued shares.
                 </div>
+                <div className="md:col-span-2 rounded-md border p-2 text-xs space-y-1">
+                  <p className="text-muted-foreground">Allocation breakdown</p>
+                  {activeShareholders.map((h) => (
+                    <div key={h.id} className="flex justify-between">
+                      <span>{h.full_name} · {pct(h).toFixed(2)}%</span>
+                      <span>{money((num(form.dividend_amount) * pct(h)) / 100)}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {form.request_type === 'dividend_settlement' && (
+              <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3 text-sm">
+                <div><Label>Gross distributable amount</Label><Input readOnly value={money(distributableCash)} /></div>
+                <div><Label>Company net worth</Label><Input readOnly value={money(netCompanyWorth)} /></div>
+                <div className="md:col-span-2 rounded-md border p-2 text-xs space-y-1">
+                  <p className="text-muted-foreground">Loan offsets & net cash payouts</p>
+                  {settlementPlan.map((p) => (
+                    <div key={p.shareholder_id} className="flex flex-wrap justify-between gap-2">
+                      <span>{p.name}</span>
+                      <span>Gross {money(p.gross)} − loan {money(p.deduction)} → net {money(p.net)}{p.remaining_debt > 0 ? ` · remaining debt ${money(p.remaining_debt)}` : ''}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="md:col-span-2 text-xs text-muted-foreground">Use “Prepare settlement” on the Board Requests tab to submit the calculated plan.</p>
+              </div>
+            )}
+
+            {form.request_type === 'structure_change' && (
+              <div className="grid gap-3 rounded-md border p-3">
+                <div><Label>Amendment summary</Label><Textarea rows={2} value={form.amendment_summary} onChange={(e) => set('amendment_summary', e.target.value)} /></div>
+                <div><Label>Updated company charter / articles</Label><Textarea rows={5} value={form.charter_text} onChange={(e) => set('charter_text', e.target.value)} /></div>
+              </div>
+            )}
+
+            {form.request_type === 'officer_change' && (
+              <div className="grid gap-3 md:grid-cols-2 rounded-md border p-3">
+                <div><Label>Officer name</Label><Input value={form.officer_name} onChange={(e) => set('officer_name', e.target.value)} /></div>
+                <div><Label>Role</Label>
+                  <Select value={form.officer_role} onValueChange={(v) => set('officer_role', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="director">Director</SelectItem>
+                      <SelectItem value="officer">Officer</SelectItem>
+                      <SelectItem value="auditor">Auditor</SelectItem>
+                    </SelectContent>
+                  </Select></div>
+                <div><Label>Effective date</Label><Input type="date" value={form.effective_date} onChange={(e) => set('effective_date', e.target.value)} /></div>
+                <div><Label>Status</Label>
+                  <Select value={form.officer_status} onValueChange={(v) => set('officer_status', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="appointed">Appointed</SelectItem>
+                      <SelectItem value="removed">Removed</SelectItem>
+                    </SelectContent>
+                  </Select></div>
+              </div>
+            )}
+
+            {form.request_type === 'closure' && (
+              <div className="grid gap-3 rounded-md border p-3">
+                <div><Label>Liquidation plan</Label><Textarea rows={4} value={form.liquidation_plan} onChange={(e) => set('liquidation_plan', e.target.value)} /></div>
+                <div><Label>Asset distribution summary</Label><Textarea rows={4} value={form.asset_distribution} onChange={(e) => set('asset_distribution', e.target.value)} placeholder={`Net worth ${money(netCompanyWorth)} distributed per ownership`} /></div>
+              </div>
+            )}
+
 
             <div><Label>Reason / justification</Label><Textarea value={form.reason} onChange={(e) => set('reason', e.target.value)} rows={2} /></div>
             <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={2} /></div>
