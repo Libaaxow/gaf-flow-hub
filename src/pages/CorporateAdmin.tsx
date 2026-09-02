@@ -80,6 +80,10 @@ export default function CorporateAdmin() {
   const isAuditor = roles.includes('auditor');
   const isAccountant = roles.includes('accountant');
   const canView = isAdmin || isBoard || isAuditor || isAccountant;
+  const [equity, setEquity] = useState<{ loanTx: any[]; cash: number; receivables: number; fixedAssets: number; liabilities: number }>({
+    loanTx: [], cash: 0, receivables: 0, fixedAssets: 0, liabilities: 0,
+  });
+
 
   // ---- data ----
   const fetchAll = async () => {
@@ -106,6 +110,28 @@ export default function CorporateAdmin() {
     setAudit(al.data || []);
     setProfiles(Object.fromEntries((pf.data || []).map((p: any) => [p.id, p.full_name])));
     setLoading(false);
+
+    // live equity position (same basis as the Shareholders Overview)
+    const [shTx, invRes, payRes, expRes, balRes, assetRes, billRes, liabRes] = await Promise.all([
+      supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+      supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
+      supabase.from('payments').select('amount'),
+      supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
+      supabase.from('beginning_balances').select('amount'),
+      supabase.from('company_assets').select('total_value'),
+      supabase.from('vendor_bills').select('total_amount, amount_paid'),
+      supabase.from('company_liabilities').select('amount, paid_amount'),
+    ]);
+    const sum = (rows: any[] | null, f: (r: any) => number) => (rows || []).reduce((a, r) => a + f(r), 0);
+    setEquity({
+      loanTx: (shTx.data || []) as any[],
+      cash: sum(balRes.data, (b) => num(b.amount)) + sum(payRes.data, (p) => num(p.amount)) - sum(expRes.data, (e) => num(e.amount)),
+      receivables: sum(invRes.data, (i) => Math.max(0, num(i.total_amount) - num(i.amount_paid))),
+      fixedAssets: sum(assetRes.data, (a) => num(a.total_value)),
+      liabilities:
+        sum(billRes.data, (b) => Math.max(0, num(b.total_amount) - num(b.amount_paid))) +
+        sum(liabRes.data, (l) => Math.max(0, num(l.amount) - num(l.paid_amount))),
+    });
   };
 
   useEffect(() => {
@@ -119,13 +145,37 @@ export default function CorporateAdmin() {
   }, [user]);
 
   // ---- derived share register figures ----
-  const totalIssued = useMemo(() => shareholders.reduce((s, h) => s + num(h.shares_owned), 0), [shareholders]);
   const totalPaidUp = useMemo(() => shareholders.reduce((s, h) => s + num(h.paid_up_amount), 0), [shareholders]);
   const authorized = num(settings?.authorized_shares);
   const parValue = num(settings?.par_value) || 1;
+
+  // outstanding shareholder loan (debt_taken - debt_repayment)
+  const loanOf = (id: string) =>
+    Math.max(
+      0,
+      equity.loanTx
+        .filter((t: any) => t.shareholder_id === id)
+        .reduce((s: number, t: any) => s + (t.transaction_type === 'debt_taken' ? num(t.amount) : t.transaction_type === 'debt_repayment' ? -num(t.amount) : 0), 0),
+    );
+  const activeShareholders = shareholders.filter((h) => h.status === 'active');
+  const totalLoans = activeShareholders.reduce((s, h) => s + loanOf(h.id), 0);
+  const netCompanyWorth = equity.cash + equity.receivables + equity.fixedAssets + totalLoans - equity.liabilities;
+
+  // Issued shares are backed by the company's equity: net worth ÷ par value
+  const recordedIssued = shareholders.reduce((s, h) => s + num(h.shares_owned), 0);
+  const equityIssued = parValue > 0 ? netCompanyWorth / parValue : 0;
+  const totalIssued = recordedIssued > 0 ? recordedIssued : Math.max(0, equityIssued);
   const shareCapital = totalIssued * parValue;
   const unissued = Math.max(0, authorized - totalIssued);
-  const pct = (h: any) => (totalIssued > 0 ? (num(h.shares_owned) / totalIssued) * 100 : 0);
+  const pct = (h: any) =>
+    recordedIssued > 0 ? (num(h.shares_owned) / recordedIssued) * 100 : num(h.share_percentage);
+  const sharesOf = (h: any) => (recordedIssued > 0 ? num(h.shares_owned) : (totalIssued * num(h.share_percentage)) / 100);
+  const shareNum = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // cash distribution (30% company reserve), then loan settlement per shareholder
+  const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
+  const distributableCash = cashAfterPayables * 0.7;
+
 
   const logAudit = async (entry: any) => {
     await supabase.from('corporate_audit_log').insert({
@@ -446,10 +496,10 @@ export default function CorporateAdmin() {
           <TabsContent value="overview" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               {[
-                { label: 'Total Authorized Shares', value: authorized > 0 ? authorized.toLocaleString() : 'Not set', icon: FileSignature },
-                { label: 'Issued Shares', value: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded', icon: PieChart },
-                { label: 'Available / Unissued Shares', value: authorized > 0 ? unissued.toLocaleString() : 'Unavailable', icon: Coins },
-                { label: 'Total Shareholders', value: shareholders.filter((h) => h.status === 'active').length, icon: Users2 },
+                { label: 'Total Authorized Shares', value: `${shareNum(authorized)} (${money(authorized * parValue)})`, icon: FileSignature },
+                { label: 'Issued Shares', value: `${shareNum(totalIssued)} (${money(shareCapital)})`, icon: PieChart },
+                { label: 'Available / Unissued Shares', value: `${shareNum(unissued)} (${money(unissued * parValue)})`, icon: Coins },
+                { label: 'Total Shareholders', value: activeShareholders.length, icon: Users2 },
               ].map((c) => (
                 <Card key={c.label}>
                   <CardContent className="p-4">
@@ -457,32 +507,60 @@ export default function CorporateAdmin() {
                       <p className="text-xs text-muted-foreground">{c.label}</p>
                       <c.icon className="h-4 w-4 text-primary" />
                     </div>
-                    <p className="text-xl font-bold mt-1 truncate">{c.value}</p>
+                    <p className="text-lg font-bold mt-1 truncate">{c.value}</p>
                   </CardContent>
                 </Card>
               ))}
             </div>
 
-            <div className="grid gap-3 grid-cols-1 sm:grid-cols-3">
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-4">
               {[
-                { l: 'Authorized Share Capital', v: authorized > 0 ? money(authorized * parValue) : 'Unavailable' },
-                { l: 'Issued Share Capital', v: totalIssued > 0 ? money(shareCapital) : 'Unavailable' },
-                { l: 'Available / Unissued Capital', v: authorized > 0 ? money(unissued * parValue) : 'Unavailable' },
+                { l: 'Authorized Share Capital', v: money(authorized * parValue) },
+                { l: 'Issued Share Capital', v: money(shareCapital) },
+                { l: 'Available / Unissued Capital', v: money(unissued * parValue) },
+                { l: 'Net Company Worth', v: money(netCompanyWorth) },
               ].map((c) => (
                 <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
               ))}
             </div>
-            {(authorized === 0 || totalIssued === 0) && (
-              <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-xs text-warning">
-                <AlertTriangle className="h-4 w-4 shrink-0" />
-                <span>
-                  Some official values are missing in the existing Share Management records:
-                  {authorized === 0 && ' authorized shares are not set (Company tab).'}
-                  {totalIssued === 0 && ' no shareholder has a recorded share count, so issued shares and ownership % cannot be computed.'}
-                  {' '}No values are assumed by this module.
-                </span>
-              </div>
-            )}
+            <p className="text-[11px] text-muted-foreground">
+              Issued shares are backed by the company's net worth: Net Company Worth ÷ Par Value ({money(parValue)} per share).
+            </p>
+
+            <Card>
+              <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><Coins className="h-4 w-4" /> Dividends & Debt Settlement</CardTitle>
+                <CardDescription>Distributable cash = (Cash − Liabilities) × 70%, then each shareholder's outstanding loan is deducted.</CardDescription></CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Cash after payables</p><p className="font-bold">{money(cashAfterPayables)}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Company reserve (30%)</p><p className="font-bold">{money(cashAfterPayables * 0.3)}</p></div>
+                  <div className="rounded-md border p-3"><p className="text-xs text-muted-foreground">Distributable cash</p><p className="font-bold text-primary">{money(distributableCash)}</p></div>
+                </div>
+                <div className="space-y-2">
+                  {activeShareholders.map((h) => {
+                    const gross = (distributableCash * pct(h)) / 100;
+                    const loan = loanOf(h.id);
+                    const deduction = Math.min(loan, gross);
+                    const net = gross - deduction;
+                    const remaining = loan - deduction;
+                    return (
+                      <div key={h.id} className="rounded-md border p-3 text-sm space-y-1">
+                        <div className="flex justify-between gap-2">
+                          <span className="font-medium truncate">{h.full_name}</span>
+                          <span className="text-xs text-muted-foreground shrink-0">{pct(h).toFixed(2)}%</span>
+                        </div>
+                        <div className="flex justify-between text-xs"><span className="text-muted-foreground">Gross cash distribution</span><span>{money(gross)}</span></div>
+                        {deduction > 0 && <div className="flex justify-between text-xs text-warning"><span>Loan deduction</span><span>−{money(deduction)}</span></div>}
+                        <div className="flex justify-between text-sm font-semibold"><span>Net payout</span><span className="text-success">{money(net)}</span></div>
+                        {remaining > 0 && <div className="flex justify-between text-xs text-destructive"><span>Remaining debt</span><span>{money(remaining)}</span></div>}
+                      </div>
+                    );
+                  })}
+                  {activeShareholders.length === 0 && <p className="text-sm text-muted-foreground">No active shareholders.</p>}
+                </div>
+              </CardContent>
+            </Card>
+
 
             <div className="grid gap-4 lg:grid-cols-2">
               <Card>
@@ -506,23 +584,24 @@ export default function CorporateAdmin() {
                   <CardDescription>Live from the existing shareholder register · shares ÷ total issued shares × 100</CardDescription></CardHeader>
                 <CardContent className="space-y-3">
                   {shareholders.length === 0 && <p className="text-sm text-muted-foreground">No shareholders in the existing register.</p>}
-                  {shareholders.map((h) => (
+                  {activeShareholders.map((h) => (
                     <div key={h.id}>
                       <div className="flex justify-between text-sm gap-2">
                         <span className="truncate">{h.full_name}</span>
-                        <span className="shrink-0">{totalIssued > 0 ? `${pct(h).toFixed(2)}%` : 'Unavailable'}</span>
+                        <span className="shrink-0">{pct(h).toFixed(2)}%</span>
                       </div>
-                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${totalIssued > 0 ? pct(h) : 0}%` }} /></div>
+                      <div className="h-2 rounded bg-muted overflow-hidden"><div className="h-full bg-primary" style={{ width: `${Math.min(100, pct(h))}%` }} /></div>
                       <p className="text-[11px] text-muted-foreground mt-1 truncate">
-                        {num(h.shares_owned).toLocaleString()} shares · {h.share_class || '—'} · Cert {h.certificate_number || '—'} · {h.status}
+                        {shareNum(sharesOf(h))} shares · {money(sharesOf(h) * parValue)} · {h.share_class || '—'} · Cert {h.certificate_number || '—'}
                       </p>
                     </div>
                   ))}
                   {totalIssued > 0 && (
                     <p className="text-[11px] text-muted-foreground border-t pt-2">
-                      Total ownership of issued shares: {shareholders.reduce((s, h) => s + pct(h), 0).toFixed(2)}%
+                      Total ownership of issued shares: {activeShareholders.reduce((s, h) => s + pct(h), 0).toFixed(2)}%
                     </p>
                   )}
+
                 </CardContent>
               </Card>
 
@@ -562,12 +641,12 @@ export default function CorporateAdmin() {
           <TabsContent value="register" className="space-y-4">
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-5">
               {[
-                { l: 'Authorized Shares', v: authorized > 0 ? authorized.toLocaleString() : 'Not set' },
-                { l: 'Issued Shares', v: totalIssued > 0 ? totalIssued.toLocaleString() : 'Not recorded' },
+                { l: 'Authorized Shares', v: shareNum(authorized) },
+                { l: 'Issued Shares', v: shareNum(totalIssued) },
                 { l: 'Paid-up Amount', v: money(totalPaidUp) },
-                { l: 'Available / Unissued', v: authorized > 0 ? unissued.toLocaleString() : 'Unavailable' },
-
+                { l: 'Available / Unissued', v: shareNum(unissued) },
                 { l: 'Par Value', v: money(parValue) },
+
               ].map((c) => (
                 <Card key={c.l}><CardContent className="p-3"><p className="text-xs text-muted-foreground">{c.l}</p><p className="font-bold truncate">{c.v}</p></CardContent></Card>
               ))}
@@ -592,7 +671,7 @@ export default function CorporateAdmin() {
                       <TableRow key={h.id}>
                         <TableCell className="font-medium">{h.full_name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{h.shareholder_code || h.id.slice(0, 8)}</TableCell>
-                        <TableCell>{num(h.shares_owned).toLocaleString()}</TableCell>
+                        <TableCell>{shareNum(sharesOf(h))}</TableCell>
                         <TableCell className="capitalize">{h.share_class}</TableCell>
                         <TableCell>{money(num(h.par_value))}</TableCell>
                         <TableCell>{money(num(h.paid_up_amount))}</TableCell>
