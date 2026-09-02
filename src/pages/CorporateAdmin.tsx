@@ -671,7 +671,7 @@ export default function CorporateAdmin() {
                       <TableRow key={h.id}>
                         <TableCell className="font-medium">{h.full_name}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{h.shareholder_code || h.id.slice(0, 8)}</TableCell>
-                        <TableCell>{num(h.shares_owned).toLocaleString()}</TableCell>
+                        <TableCell>{shareNum(sharesOf(h))}</TableCell>
                         <TableCell className="capitalize">{h.share_class}</TableCell>
                         <TableCell>{money(num(h.par_value))}</TableCell>
                         <TableCell>{money(num(h.paid_up_amount))}</TableCell>
