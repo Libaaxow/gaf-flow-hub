@@ -25,6 +25,9 @@ import gafMediaLogo from '@/assets/gaf-media-logo.png';
 import { supabase } from '@/integrations/supabase/client';
 import { InstallPWAButton } from '@/components/InstallPWAButton';
 import { OverdueInvoicesAlert } from '@/components/OverdueInvoicesAlert';
+import { TestRoleSwitcher } from '@/components/TestRoleSwitcher';
+import { applyTestRole, useTestRole } from '@/lib/testRole';
+
 
 interface NavItem {
   href: string;
