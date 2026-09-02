@@ -32,6 +32,8 @@ const REQUEST_TYPES: { value: string; label: string; prefix: string }[] = [
   { value: 'remove_shareholder', label: 'Remove Shareholder', prefix: 'SHH' },
   { value: 'share_transfer', label: 'Share Transfer', prefix: 'TRF' },
   { value: 'dividend', label: 'Dividend Declaration', prefix: 'DIV' },
+  { value: 'dividend_settlement', label: 'Dividend & Debt Settlement', prefix: 'DIV' },
+
   { value: 'structure_change', label: 'Major Structure Change', prefix: 'CRP' },
   { value: 'officer_change', label: 'Appoint / Remove Officer', prefix: 'CRP' },
   { value: 'closure', label: 'Company Closure / Liquidation', prefix: 'LIQ' },
