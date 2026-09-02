@@ -290,6 +290,40 @@ export default function CorporateAdmin() {
     } finally { setBusy(false); }
   };
 
+  // Step 1 — Admin Manager prepares the dividend & debt settlement request
+  const prepareSettlement = async () => {
+    if (settlementPlan.length === 0) { toast({ title: 'No active shareholders', variant: 'destructive' }); return; }
+    setBusy(true);
+    try {
+      const { data: ref, error: refErr } = await supabase.rpc('generate_corporate_reference', { _prefix: 'DIV' });
+      if (refErr) throw refErr;
+      const totalGross = settlementPlan.reduce((s, p) => s + p.gross, 0);
+      const { data, error } = await supabase.from('corporate_requests').insert({
+        reference_no: ref as string,
+        request_type: 'dividend_settlement',
+        title: `Dividend & Debt Settlement — ${money(totalGross)} distributable cash`,
+        description: settlementPlan.map((p) => `${p.name}: gross ${money(p.gross)}${p.deduction > 0 ? ` − loan ${money(p.deduction)}` : ''} = net ${money(p.net)}`).join(' | '),
+        reason: 'Periodic distribution of company distributable cash with settlement of outstanding shareholder loans.',
+        details: {
+          cash_after_payables: Number(cashAfterPayables.toFixed(2)),
+          company_reserve: Number((cashAfterPayables * 0.3).toFixed(2)),
+          distributable_cash: Number(distributableCash.toFixed(2)),
+          net_worth: Number(netWorth.toFixed(2)),
+          settlement: settlementPlan,
+        },
+        status: 'pending_approval',
+        prepared_by: user?.id,
+        submitted_at: new Date().toISOString(),
+      }).select().single();
+      if (error) throw error;
+      toast({ title: 'Submitted — Pending Board Approval', description: `${data.reference_no} sent to the Board of Directors.` });
+      fetchAll();
+    } catch (e: any) {
+      toast({ title: 'Could not prepare settlement', description: e.message, variant: 'destructive' });
+    } finally { setBusy(false); }
+  };
+
+
   const submitRequest = async (r: any) => {
     await supabase.from('corporate_requests').update({ status: 'pending_approval', submitted_at: new Date().toISOString() }).eq('id', r.id);
     toast({ title: 'Sent to the Board for approval' });
