@@ -207,10 +207,12 @@ export function PayrollPanel({ refreshKey, onPaid }: { refreshKey?: number; onPa
         },
       });
 
-      toast({ title: 'Salary paid', description: `${employeeName} — ${money(net)} for ${periodLabel}` });
+      toast({ title: 'Salary paid', description: `${employeeName} — ${money(net)} deducted from company net profit` });
       setOpen(false);
       setForm(emptyForm());
       fetchAll();
+      onPaid?.();
+
     } catch (e: any) {
       toast({ title: 'Could not process salary', description: e.message, variant: 'destructive' });
     } finally {
