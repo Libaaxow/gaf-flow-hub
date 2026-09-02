@@ -413,14 +413,16 @@ const SalesDashboard = () => {
     }
   };
 
-  const rangeLabelText = {
-    today: 'Today',
-    yesterday: 'Yesterday',
-    week: 'Last 7 days',
-    month: 'This month',
-    last_month: 'Last month',
-    all: 'All time',
-  }[rangeFilter];
+  const rangeLabelText = rangeFilter === 'custom'
+    ? format(dateFilter || new Date(), 'MMMM d, yyyy')
+    : {
+        today: 'Today',
+        yesterday: 'Yesterday',
+        week: 'Last 7 days',
+        month: 'This month',
+        last_month: 'Last month',
+        all: 'All time',
+      }[rangeFilter];
 
   const statCards = [
     {
