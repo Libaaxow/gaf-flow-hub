@@ -518,7 +518,32 @@ export default function CorporateAdmin() {
           }
         }
         financialEffect = `Gross distributed ${money(totalGross)} · loan offsets ${money(totalDeduction)} · cash paid ${money(totalNet)}`;
+      } else if (r.request_type === 'structure_change') {
+        financialEffect = `Charter / structure amended: ${d.amendment_summary || r.title}`;
+      } else if (r.request_type === 'officer_change') {
+        financialEffect = `${d.officer_status === 'removed' ? 'Removed' : 'Appointed'} ${d.officer_name || '—'} as ${d.officer_role || 'officer'} effective ${d.effective_date || new Date().toISOString().slice(0, 10)}`;
+        await supabase.from('compliance_items').insert({
+          title: financialEffect, category: 'registration', authority: 'Company Registrar',
+          due_date: d.effective_date || new Date().toISOString().slice(0, 10),
+          reference_no: r.reference_no, notes: r.description || null, created_by: user?.id,
+        });
+      } else if (r.request_type === 'closure') {
+        financialEffect = `Liquidation authorised — assets distributed per plan (net worth ${money(netCompanyWorth)})`;
+        await supabase.from('compliance_items').insert({
+          title: `Company closure / liquidation — ${r.reference_no}`, category: 'filing',
+          authority: 'Company Registrar', due_date: new Date().toISOString().slice(0, 10),
+          reference_no: r.reference_no, notes: d.liquidation_plan || r.description || null, created_by: user?.id,
+        });
       }
+
+      // Authorized capital changes recorded on the company record
+      if (['capital_increase', 'capital_decrease'].includes(r.request_type) && num(d.new_authorized_shares) > 0 && settings?.id) {
+        await supabase.from('corporate_settings').update({
+          authorized_shares: num(d.new_authorized_shares), updated_by: user?.id,
+        }).eq('id', settings.id);
+        financialEffect = `${financialEffect ? financialEffect + ' · ' : ''}Authorized shares set to ${num(d.new_authorized_shares).toLocaleString()}${num(d.capital_amount) ? ` · capital ${r.request_type === 'capital_decrease' ? 'reduced' : 'increased'} by ${money(num(d.capital_amount))}` : ''}`;
+      }
+
 
       if (txRows.length) await supabase.from('share_transactions').insert(txRows);
       await recalcPercentages(current);
