@@ -351,6 +351,10 @@ export default function CorporateAdmin() {
         });
       };
 
+      let financialEffect = '';
+
+
+
       if (['share_issuance', 'capital_increase', 'capital_decrease'].includes(r.request_type)) {
         const sign = r.request_type === 'capital_decrease' ? -1 : 1;
         if (sign > 0 && authorized > 0) {
