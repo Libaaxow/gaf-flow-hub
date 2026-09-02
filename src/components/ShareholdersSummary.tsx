@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { generateDividendDebtStatementPDF } from '@/utils/generateDividendDebtStatementPDF';
 import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins, FileText } from 'lucide-react';
 
 interface Shareholder {
@@ -44,6 +45,8 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [fixedAssets, setFixedAssets] = useState(0);
   const [companyLiabilities, setCompanyLiabilities] = useState(0);
+  const [authorizedShares, setAuthorizedShares] = useState(0);
+  const [parValue, setParValue] = useState(1000);
   const [loading, setLoading] = useState(true);
 
 
@@ -70,6 +73,17 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
         .order('declaration_date', { ascending: false })
         .limit(10);
       setDividends((divData as any as Dividend[]) || []);
+
+      // Corporate share structure (authorized shares / par value)
+      const { data: cs } = await supabase
+        .from('corporate_settings')
+        .select('authorized_shares, par_value')
+        .limit(1)
+        .maybeSingle();
+      if (cs) {
+        setAuthorizedShares(Number((cs as any).authorized_shares) || 0);
+        setParValue(Number((cs as any).par_value) || 1000);
+      }
 
 
       // Cash balance = opening balance + collected payments - approved expenses
