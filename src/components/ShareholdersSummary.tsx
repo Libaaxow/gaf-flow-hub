@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { generateDividendDebtStatementPDF } from '@/utils/generateDividendDebtStatementPDF';
+import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins, FileText } from 'lucide-react';
 
 interface Shareholder {
   id: string;
@@ -16,17 +18,37 @@ interface Transaction {
   amount: number;
 }
 
+interface Dividend {
+  id: string;
+  reference_no: string;
+  declaration_date: string;
+  payment_date: string | null;
+  dividend_amount: number;
+  dividend_per_share: number;
+  status: string;
+}
+
 // Company reserve rate (configurable)
 const RESERVE_PERCENTAGE = 0.30;
 
-export function ShareholdersSummary() {
+/**
+ * variant:
+ *  - 'full'  → Admin / Accountant: full operational payout + debt details
+ *  - 'board' → Board / Shareholder: governance-only equity overview
+ */
+export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | 'board' }) {
+  const isBoard = variant === 'board';
   const [shareholders, setShareholders] = useState<Shareholder[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [dividends, setDividends] = useState<Dividend[]>([]);
   const [cashBalance, setCashBalance] = useState(0);
   const [totalReceivables, setTotalReceivables] = useState(0);
   const [fixedAssets, setFixedAssets] = useState(0);
   const [companyLiabilities, setCompanyLiabilities] = useState(0);
+  const [authorizedShares, setAuthorizedShares] = useState(0);
+  const [parValue, setParValue] = useState(1000);
   const [loading, setLoading] = useState(true);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -43,6 +65,26 @@ export function ShareholdersSummary() {
       ]);
       if (shRes.data) setShareholders(shRes.data as Shareholder[]);
       if (txRes.data) setTransactions(txRes.data as Transaction[]);
+
+      // Officially declared dividends (governance record)
+      const { data: divData } = await supabase
+        .from('dividend_declarations')
+        .select('id, reference_no, declaration_date, payment_date, dividend_amount, dividend_per_share, status')
+        .order('declaration_date', { ascending: false })
+        .limit(10);
+      setDividends((divData as any as Dividend[]) || []);
+
+      // Corporate share structure (authorized shares / par value)
+      const { data: cs } = await supabase
+        .from('corporate_settings')
+        .select('authorized_shares, par_value')
+        .limit(1)
+        .maybeSingle();
+      if (cs) {
+        setAuthorizedShares(Number((cs as any).authorized_shares) || 0);
+        setParValue(Number((cs as any).par_value) || 1000);
+      }
+
 
       // Cash balance = opening balance + collected payments - approved expenses
       const openingBalance = (balancesRes.data || []).reduce((sum: number, b: any) => sum + (b.amount || 0), 0);
@@ -107,15 +149,74 @@ export function ShareholdersSummary() {
 
   const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
+  const issuedShares = parValue > 0 ? netCompanyWorth / parValue : 0;
+
+  const handleStatement = () => {
+    const rows = shareholders.map(sh => {
+      const pct = sh.share_percentage / 100;
+      const loan = getOutstandingLoan(sh.id);
+      const gross = distributableCash * pct;
+      return {
+        name: sh.full_name,
+        pct: sh.share_percentage,
+        netWorthShare: netCompanyWorth * pct,
+        gross,
+        deduction: Math.min(loan, gross),
+        net: Math.max(0, gross - loan),
+        remaining: Math.max(0, loan - gross),
+      };
+    });
+    generateDividendDebtStatementPDF({
+      netCompanyWorth,
+      cashBalance,
+      totalReceivables,
+      fixedAssets,
+      companyLiabilities,
+      companyReserve,
+      distributableCash,
+      reservePercentage: RESERVE_PERCENTAGE,
+      shareholders: rows,
+      dividends,
+    });
+  };
+
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2">
         <CardTitle className="text-base flex items-center gap-2">
           <Users className="h-4 w-4 text-primary" />
-          Shareholders Overview
+          {isBoard ? 'Equity & Ownership Overview' : 'Shareholders Overview'}
         </CardTitle>
+        {!isBoard && (
+          <Button size="sm" variant="outline" onClick={handleStatement} className="gap-2">
+            <FileText className="h-4 w-4" />
+            Dividend & Debt Statement
+          </Button>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Cap table summary (board governance view) */}
+        {isBoard && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Authorized Shares</p>
+              <p className="text-lg font-bold">{fmt(authorizedShares)}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Issued Shares</p>
+              <p className="text-lg font-bold">{fmt(issuedShares)}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Unissued Shares</p>
+              <p className="text-lg font-bold">{fmt(Math.max(0, authorizedShares - issuedShares))}</p>
+            </div>
+            <div className="border rounded-lg p-3">
+              <p className="text-xs text-muted-foreground">Shareholders</p>
+              <p className="text-lg font-bold">{shareholders.length}</p>
+            </div>
+          </div>
+        )}
+
         {/* Company financial position */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="bg-muted/50 rounded-lg p-3 flex items-center justify-between">
@@ -149,6 +250,14 @@ export function ShareholdersSummary() {
         </div>
 
         {/* Distribution summary */}
+        {isBoard ? (
+          <div className="grid grid-cols-1 gap-3 text-sm">
+            <div className="border rounded-lg p-3 flex items-center justify-between">
+              <span className="text-muted-foreground">Net Company Worth</span>
+              <span className={`font-bold ${netCompanyWorth >= 0 ? 'text-green-600' : 'text-red-600'}`}>${fmt(netCompanyWorth)}</span>
+            </div>
+          </div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
           <div className="border rounded-lg p-3 flex items-center justify-between">
             <span className="text-muted-foreground">Net Company Worth</span>
@@ -163,6 +272,7 @@ export function ShareholdersSummary() {
             <span className="font-bold text-primary">${fmt(distributableCash)}</span>
           </div>
         </div>
+        )}
 
         {/* Per-shareholder cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -190,13 +300,15 @@ export function ShareholdersSummary() {
                   <Badge variant="outline" className="text-xs">{sh.share_percentage}%</Badge>
                 </div>
 
-                {/* Net Cash Payout */}
+                {/* Net Cash Payout (operational view only) */}
+                {!isBoard && (
                 <div className="bg-green-50 rounded-lg p-2 flex items-center justify-between">
                   <span className="text-xs font-medium text-green-700">Net Cash Payout</span>
                   <span className="text-sm font-bold text-green-700">${fmt(netCashPayout)}</span>
                 </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className={`grid ${isBoard ? 'grid-cols-1' : 'grid-cols-2'} gap-2 text-xs`}>
                   {/* Company Net Worth Share */}
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
@@ -209,6 +321,7 @@ export function ShareholdersSummary() {
                   </div>
 
                   {/* Gross Distributable Cash Share */}
+                  {!isBoard && (
                   <div className="bg-muted/50 rounded p-2">
                     <div className="flex items-center gap-1 text-muted-foreground mb-1">
                       <HandCoins className="h-3 w-3" />
@@ -216,10 +329,11 @@ export function ShareholdersSummary() {
                     </div>
                     <p className="font-semibold text-sm text-primary">${fmt(grossCashShare)}</p>
                   </div>
+                  )}
                 </div>
 
                 {/* Loan deduction applied */}
-                {outstandingLoan > 0 && (
+                {!isBoard && outstandingLoan > 0 && (
                   <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1">
                     <AlertCircle className="h-3 w-3" />
                     <span>Loan Deduction: <strong>${fmt(Math.min(outstandingLoan, grossCashShare))}</strong></span>
@@ -227,7 +341,7 @@ export function ShareholdersSummary() {
                 )}
 
                 {/* Outstanding remaining debt */}
-                {remainingLoan > 0 && (
+                {!isBoard && remainingLoan > 0 && (
                   <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
                     <AlertCircle className="h-3 w-3" />
                     <span>Remaining Debt: <strong>${fmt(remainingLoan)}</strong></span>
@@ -237,6 +351,31 @@ export function ShareholdersSummary() {
             );
           })}
         </div>
+
+        {/* Declared dividends history (governance record) */}
+        {isBoard && (
+          <div className="border rounded-lg p-3">
+            <p className="text-sm font-semibold mb-2">Declared Dividends</p>
+            {dividends.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No dividends have been declared yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {dividends.map(d => (
+                  <div key={d.id} className="flex items-center justify-between text-xs border-b last:border-0 pb-1">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{d.reference_no}</p>
+                      <p className="text-muted-foreground">{d.declaration_date}{d.payment_date ? ` · paid ${d.payment_date}` : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold">${fmt(d.dividend_amount)}</p>
+                      <Badge variant="outline" className="text-[10px]">{d.status}</Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
