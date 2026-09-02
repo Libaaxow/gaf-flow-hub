@@ -1199,6 +1199,16 @@ export default function CorporateAdmin() {
                     <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>{shareholders.map((h) => <SelectItem key={h.id} value={h.id}>{h.full_name} ({num(h.shares_owned).toLocaleString()})</SelectItem>)}</SelectContent>
                   </Select></div>
+                {form.request_type === 'remove_shareholder' && (
+                  <div><Label>Re-allocation option</Label>
+                    <Select value={form.reallocation_option} onValueChange={(v) => set('reallocation_option', v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="buyback">Company buyback</SelectItem>
+                        <SelectItem value="split">Split among remaining shareholders</SelectItem>
+                      </SelectContent>
+                    </Select></div>
+                )}
                 {form.request_type === 'share_transfer' && (
                   <>
                     <div><Label>Transferee</Label>
