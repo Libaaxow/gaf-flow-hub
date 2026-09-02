@@ -145,7 +145,7 @@ export default function CorporateAdmin() {
   }, [user]);
 
   // ---- derived share register figures ----
-  const totalPaidUp = useMemo(() => shareholders.reduce((s, h) => s + num(h.paid_up_amount), 0), [shareholders]);
+  // paid-up capital is derived from shares held x par value (see paidUpOf below)
   const authorized = num(settings?.authorized_shares);
   const parValue = num(settings?.par_value) || 1;
 
@@ -170,7 +170,11 @@ export default function CorporateAdmin() {
   const pct = (h: any) =>
     recordedIssued > 0 ? (num(h.shares_owned) / recordedIssued) * 100 : num(h.share_percentage);
   const sharesOf = (h: any) => (recordedIssued > 0 ? num(h.shares_owned) : (totalIssued * num(h.share_percentage)) / 100);
+  // Paid-up amount per shareholder = shares held x par value (falls back to recorded value when larger)
+  const paidUpOf = (h: any) => Math.max(sharesOf(h) * parValue, num(h.paid_up_amount));
+  const totalPaidUp = shareholders.reduce((s, h) => s + paidUpOf(h), 0);
   const shareNum = (n: number) => n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 
   // cash distribution (30% company reserve), then loan settlement per shareholder
   const cashAfterPayables = Math.max(0, equity.cash - equity.liabilities);
@@ -673,8 +677,9 @@ export default function CorporateAdmin() {
                         <TableCell className="text-xs text-muted-foreground">{h.shareholder_code || h.id.slice(0, 8)}</TableCell>
                         <TableCell>{shareNum(sharesOf(h))}</TableCell>
                         <TableCell className="capitalize">{h.share_class}</TableCell>
-                        <TableCell>{money(num(h.par_value))}</TableCell>
-                        <TableCell>{money(num(h.paid_up_amount))}</TableCell>
+                        <TableCell>{money(parValue)}</TableCell>
+                        <TableCell>{money(paidUpOf(h))}</TableCell>
+
                         <TableCell>{pct(h).toFixed(2)}%</TableCell>
                         <TableCell>{h.date_acquired || '—'}</TableCell>
                         <TableCell>{h.certificate_number || '—'}</TableCell>
