@@ -168,17 +168,37 @@ export function CompanyLiabilitiesPanel() {
       return;
     }
     const newPaid = Math.min(payTarget.amount, (payTarget.paid_amount || 0) + pay);
+    const actualPaid = newPaid - (payTarget.paid_amount || 0);
     setSaving(true);
     const { error } = await supabase
       .from('company_liabilities')
       .update({ paid_amount: newPaid, status: statusOf(payTarget.amount, newPaid) })
       .eq('id', payTarget.id);
-    setSaving(false);
     if (error) {
+      setSaving(false);
       toast({ title: 'Failed to record payment', description: error.message, variant: 'destructive' });
       return;
     }
-    toast({ title: 'Payment recorded' });
+
+    // Record the payment as an approved expense so it reduces company net profit
+    const { data: userRes } = await supabase.auth.getUser();
+    const { error: expError } = await supabase.from('expenses').insert({
+      expense_date: new Date().toISOString().split('T')[0],
+      category: 'Liability Payment',
+      description: `Liability payment: ${payTarget.title}`,
+      amount: actualPaid,
+      payment_method: 'cash' as const,
+      supplier_name: payTarget.vendor_name || null,
+      notes: 'Auto-recorded from Company Liabilities & Payables',
+      recorded_by: userRes.user?.id ?? null,
+      approval_status: 'approved',
+    });
+    setSaving(false);
+    if (expError) {
+      toast({ title: 'Payment saved, but expense not recorded', description: expError.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Payment recorded', description: `$${fmt(actualPaid)} deducted from company net profit.` });
+    }
     setPayTarget(null);
     setPayAmount('');
     fetchItems();
