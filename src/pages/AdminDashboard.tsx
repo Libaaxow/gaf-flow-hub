@@ -703,7 +703,7 @@ export default function AdminDashboard() {
             tax_amount: tax,
             total_amount: total,
             amount_paid: 0,
-            status: 'draft',
+            status: 'unpaid',
             notes: invoiceNotes || null,
             project_name: invoiceProjectName || null,
             created_by: user?.id,
