@@ -2363,7 +2363,7 @@ const AccountantDashboard = () => {
           terms: invoiceTerms || null,
           project_name: invoiceProjectName || null,
           created_by: user?.id,
-          status: (parseFloat(invoiceAmountPaid) || 0) >= total ? 'paid' : (parseFloat(invoiceAmountPaid) || 0) > 0 ? 'partially_paid' : 'draft',
+          status: (parseFloat(invoiceAmountPaid) || 0) >= total ? 'paid' : (parseFloat(invoiceAmountPaid) || 0) > 0 ? 'partially_paid' : 'unpaid',
         }])
         .select()
         .single();
@@ -2601,7 +2601,7 @@ const AccountantDashboard = () => {
           due_date: invoiceDueDate || defaultDueDate(),
           notes: invoiceNotes || null,
           terms: invoiceTerms || null,
-          status: 'draft', // Keep as draft until paid
+          status: 'unpaid',
         })
         .eq('id', activatingDraftInvoice.id);
 
