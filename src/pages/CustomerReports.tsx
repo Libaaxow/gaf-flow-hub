@@ -68,7 +68,7 @@ const CustomerReports = () => {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [dateFrom, setDateFrom] = useState<Date>();
   const [dateTo, setDateTo] = useState<Date>();
-  const [invoiceStatus, setInvoiceStatus] = useState<string>('all');
+  const [invoiceStatus, setInvoiceStatus] = useState<string>('outstanding');
   const [minAmount, setMinAmount] = useState<string>('');
   const [maxAmount, setMaxAmount] = useState<string>('');
   const [reportData, setReportData] = useState<ReportInvoice[] | null>(null);
@@ -219,7 +219,9 @@ const CustomerReports = () => {
       if (dateTo) {
         query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
       }
-      if (invoiceStatus && invoiceStatus !== 'all') {
+      if (invoiceStatus === 'outstanding') {
+        query = query.in('status', ['unpaid', 'partially_paid']);
+      } else if (invoiceStatus && invoiceStatus !== 'all') {
         console.log('Filtering by status:', invoiceStatus);
         query = query.eq('status', invoiceStatus);
       }
@@ -379,7 +381,9 @@ const CustomerReports = () => {
         if (dateTo) {
           query = query.lte('invoice_date', format(dateTo, 'yyyy-MM-dd'));
         }
-        if (invoiceStatus && invoiceStatus !== 'all') {
+        if (invoiceStatus === 'outstanding') {
+          query = query.in('status', ['unpaid', 'partially_paid']);
+        } else if (invoiceStatus && invoiceStatus !== 'all') {
           query = query.eq('status', invoiceStatus);
         }
         if (minAmount) {
@@ -594,8 +598,11 @@ const CustomerReports = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="outstanding">Outstanding Only (Unpaid + Partial)</SelectItem>
+                    <SelectItem value="all">All Invoices (incl. Paid)</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="unpaid">Unpaid</SelectItem>
+                    <SelectItem value="partially_paid">Partially Paid</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
                     <SelectItem value="draft">Draft</SelectItem>
