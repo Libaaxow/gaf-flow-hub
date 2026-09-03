@@ -3182,7 +3182,12 @@ const AccountantDashboard = () => {
 
           {/* Liabilities Tab */}
           <TabsContent value="liabilities" className="space-y-3 sm:space-y-4">
-            <CompanyLiabilitiesPanel />
+            <CompanyLiabilitiesPanel
+              onChanged={() => {
+                fetchActualStats();
+                fetchAllExpenses();
+              }}
+            />
           </TabsContent>
 
 

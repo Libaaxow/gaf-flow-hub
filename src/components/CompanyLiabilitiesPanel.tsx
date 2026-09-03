@@ -45,7 +45,11 @@ const statusOf = (amount: number, paid: number) =>
 const statusVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' =>
   status === 'paid' ? 'default' : status === 'partially_paid' ? 'secondary' : 'destructive';
 
-export function CompanyLiabilitiesPanel() {
+interface CompanyLiabilitiesPanelProps {
+  onChanged?: () => void;
+}
+
+export function CompanyLiabilitiesPanel({ onChanged }: CompanyLiabilitiesPanelProps) {
   const { toast } = useToast();
   const [items, setItems] = useState<Liability[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,28 +184,12 @@ export function CompanyLiabilitiesPanel() {
       return;
     }
 
-    // Record the payment as an approved expense so it reduces company net profit
-    const { data: userRes } = await supabase.auth.getUser();
-    const { error: expError } = await supabase.from('expenses').insert({
-      expense_date: new Date().toISOString().split('T')[0],
-      category: 'Liability Payment',
-      description: `Liability payment: ${payTarget.title}`,
-      amount: actualPaid,
-      payment_method: 'cash' as const,
-      supplier_name: payTarget.vendor_name || null,
-      notes: 'Auto-recorded from Company Liabilities & Payables',
-      recorded_by: userRes.user?.id ?? null,
-      approval_status: 'approved',
-    });
     setSaving(false);
-    if (expError) {
-      toast({ title: 'Payment saved, but expense not recorded', description: expError.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Payment recorded', description: `$${fmt(actualPaid)} deducted from company net profit.` });
-    }
+    toast({ title: 'Payment recorded', description: `$${fmt(actualPaid)} deducted from company net profit.` });
     setPayTarget(null);
     setPayAmount('');
     fetchItems();
+    onChanged?.();
     window.dispatchEvent(new CustomEvent('liabilities-updated'));
   };
 
