@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Layout } from '@/components/Layout';
@@ -23,8 +23,23 @@ import {
   Eye,
   Download,
   Filter,
-  Pencil
+  Pencil,
+  Activity,
+  Receipt,
+  WalletCards
 } from 'lucide-react';
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
@@ -2912,6 +2927,65 @@ const AccountantDashboard = () => {
     });
   };
 
+  const dailyProgress = useMemo(() => {
+    const todayKey = format(new Date(), 'yyyy-MM-dd');
+    const confirmedInvoices = invoices.filter((invoice) => !invoice.is_draft);
+    const todayInvoices = confirmedInvoices.filter(
+      (invoice) => format(new Date(invoice.invoice_date), 'yyyy-MM-dd') === todayKey
+    );
+    const todayPayments = allPayments.filter(
+      (payment) => format(new Date(payment.payment_date), 'yyyy-MM-dd') === todayKey
+    );
+    const todayExpenses = allExpenses.filter(
+      (expense) =>
+        expense.approval_status === 'approved' &&
+        format(new Date(expense.expense_date), 'yyyy-MM-dd') === todayKey
+    );
+
+    const chartData = Array.from({ length: 7 }, (_, index) => {
+      const date = subDays(new Date(), 6 - index);
+      const key = format(date, 'yyyy-MM-dd');
+      return {
+        day: format(date, 'EEE'),
+        collected: allPayments
+          .filter((payment) => format(new Date(payment.payment_date), 'yyyy-MM-dd') === key)
+          .reduce((sum, payment) => sum + Number(payment.amount || 0), 0),
+        invoiced: confirmedInvoices
+          .filter((invoice) => format(new Date(invoice.invoice_date), 'yyyy-MM-dd') === key)
+          .reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0),
+        expenses: allExpenses
+          .filter(
+            (expense) =>
+              expense.approval_status === 'approved' &&
+              format(new Date(expense.expense_date), 'yyyy-MM-dd') === key
+          )
+          .reduce((sum, expense) => sum + Number(expense.amount || 0), 0),
+      };
+    });
+
+    const billed = todayInvoices.reduce((sum, invoice) => sum + Number(invoice.total_amount || 0), 0);
+    const collected = todayPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+    const spent = todayExpenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+    const paidCount = todayInvoices.filter((invoice) => invoice.status === 'paid').length;
+    const partialCount = todayInvoices.filter((invoice) => invoice.status === 'partially_paid').length;
+    const unpaidCount = todayInvoices.filter((invoice) => invoice.status === 'unpaid').length;
+
+    return {
+      billed,
+      collected,
+      spent,
+      netCash: collected - spent,
+      invoiceCount: todayInvoices.length,
+      collectionRate: billed > 0 ? Math.min(100, (collected / billed) * 100) : 0,
+      chartData,
+      statusData: [
+        { name: 'Paid', value: paidCount, fill: 'hsl(var(--success))' },
+        { name: 'Partial', value: partialCount, fill: 'hsl(var(--warning))' },
+        { name: 'Unpaid', value: unpaidCount, fill: 'hsl(var(--secondary))' },
+      ].filter((item) => item.value > 0),
+    };
+  }, [allExpenses, allPayments, invoices]);
+
   const statCards = [
     {
       title: 'Total Revenue',
@@ -3114,6 +3188,112 @@ const AccountantDashboard = () => {
             </Button>
           </div>
         </div>
+
+        <section aria-labelledby="daily-progress-title" className="space-y-4">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase text-primary">Live finance pulse</p>
+              <h2 id="daily-progress-title" className="text-xl font-bold sm:text-2xl">Today's progress</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
+          </div>
+
+          <div className="grid min-w-0 gap-3 grid-cols-2 xl:grid-cols-4">
+            {[
+              { label: 'Invoiced today', value: dailyProgress.billed, icon: Receipt, tone: 'text-primary', detail: `${dailyProgress.invoiceCount} invoices` },
+              { label: 'Collected today', value: dailyProgress.collected, icon: TrendingUp, tone: 'text-success', detail: `${dailyProgress.collectionRate.toFixed(0)}% of today’s billing` },
+              { label: 'Expenses today', value: dailyProgress.spent, icon: WalletCards, tone: 'text-secondary', detail: 'Approved expenses' },
+              { label: 'Net cash today', value: dailyProgress.netCash, icon: Activity, tone: dailyProgress.netCash >= 0 ? 'text-success' : 'text-destructive', detail: 'Collected minus expenses' },
+            ].map((item) => (
+              <Card key={item.label} className="min-w-0 overflow-hidden border-border/70 shadow-sm">
+                <CardContent className="p-4 sm:p-5">
+                  <div className="mb-4 flex items-center justify-between gap-2">
+                    <p className="truncate text-xs font-medium text-muted-foreground sm:text-sm">{item.label}</p>
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted">
+                      <item.icon className={`h-4 w-4 ${item.tone}`} />
+                    </div>
+                  </div>
+                  <p className={`truncate text-xl font-bold sm:text-2xl ${item.tone}`}>
+                    ${item.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">{item.detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
+            <Card className="min-w-0 overflow-hidden border-border/70 shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <CardTitle className="text-base sm:text-lg">7-day financial movement</CardTitle>
+                    <CardDescription>Daily invoicing, collections and approved expenses</CardDescription>
+                  </div>
+                  <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-primary" /> Invoiced</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-success" /> Collected</span>
+                    <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-secondary" /> Expenses</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="h-[270px] p-2 pr-4 sm:h-[310px] sm:p-5 sm:pt-2">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dailyProgress.chartData} margin={{ top: 12, right: 8, left: -12, bottom: 0 }}>
+                    <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }} tickFormatter={(value) => `$${Number(value).toLocaleString()}`} />
+                    <Tooltip formatter={(value, name) => [`$${Number(value).toLocaleString()}`, String(name)]} />
+                    <Area type="monotone" dataKey="invoiced" stroke="hsl(var(--primary))" fill="hsl(var(--primary) / 0.12)" strokeWidth={2.5} />
+                    <Area type="monotone" dataKey="collected" stroke="hsl(var(--success))" fill="hsl(var(--success) / 0.08)" strokeWidth={2.5} />
+                    <Area type="monotone" dataKey="expenses" stroke="hsl(var(--secondary))" fill="hsl(var(--secondary) / 0.06)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="min-w-0 overflow-hidden border-border/70 shadow-sm">
+              <CardHeader className="pb-0">
+                <CardTitle className="text-base sm:text-lg">Today's invoice mix</CardTitle>
+                <CardDescription>Payment progress for invoices created today</CardDescription>
+              </CardHeader>
+              <CardContent className="flex h-[270px] flex-col items-center justify-center p-4 sm:h-[310px]">
+                {dailyProgress.statusData.length > 0 ? (
+                  <>
+                    <div className="relative h-44 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={dailyProgress.statusData} dataKey="value" nameKey="name" innerRadius={52} outerRadius={75} paddingAngle={4} stroke="hsl(var(--card))" strokeWidth={3}>
+                            {dailyProgress.statusData.map((entry) => <Cell key={entry.name} fill={entry.fill} />)}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold">{dailyProgress.invoiceCount}</span>
+                        <span className="text-xs text-muted-foreground">Invoices</span>
+                      </div>
+                    </div>
+                    <div className="flex w-full flex-wrap justify-center gap-x-4 gap-y-2 text-xs">
+                      {dailyProgress.statusData.map((item) => (
+                        <span key={item.name} className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className={cn('h-2 w-2 rounded-full', item.name === 'Paid' ? 'bg-success' : item.name === 'Partial' ? 'bg-warning' : 'bg-secondary')} />
+                          {item.name} <strong className="text-foreground">{item.value}</strong>
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center">
+                    <Receipt className="mx-auto h-9 w-9 text-muted-foreground/50" />
+                    <p className="mt-3 font-medium">No invoices today</p>
+                    <p className="mt-1 text-sm text-muted-foreground">New invoices will appear here.</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
         {/* Stats Grid */}
         <SalesRequestsPanel />
