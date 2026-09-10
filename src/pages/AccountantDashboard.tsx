@@ -3116,6 +3116,9 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
+        {/* Daily Sales / Invoices / Collections chart — top of home */}
+        <DailySalesChart />
+
         {/* Stats Grid */}
         <SalesRequestsPanel />
 
@@ -3149,8 +3152,7 @@ const AccountantDashboard = () => {
           onOpenChange={setOutstandingDebtsDialogOpen}
         />
 
-        {/* Daily Sales / Invoices / Collections chart */}
-        <DailySalesChart />
+
 
         {/* Commission Panel */}
         <CommissionPanel />
