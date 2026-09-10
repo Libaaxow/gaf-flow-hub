@@ -61,6 +61,7 @@ import { cn } from '@/lib/utils';
 import { generatePaymentsReportPDF } from '@/utils/generatePaymentsReportPDF';
 import { generateExpensesReportPDF } from '@/utils/generateExpensesReportPDF';
 import { CommissionPanel } from '@/components/CommissionPanel';
+import DailySalesChart from '@/components/DailySalesChart';
 import { OutstandingDebtsDialog } from '@/components/OutstandingDebtsDialog';
 import { AllWorkLogsPanel } from '@/components/AllWorkLogsPanel';
 import { FinanceNotesPanel } from '@/components/FinanceNotesPanel';
@@ -3147,6 +3148,9 @@ const AccountantDashboard = () => {
           open={outstandingDebtsDialogOpen}
           onOpenChange={setOutstandingDebtsDialogOpen}
         />
+
+        {/* Daily Sales / Invoices / Collections chart */}
+        <DailySalesChart />
 
         {/* Commission Panel */}
         <CommissionPanel />
