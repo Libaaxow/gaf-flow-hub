@@ -30,7 +30,7 @@ const fmt = (n: number) =>
   `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function DailySalesChart() {
-  const [days, setDays] = useState<string>('30');
+  const [days, setDays] = useState<string>('7');
   const [rows, setRows] = useState<DayPoint[]>([]);
   const [loading, setLoading] = useState(true);
 
