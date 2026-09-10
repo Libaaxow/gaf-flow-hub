@@ -3148,6 +3148,9 @@ const AccountantDashboard = () => {
           onOpenChange={setOutstandingDebtsDialogOpen}
         />
 
+        {/* Daily Sales / Invoices / Collections chart */}
+        <DailySalesChart />
+
         {/* Commission Panel */}
         <CommissionPanel />
 
