@@ -2447,6 +2447,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           description: string | null
+          expense_id: string | null
           id: string
           reference_number: string | null
           shareholder_id: string
@@ -2458,6 +2459,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expense_id?: string | null
           id?: string
           reference_number?: string | null
           shareholder_id: string
@@ -2469,6 +2471,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           description?: string | null
+          expense_id?: string | null
           id?: string
           reference_number?: string | null
           shareholder_id?: string
@@ -2481,6 +2484,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shareholder_transactions_expense_id_fkey"
+            columns: ["expense_id"]
+            isOneToOne: false
+            referencedRelation: "expenses"
             referencedColumns: ["id"]
           },
           {

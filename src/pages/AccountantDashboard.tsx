@@ -2108,7 +2108,7 @@ const AccountantDashboard = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      const { error } = await supabase
+      const { data: recordedExpense, error } = await supabase
         .from('expenses')
         .insert([{
           expense_date: expenseDate,
@@ -2120,7 +2120,9 @@ const AccountantDashboard = () => {
           notes: expenseNotes || null,
           recorded_by: user?.id,
           approval_status: 'approved',
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
@@ -2136,6 +2138,7 @@ const AccountantDashboard = () => {
             reference_number: null,
             transaction_date: expenseDate,
             created_by: user?.id,
+             expense_id: recordedExpense.id,
           });
         if (txError) {
           console.error('Error recording shareholder debt:', txError);
