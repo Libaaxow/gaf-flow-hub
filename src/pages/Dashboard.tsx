@@ -50,7 +50,7 @@ const Dashboard = () => {
         
         if (roleData) {
           console.log('User role found:', roleData.role);
-          setUserRole(roleData.role);
+          setDbRole(roleData.role);
         } else {
           console.log('No role found for user:', user?.id);
         }
