@@ -3657,7 +3657,11 @@ const AccountantDashboard = () => {
                                     {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
                                   </TableCell>
                                   <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                  <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
+                                  <TableCell className="capitalize">
+                                    {payment.payment_method === 'contra'
+                                      ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                      : payment.payment_method.replace('_', ' ')}
+                                  </TableCell>
                                   <TableCell>{payment.reference_number || '-'}</TableCell>
                                 </TableRow>
                               ))
@@ -4721,7 +4725,11 @@ const AccountantDashboard = () => {
                                   {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
                                 </TableCell>
                                 <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                <TableCell className="capitalize">{payment.payment_method}</TableCell>
+                                <TableCell className="capitalize">
+                                  {payment.payment_method === 'contra'
+                                    ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                    : payment.payment_method}
+                                </TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>
                               </TableRow>
                             ))
