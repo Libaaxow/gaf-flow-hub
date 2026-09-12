@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { generateDividendDebtStatementPDF } from '@/utils/generateDividendDebtStatementPDF';
 import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins, FileText } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { format } from 'date-fns';
 
 interface Shareholder {
   id: string;
@@ -16,6 +18,9 @@ interface Transaction {
   shareholder_id: string;
   transaction_type: string;
   amount: number;
+  description: string | null;
+  reference_number: string | null;
+  transaction_date: string;
 }
 
 interface Dividend {
@@ -48,13 +53,14 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
   const [authorizedShares, setAuthorizedShares] = useState(0);
   const [parValue, setParValue] = useState(1000);
   const [loading, setLoading] = useState(true);
+  const [debtShareholder, setDebtShareholder] = useState<Shareholder | null>(null);
 
 
   useEffect(() => {
     const fetchData = async () => {
       const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes, liabilitiesRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage').eq('status', 'active'),
-        supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+        supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount, description, reference_number, transaction_date').order('transaction_date', { ascending: false }),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
         supabase.from('payments').select('amount').eq('is_contra', false),
         supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
@@ -334,18 +340,26 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
 
                 {/* Loan deduction applied */}
                 {!isBoard && outstandingLoan > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => setDebtShareholder(sh)}
+                    className="w-full text-left flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 hover:ring-1 hover:ring-orange-400 cursor-pointer"
+                  >
                     <AlertCircle className="h-3 w-3" />
                     <span>Loan Deduction: <strong>${fmt(Math.min(outstandingLoan, grossCashShare))}</strong></span>
-                  </div>
+                  </button>
                 )}
 
                 {/* Outstanding remaining debt */}
                 {!isBoard && remainingLoan > 0 && (
-                  <div className="flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => setDebtShareholder(sh)}
+                    className="w-full text-left flex items-center gap-1 text-xs text-red-600 bg-red-50 rounded px-2 py-1 hover:ring-1 hover:ring-red-400 cursor-pointer"
+                  >
                     <AlertCircle className="h-3 w-3" />
                     <span>Remaining Debt: <strong>${fmt(remainingLoan)}</strong></span>
-                  </div>
+                  </button>
                 )}
               </div>
             );
@@ -377,6 +391,60 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
           </div>
         )}
       </CardContent>
+
+      {/* Debt breakdown dialog */}
+      <Dialog open={!!debtShareholder} onOpenChange={(open) => { if (!open) setDebtShareholder(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Debt Breakdown - {debtShareholder?.full_name}</DialogTitle>
+          </DialogHeader>
+          {debtShareholder && (() => {
+            const debtTx = transactions
+              .filter(t => t.shareholder_id === debtShareholder.id && ['debt_taken', 'debt_repayment'].includes(t.transaction_type));
+            const taken = debtTx.filter(t => t.transaction_type === 'debt_taken').reduce((s, t) => s + t.amount, 0);
+            const repaid = debtTx.filter(t => t.transaction_type === 'debt_repayment').reduce((s, t) => s + t.amount, 0);
+            const outstanding = Math.max(0, taken - repaid);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-red-50 rounded p-2">
+                    <p className="text-muted-foreground">Debt Taken</p>
+                    <p className="font-bold text-red-600">${fmt(taken)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded p-2">
+                    <p className="text-muted-foreground">Repaid</p>
+                    <p className="font-bold text-green-600">${fmt(repaid)}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded p-2">
+                    <p className="text-muted-foreground">Outstanding</p>
+                    <p className="font-bold text-orange-600">${fmt(outstanding)}</p>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-auto space-y-1">
+                  {debtTx.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No debt transactions recorded</p>
+                  )}
+                  {debtTx.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs border-b last:border-0 pb-1 gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">{t.transaction_type === 'debt_taken' ? 'Debt Taken' : 'Debt Repayment'}</p>
+                        <p className="text-muted-foreground truncate">
+                          {format(new Date(t.transaction_date), 'dd/MM/yyyy')}
+                          {t.description ? ` · ${t.description}` : ''}
+                          {t.reference_number ? ` · Ref: ${t.reference_number}` : ''}
+                        </p>
+                      </div>
+                      <span className={`font-semibold whitespace-nowrap ${t.transaction_type === 'debt_taken' ? 'text-red-600' : 'text-green-600'}`}>
+                        {t.transaction_type === 'debt_taken' ? '+' : '-'}${fmt(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
