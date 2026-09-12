@@ -4427,6 +4427,79 @@ const AccountantDashboard = () => {
             </Card>
           </TabsContent>
 
+          {/* Edit Expense Dialog */}
+          <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+            <DialogContent className="sm:max-w-[480px]">
+              <DialogHeader>
+                <DialogTitle>Edit Expense</DialogTitle>
+                <DialogDescription>
+                  Sax khaladka qaaldana. Sababta beddelka waa qasab — waxay ku keydsan doontaa audit trail-ka.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editExpenseForm.amount}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                    />
+                    {editingExpense && (
+                      <p className="text-xs text-muted-foreground">Was: ${Number(editingExpense.amount).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={editExpenseForm.expense_date}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, expense_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={editExpenseForm.description}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Input
+                      value={editExpenseForm.category}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, category: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Supplier</Label>
+                    <Input
+                      value={editExpenseForm.supplier_name}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, supplier_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sababta beddelka (Edit reason) *</Label>
+                  <Textarea
+                    placeholder="Tusaale: amount-ka waa $200, anigu si khaldan $2000 ayaan gelye..."
+                    value={editExpenseForm.reason}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, reason: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingExpense(null)}>Cancel</Button>
+                <Button onClick={handleSaveExpenseEdit} disabled={savingExpenseEdit}>
+                  {savingExpenseEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
