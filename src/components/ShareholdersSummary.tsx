@@ -366,6 +366,44 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
           })}
         </div>
 
+        {/* Shareholder Loans (separate per-shareholder loan details) */}
+        {!isBoard && (
+          <div className="border rounded-lg p-3">
+            <p className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-orange-500" />
+              Shareholder Loans
+            </p>
+            <div className="space-y-1">
+              {shareholders.map(sh => {
+                const shTx = transactions.filter(t => t.shareholder_id === sh.id);
+                const taken = shTx.filter(t => t.transaction_type === 'debt_taken').reduce((s, t) => s + t.amount, 0);
+                const repaid = shTx.filter(t => t.transaction_type === 'debt_repayment').reduce((s, t) => s + t.amount, 0);
+                const outstanding = Math.max(0, taken - repaid);
+                return (
+                  <button
+                    key={sh.id}
+                    type="button"
+                    onClick={() => setDebtShareholder(sh)}
+                    className="w-full text-left flex flex-wrap items-center justify-between gap-2 text-xs border-b last:border-0 py-2 hover:bg-muted/50 rounded px-1"
+                  >
+                    <span className="font-medium min-w-0 truncate">{sh.full_name} <span className="text-muted-foreground">({sh.share_percentage}%)</span></span>
+                    {taken === 0 ? (
+                      <span className="text-muted-foreground">No loan</span>
+                    ) : (
+                      <span className="flex items-center gap-3 whitespace-nowrap">
+                        <span className="text-red-600">Taken ${fmt(taken)}</span>
+                        <span className="text-green-600">Repaid ${fmt(repaid)}</span>
+                        <span className="text-orange-600 font-semibold">Outstanding ${fmt(outstanding)}</span>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+
         {/* Declared dividends history (governance record) */}
         {isBoard && (
           <div className="border rounded-lg p-3">
