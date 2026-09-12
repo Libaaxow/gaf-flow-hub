@@ -219,6 +219,7 @@ const BoardDashboard = () => {
       const { data: payments } = await supabase
         .from('payments')
         .select('amount, payment_date')
+        .eq('is_contra', false)
         .gte('payment_date', startDate.toISOString())
         .lte('payment_date', endDate.toISOString());
 
