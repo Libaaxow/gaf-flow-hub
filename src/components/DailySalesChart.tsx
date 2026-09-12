@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, subDays, startOfDay } from 'date-fns';
 import {
   ResponsiveContainer,
@@ -26,12 +27,24 @@ interface DayPoint {
   invoices: number;
 }
 
+interface InvoiceRow {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  amount_paid: number;
+  status: string;
+  customer_name: string;
+}
+
 const fmt = (n: number) =>
   `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function DailySalesChart() {
   const [days, setDays] = useState<string>('1');
   const [rows, setRows] = useState<DayPoint[]>([]);
+  const [invoiceList, setInvoiceList] = useState<InvoiceRow[]>([]);
+  const [listOpen, setListOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,13 +57,28 @@ export default function DailySalesChart() {
       const [invRes, payRes] = await Promise.all([
         supabase
           .from('invoices')
-          .select('invoice_date, total_amount, is_draft')
-          .gte('invoice_date', fromISO),
+          .select('id, invoice_number, invoice_date, total_amount, amount_paid, status, is_draft, customers(name)')
+          .gte('invoice_date', fromISO)
+          .order('invoice_date', { ascending: false }),
         supabase
           .from('payments')
           .select('payment_date, amount')
           .gte('payment_date', from.toISOString()),
       ]);
+
+      setInvoiceList(
+        (invRes.data || [])
+          .filter((i: any) => i.is_draft !== true)
+          .map((i: any) => ({
+            id: i.id,
+            invoice_number: i.invoice_number,
+            invoice_date: i.invoice_date,
+            total_amount: Number(i.total_amount) || 0,
+            amount_paid: Number(i.amount_paid) || 0,
+            status: i.status || 'unpaid',
+            customer_name: i.customers?.name || 'N/A',
+          })),
+      );
 
       const buckets = new Map<string, DayPoint>();
       for (let i = 0; i < span; i++) {
@@ -136,13 +164,56 @@ export default function DailySalesChart() {
             </div>
             <p className="text-lg sm:text-xl font-bold truncate">{fmt(totals.collected)}</p>
           </div>
-          <div className="rounded-lg border p-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setListOpen(true)}
+            className="rounded-lg border p-3 min-w-0 text-left transition-colors hover:border-primary/50 hover:bg-accent/40 cursor-pointer"
+          >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <FileText className="h-4 w-4 text-primary" /> Invoices
+              <span className="ml-auto text-[10px] underline underline-offset-2">View</span>
             </div>
             <p className="text-lg sm:text-xl font-bold truncate">{totals.invoices}</p>
-          </div>
+          </button>
         </div>
+
+        <Dialog open={listOpen} onOpenChange={setListOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Invoices — {days === '1' ? 'Today' : `Last ${days} days`}
+              </DialogTitle>
+            </DialogHeader>
+            {invoiceList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No invoices recorded in this period.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {invoiceList.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3 min-w-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {inv.invoice_number} — {inv.customer_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(inv.invoice_date), 'dd MMM yyyy')} ·{' '}
+                        <span className="capitalize">{inv.status.replace('_', ' ')}</span>
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold">{fmt(inv.total_amount)}</p>
+                      <p className="text-xs text-muted-foreground">Paid: {fmt(inv.amount_paid)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <div className="h-[280px] w-full min-w-0">
           {loading ? (
