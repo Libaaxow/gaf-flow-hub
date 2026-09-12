@@ -74,6 +74,7 @@ import { EmployeesPanel } from '@/components/EmployeesPanel';
 
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
+import ContraSettlementPanel from '@/components/ContraSettlementPanel';
 
 interface FinancialStats {
   totalRevenue: number;
