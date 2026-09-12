@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import ContraSettlementPanel from '@/components/ContraSettlementPanel';
 
 interface VendorPayment {
   id: string;
@@ -51,6 +52,11 @@ const paymentMethods = [
   { value: 'sahal', label: 'Sahal' },
   { value: 'other', label: 'Other' },
 ];
+
+const allMethodLabels: Record<string, string> = {
+  ...Object.fromEntries(paymentMethods.map((m) => [m.value, m.label])),
+  contra: 'Contra Offset',
+};
 
 const VendorPayments = () => {
   const [payments, setPayments] = useState<VendorPayment[]>([]);
