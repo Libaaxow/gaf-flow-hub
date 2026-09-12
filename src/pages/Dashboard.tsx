@@ -10,6 +10,7 @@ import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
 import BoardDashboard from './BoardDashboard';
+import { applyTestRole, useTestRole } from '@/lib/testRole';
 
 interface DashboardStats {
   totalSales: number;
