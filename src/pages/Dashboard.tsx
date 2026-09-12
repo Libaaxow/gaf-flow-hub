@@ -64,7 +64,8 @@ const Dashboard = () => {
         // Get total payments (actual money collected)
         const { data: payments } = await supabase
           .from('payments')
-          .select('amount');
+          .select('amount')
+          .eq('is_contra', false);
 
         const totalSales = payments?.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 0;
 

@@ -508,7 +508,7 @@ const Reports = () => {
               const total = salesList.reduce((s, i) => s + Number(i.total_amount || 0), 0);
               // Collected = actual payments received in this date range (not invoice.amount_paid)
               const collected = payments
-                .filter(p => !bound || parseISO(p.payment_date) >= bound)
+                .filter(p => !p.is_contra && (!bound || parseISO(p.payment_date) >= bound))
                 .reduce((s, p) => s + Number(p.amount || 0), 0);
               const label = salesRange === 'today' ? "Today's Sales" : salesRange === '7d' ? 'Last 7 Days Sales' : salesRange === '30d' ? 'Last 30 Days Sales' : 'All Sales';
               return (
