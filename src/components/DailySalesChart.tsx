@@ -57,13 +57,28 @@ export default function DailySalesChart() {
       const [invRes, payRes] = await Promise.all([
         supabase
           .from('invoices')
-          .select('invoice_date, total_amount, is_draft')
-          .gte('invoice_date', fromISO),
+          .select('id, invoice_number, invoice_date, total_amount, amount_paid, status, is_draft, customers(name)')
+          .gte('invoice_date', fromISO)
+          .order('invoice_date', { ascending: false }),
         supabase
           .from('payments')
           .select('payment_date, amount')
           .gte('payment_date', from.toISOString()),
       ]);
+
+      setInvoiceList(
+        (invRes.data || [])
+          .filter((i: any) => i.is_draft !== true)
+          .map((i: any) => ({
+            id: i.id,
+            invoice_number: i.invoice_number,
+            invoice_date: i.invoice_date,
+            total_amount: Number(i.total_amount) || 0,
+            amount_paid: Number(i.amount_paid) || 0,
+            status: i.status || 'unpaid',
+            customer_name: i.customers?.name || 'N/A',
+          })),
+      );
 
       const buckets = new Map<string, DayPoint>();
       for (let i = 0; i < span; i++) {
