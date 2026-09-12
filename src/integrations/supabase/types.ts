@@ -264,6 +264,7 @@ export type Database = {
           status: string
           title: string
           updated_at: string
+          vendor_bill_id: string | null
           vendor_name: string | null
         }
         Insert: {
@@ -277,6 +278,7 @@ export type Database = {
           status?: string
           title: string
           updated_at?: string
+          vendor_bill_id?: string | null
           vendor_name?: string | null
         }
         Update: {
@@ -290,6 +292,7 @@ export type Database = {
           status?: string
           title?: string
           updated_at?: string
+          vendor_bill_id?: string | null
           vendor_name?: string | null
         }
         Relationships: [
@@ -298,6 +301,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_liabilities_vendor_bill_id_fkey"
+            columns: ["vendor_bill_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_bills"
             referencedColumns: ["id"]
           },
         ]
