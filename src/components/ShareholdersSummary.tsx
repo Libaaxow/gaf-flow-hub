@@ -391,6 +391,60 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
           </div>
         )}
       </CardContent>
+
+      {/* Debt breakdown dialog */}
+      <Dialog open={!!debtShareholder} onOpenChange={(open) => { if (!open) setDebtShareholder(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Debt Breakdown - {debtShareholder?.full_name}</DialogTitle>
+          </DialogHeader>
+          {debtShareholder && (() => {
+            const debtTx = transactions
+              .filter(t => t.shareholder_id === debtShareholder.id && ['debt_taken', 'debt_repayment'].includes(t.transaction_type));
+            const taken = debtTx.filter(t => t.transaction_type === 'debt_taken').reduce((s, t) => s + t.amount, 0);
+            const repaid = debtTx.filter(t => t.transaction_type === 'debt_repayment').reduce((s, t) => s + t.amount, 0);
+            const outstanding = Math.max(0, taken - repaid);
+            return (
+              <div className="space-y-3">
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="bg-red-50 rounded p-2">
+                    <p className="text-muted-foreground">Debt Taken</p>
+                    <p className="font-bold text-red-600">${fmt(taken)}</p>
+                  </div>
+                  <div className="bg-green-50 rounded p-2">
+                    <p className="text-muted-foreground">Repaid</p>
+                    <p className="font-bold text-green-600">${fmt(repaid)}</p>
+                  </div>
+                  <div className="bg-orange-50 rounded p-2">
+                    <p className="text-muted-foreground">Outstanding</p>
+                    <p className="font-bold text-orange-600">${fmt(outstanding)}</p>
+                  </div>
+                </div>
+                <div className="max-h-72 overflow-auto space-y-1">
+                  {debtTx.length === 0 && (
+                    <p className="text-xs text-muted-foreground text-center py-4">No debt transactions recorded</p>
+                  )}
+                  {debtTx.map((t, i) => (
+                    <div key={i} className="flex items-center justify-between text-xs border-b last:border-0 pb-1 gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">{t.transaction_type === 'debt_taken' ? 'Debt Taken' : 'Debt Repayment'}</p>
+                        <p className="text-muted-foreground truncate">
+                          {format(new Date(t.transaction_date), 'dd/MM/yyyy')}
+                          {t.description ? ` · ${t.description}` : ''}
+                          {t.reference_number ? ` · Ref: ${t.reference_number}` : ''}
+                        </p>
+                      </div>
+                      <span className={`font-semibold whitespace-nowrap ${t.transaction_type === 'debt_taken' ? 'text-red-600' : 'text-green-600'}`}>
+                        {t.transaction_type === 'debt_taken' ? '+' : '-'}${fmt(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
