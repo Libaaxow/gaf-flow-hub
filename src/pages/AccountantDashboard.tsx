@@ -4409,6 +4409,11 @@ const AccountantDashboard = () => {
                                       {expense.approval_status}
                                     </Badge>
                                   </TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => openEditExpense(expense)}>
+                                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))
                             )}
