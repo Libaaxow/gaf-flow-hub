@@ -346,7 +346,7 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
                     className="w-full text-left flex items-center gap-1 text-xs text-orange-600 bg-orange-50 rounded px-2 py-1 hover:ring-1 hover:ring-orange-400 cursor-pointer"
                   >
                     <AlertCircle className="h-3 w-3" />
-                    <span>Loan Deduction: <strong>${fmt(Math.min(outstandingLoan, grossCashShare))}</strong></span>
+                    <span>Loan Taken: <strong>${fmt(Math.min(outstandingLoan, grossCashShare))}</strong></span>
                   </button>
                 )}
 
