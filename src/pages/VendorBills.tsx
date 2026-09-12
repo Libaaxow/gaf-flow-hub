@@ -40,6 +40,7 @@ const VendorBills = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
   const [selectedBill, setSelectedBill] = useState<VendorBill | null>(null);
+  const [contraByBill, setContraByBill] = useState<Record<string, number>>({});
 
   const { toast } = useToast();
   const { user } = useAuth();
@@ -68,6 +69,16 @@ const VendorBills = () => {
 
       if (error) throw error;
       setBills(data || []);
+
+      const { data: contraPayments } = await supabase
+        .from('vendor_payments')
+        .select('vendor_bill_id, amount')
+        .eq('is_contra', true);
+      const map: Record<string, number> = {};
+      (contraPayments || []).forEach((p) => {
+        if (p.vendor_bill_id) map[p.vendor_bill_id] = (map[p.vendor_bill_id] || 0) + Number(p.amount);
+      });
+      setContraByBill(map);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
