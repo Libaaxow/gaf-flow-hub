@@ -245,7 +245,14 @@ export default function AdminDashboard() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, debouncedFetchAllData)
       .subscribe();
 
+    // Refresh when the admin returns to this tab/window so edits made elsewhere show up
+    const onFocus = () => debouncedFetchAllData();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
     return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
       if (refetchTimeoutRef.current) {
         clearTimeout(refetchTimeoutRef.current);
       }
