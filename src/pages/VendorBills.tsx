@@ -199,7 +199,12 @@ const VendorBills = () => {
                       <td className="px-6 py-4 text-muted-foreground font-mono text-sm">{bill.purchase_order?.po_number || '-'}</td>
                       <td className="px-6 py-4 text-muted-foreground">{format(new Date(bill.bill_date), 'MMM d, yyyy')}</td>
                       <td className="px-6 py-4 font-medium">${bill.total_amount.toLocaleString()}</td>
-                      <td className="px-6 py-4 text-green-600">${bill.amount_paid.toLocaleString()}</td>
+                      <td className="px-6 py-4 text-green-600">
+                        ${bill.amount_paid.toLocaleString()}
+                        {contraByBill[bill.id] > 0 && (
+                          <Badge variant="outline" className="ml-2">Contra ${contraByBill[bill.id].toFixed(2)}</Badge>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-destructive font-medium">${(bill.total_amount - bill.amount_paid).toLocaleString()}</td>
                       <td className="px-6 py-4">{getStatusBadge(bill.status)}</td>
                       <td className="px-6 py-4">
@@ -249,6 +254,12 @@ const VendorBills = () => {
                   {selectedBill.vat_amount > 0 && <div className="flex justify-between"><span>VAT:</span><span>${selectedBill.vat_amount.toFixed(2)}</span></div>}
                   <div className="flex justify-between font-bold"><span>Total:</span><span>${selectedBill.total_amount.toFixed(2)}</span></div>
                   <div className="flex justify-between text-green-600"><span>Paid:</span><span>${selectedBill.amount_paid.toFixed(2)}</span></div>
+                  {contraByBill[selectedBill.id] > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Cleared via Contra Offset:</span>
+                      <span>${contraByBill[selectedBill.id].toFixed(2)}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-bold text-destructive border-t pt-2"><span>Balance Due:</span><span>${(selectedBill.total_amount - selectedBill.amount_paid).toFixed(2)}</span></div>
                 </div>
 
