@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { generateDividendDebtStatementPDF } from '@/utils/generateDividendDebtStatementPDF';
 import { Users, Banknote, AlertCircle, Receipt, Package, Wallet, Landmark, PiggyBank, HandCoins, FileText } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { format } from 'date-fns';
 
 interface Shareholder {
   id: string;
@@ -51,6 +53,7 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
   const [authorizedShares, setAuthorizedShares] = useState(0);
   const [parValue, setParValue] = useState(1000);
   const [loading, setLoading] = useState(true);
+  const [debtShareholder, setDebtShareholder] = useState<Shareholder | null>(null);
 
 
   useEffect(() => {
