@@ -164,13 +164,56 @@ export default function DailySalesChart() {
             </div>
             <p className="text-lg sm:text-xl font-bold truncate">{fmt(totals.collected)}</p>
           </div>
-          <div className="rounded-lg border p-3 min-w-0">
+          <button
+            type="button"
+            onClick={() => setListOpen(true)}
+            className="rounded-lg border p-3 min-w-0 text-left transition-colors hover:border-primary/50 hover:bg-accent/40 cursor-pointer"
+          >
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <FileText className="h-4 w-4 text-primary" /> Invoices
+              <span className="ml-auto text-[10px] underline underline-offset-2">View</span>
             </div>
             <p className="text-lg sm:text-xl font-bold truncate">{totals.invoices}</p>
-          </div>
+          </button>
         </div>
+
+        <Dialog open={listOpen} onOpenChange={setListOpen}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                Invoices — {days === '1' ? 'Today' : `Last ${days} days`}
+              </DialogTitle>
+            </DialogHeader>
+            {invoiceList.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                No invoices recorded in this period.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {invoiceList.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-3 min-w-0"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">
+                        {inv.invoice_number} — {inv.customer_name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(inv.invoice_date), 'dd MMM yyyy')} ·{' '}
+                        <span className="capitalize">{inv.status.replace('_', ' ')}</span>
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold">{fmt(inv.total_amount)}</p>
+                      <p className="text-xs text-muted-foreground">Paid: {fmt(inv.amount_paid)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         <div className="h-[280px] w-full min-w-0">
           {loading ? (
