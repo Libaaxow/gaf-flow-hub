@@ -170,6 +170,72 @@ const AccountantDashboard = () => {
   };
   const [viewSalesRequest, setViewSalesRequest] = useState<any | null>(null);
   const [requestFiles, setRequestFiles] = useState<any[]>([]);
+  const [editingExpense, setEditingExpense] = useState<any | null>(null);
+  const [editExpenseForm, setEditExpenseForm] = useState({ amount: '', description: '', category: '', supplier_name: '', expense_date: '', reason: '' });
+  const [savingExpenseEdit, setSavingExpenseEdit] = useState(false);
+
+  const openEditExpense = (expense: any) => {
+    setEditingExpense(expense);
+    setEditExpenseForm({
+      amount: String(expense.amount ?? ''),
+      description: expense.description ?? '',
+      category: expense.category ?? '',
+      supplier_name: expense.supplier_name ?? '',
+      expense_date: expense.expense_date ?? '',
+      reason: '',
+    });
+  };
+
+  const handleSaveExpenseEdit = async () => {
+    if (!editingExpense) return;
+    if (!editExpenseForm.reason.trim()) {
+      toast({ title: 'Reason required', description: 'Fadlan qor sababta aad u beddelayso (edit reason is required).', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(editExpenseForm.amount);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: 'Invalid amount', description: 'Please enter a valid amount.', variant: 'destructive' });
+      return;
+    }
+    setSavingExpenseEdit(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const editNote = `[EDIT ${format(new Date(), 'yyyy-MM-dd HH:mm')}] Amount: $${Number(editingExpense.amount).toFixed(2)} -> $${amount.toFixed(2)}. Reason: ${editExpenseForm.reason.trim()}`;
+      const combinedNotes = editingExpense.notes ? `${editingExpense.notes}\n${editNote}` : editNote;
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          amount,
+          description: editExpenseForm.description.trim() || editingExpense.description,
+          category: editExpenseForm.category.trim() || editingExpense.category,
+          supplier_name: editExpenseForm.supplier_name.trim() || null,
+          expense_date: editExpenseForm.expense_date || editingExpense.expense_date,
+          notes: combinedNotes,
+        })
+        .eq('id', editingExpense.id);
+      if (error) throw error;
+      await supabase.from('activity_log').insert({
+        entity_type: 'expense',
+        entity_id: editingExpense.id,
+        actor_id: userData?.user?.id ?? null,
+        actor_role: 'accountant',
+        action: 'expense_edited',
+        details: {
+          previous_amount: editingExpense.amount,
+          new_amount: amount,
+          reason: editExpenseForm.reason.trim(),
+          description: editExpenseForm.description,
+        },
+      });
+      toast({ title: 'Expense updated', description: 'Expense waa la beddelay, sababtana waa la duubay.' });
+      setEditingExpense(null);
+      fetchAllData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingExpenseEdit(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -4319,12 +4385,13 @@ const AccountantDashboard = () => {
                               <TableHead className="min-w-[100px]">Amount</TableHead>
                               <TableHead className="min-w-[120px]">Method</TableHead>
                               <TableHead className="min-w-[100px]">Status</TableHead>
+                              <TableHead className="min-w-[80px]">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {baseExpenses.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                                   No expenses found for the selected filters
                                 </TableCell>
                               </TableRow>
@@ -4342,6 +4409,11 @@ const AccountantDashboard = () => {
                                       {expense.approval_status}
                                     </Badge>
                                   </TableCell>
+                                  <TableCell>
+                                    <Button size="sm" variant="outline" onClick={() => openEditExpense(expense)}>
+                                      <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                                    </Button>
+                                  </TableCell>
                                 </TableRow>
                               ))
                             )}
@@ -4354,6 +4426,79 @@ const AccountantDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Edit Expense Dialog */}
+          <Dialog open={!!editingExpense} onOpenChange={(open) => !open && setEditingExpense(null)}>
+            <DialogContent className="sm:max-w-[480px]">
+              <DialogHeader>
+                <DialogTitle>Edit Expense</DialogTitle>
+                <DialogDescription>
+                  Sax khaladka qaaldana. Sababta beddelka waa qasab — waxay ku keydsan doontaa audit trail-ka.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editExpenseForm.amount}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, amount: e.target.value })}
+                    />
+                    {editingExpense && (
+                      <p className="text-xs text-muted-foreground">Was: ${Number(editingExpense.amount).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Date</Label>
+                    <Input
+                      type="date"
+                      value={editExpenseForm.expense_date}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, expense_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Description</Label>
+                  <Input
+                    value={editExpenseForm.description}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, description: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Category</Label>
+                    <Input
+                      value={editExpenseForm.category}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, category: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Supplier</Label>
+                    <Input
+                      value={editExpenseForm.supplier_name}
+                      onChange={(e) => setEditExpenseForm({ ...editExpenseForm, supplier_name: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sababta beddelka (Edit reason) *</Label>
+                  <Textarea
+                    placeholder="Tusaale: amount-ka waa $200, anigu si khaldan $2000 ayaan gelye..."
+                    value={editExpenseForm.reason}
+                    onChange={(e) => setEditExpenseForm({ ...editExpenseForm, reason: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingExpense(null)}>Cancel</Button>
+                <Button onClick={handleSaveExpenseEdit} disabled={savingExpenseEdit}>
+                  {savingExpenseEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-4">
