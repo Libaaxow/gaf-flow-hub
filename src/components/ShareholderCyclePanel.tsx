@@ -254,7 +254,7 @@ export function ShareholderCyclePanel() {
     setBusy(true);
     const [invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes, liabilitiesRes] = await Promise.all([
       supabase.from('invoices').select('total_amount, amount_paid').eq('is_draft', false),
-      supabase.from('payments').select('amount'),
+      supabase.from('payments').select('amount').eq('is_contra', false),
       supabase.from('expenses').select('amount').eq('approval_status', 'approved'),
       supabase.from('beginning_balances').select('amount'),
       supabase.from('company_assets').select('total_value'),

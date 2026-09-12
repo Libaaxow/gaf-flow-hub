@@ -30,7 +30,7 @@ export function ClosingReportCard() {
           .from('invoices')
           .select('invoice_number, invoice_date, due_date, total_amount, amount_paid, status, customers(name)')
           .eq('is_draft', false),
-        supabase.from('payments').select('amount, payment_date, payment_method'),
+        supabase.from('payments').select('amount, payment_date, payment_method').eq('is_contra', false),
         supabase.from('expenses').select('category, amount, expense_date').eq('approval_status', 'approved'),
         supabase.from('beginning_balances').select('amount'),
         supabase.from('company_assets').select('asset_name, quantity, unit_price, total_value, status'),
