@@ -3586,9 +3586,11 @@ const AccountantDashboard = () => {
                           <SelectItem value="mobile_money">Mobile Money</SelectItem>
                           <SelectItem value="cheque">Cheque</SelectItem>
                           <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="contra">Contra Offset</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    <ContraSettlementPanel onProcessed={() => window.location.reload()} />
                   </div>
                 </div>
 
