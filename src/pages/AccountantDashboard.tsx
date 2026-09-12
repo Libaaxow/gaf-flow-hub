@@ -888,12 +888,19 @@ const AccountantDashboard = () => {
         .from('beginning_balances')
         .select('amount, account_type');
 
+      // Contra settlements move no cash — exclude them from cash collected
+      const { data: contraPayments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('is_contra', true);
+      const contraTotal = contraPayments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
+
       // Calculate beginning balance total
       const beginningBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
 
       // Calculate revenue from ALL invoices for total revenue
       const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
-      const collectedAmount = allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0;
+      const collectedAmount = (allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0) - contraTotal;
       
       // Outstanding Balance should only exclude true draft invoices (is_draft=true)
       const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft) || [];

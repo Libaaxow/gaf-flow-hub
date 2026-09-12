@@ -63,6 +63,7 @@ export default function DailySalesChart() {
         supabase
           .from('payments')
           .select('payment_date, amount')
+          .eq('is_contra', false)
           .gte('payment_date', from.toISOString()),
       ]);
 

@@ -56,7 +56,7 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
         supabase.from('shareholders').select('id, full_name, share_percentage').eq('status', 'active'),
         supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
-        supabase.from('payments').select('amount'),
+        supabase.from('payments').select('amount').eq('is_contra', false),
         supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
         supabase.from('beginning_balances').select('amount, account_type'),
         supabase.from('company_assets').select('total_value'),
