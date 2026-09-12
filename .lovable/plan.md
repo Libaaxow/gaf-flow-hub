@@ -1,71 +1,35 @@
+# Contra Settlement (Vendor–Customer Offset)
 
-# Sales / Designer / Production Workflow Overhaul
+Lets Finance cancel out money a contact owes us against money we owe them, in one step.
 
-Finance (invoices, payments, expenses, commissions, accountant/admin/board dashboards) stays untouched. All changes are additive on the order/lead flow.
+## How it will work
 
-## 1. Database changes (one migration)
+1. New **Contra Settlement** button on the Vendor Payments page (Finance area), plus the same panel reachable from the Accountant home.
+2. In the dialog:
+   - Pick the **customer** side and the **vendor** side of the same contact. The vendor list is pre-sorted so name matches appear first, so in most cases both are chosen with one click.
+   - The system loads their unpaid/partly-paid invoices (money they owe us) and unpaid/partly-paid bills (money we owe them), with totals for each side.
+   - It shows the suggested offset = the smaller of the two totals. The user can lower it but not exceed it.
+   - The user ticks which invoices and which bills the offset applies to; the amount is spread oldest-first, and each line shows how much of it gets cleared.
+3. Pressing **Process Contra Offset** records, in one go:
+   - A payment against each selected invoice, marked as a contra settlement (so the invoice's paid amount and status update automatically as they do today).
+   - A vendor payment against each selected bill, marked as a contra settlement (bill status updates as today).
+   - An audit entry: `Contra Settlement Processed: Offset $X against Invoice #INV-XXX and Bill #BILL-XXX`.
+4. Remaining balances are recalculated automatically, so the invoice list keeps showing the true net amount still due in cash.
 
-**New `leads` table**
-- Fields: customer_id, title, description, source, status ('new' | 'converted' | 'lost'), owner_id (creator), created_by_role, converted_order_id (nullable).
-- RLS: Sales sees own leads; Designers see own leads + all leads assigned to them; Production has no access; Admin/Accountant read-only.
-- GRANTs for authenticated + service_role.
+## Visual indicators
 
-**New `activity_log` table** (order + lead timeline)
-- Fields: entity_type ('lead' | 'order'), entity_id, actor_id, actor_role, action (text), details (jsonb).
-- RLS: any authenticated user tied to the entity can read; insert via triggers/service.
-- Auto-populated by triggers on leads + orders.
+- Invoice payment breakdown (invoice dialog / payment report): contra lines show a badge **"Paid via Contra Offset"**.
+- Vendor bill breakdown: contra lines show **"Cleared via Contra Offset"**.
+- Unpaid invoice lists show remaining net amount after contra, as they do for any payment.
 
-**Extend `orders`**
-- Add `owner_id uuid` (creator) and `production_stage` enum ('not_sent' | 'sent_to_production' | 'in_production' | 'completed').
-- Backfill existing rows: owner_id ← salesperson_id or created_by; production_stage from current status.
+## Accounting note
 
-**Print operator treated as Production**
-- No rename. Existing `print_operator` role continues; UI labels updated to "Production".
+A contra offset moves no cash. To keep Net Profit and cash figures honest, contra vendor payments will **not** create an expense record (unlike cash vendor payments) — the debt is settled against a receivable, not paid out. The offset is instead recorded as a clearing entry on both documents.
 
-## 2. Role rules enforced in code + RLS
+## Technical details
 
-**Sales**
-- Can create Leads, convert Lead → Order, must select Designer on the order form (form validation: designer_id required).
-- Cannot set production_stage beyond `not_sent`. Cannot mark completed.
-
-**Designer**
-- Can create Leads (auto owner = self).
-- Convert own Lead → Order (auto-assigns self as designer).
-- Works design stage; single button "Send to Production" sets production_stage = 'sent_to_production'.
-- Cannot reassign to other designers, cannot mark completed.
-
-**Production (print_operator role)**
-- Sees only orders with production_stage in ('sent_to_production', 'in_production').
-- Buttons: "Start Production" → in_production; "Mark Completed" → completed.
-- Cannot edit customer/design data, cannot see pre-production orders.
-
-**Finance roles (accountant, admin, board): unchanged.** They keep read access to everything.
-
-## 3. UI changes
-
-- New page `/leads` with list + create dialog + "Convert to Order" action (Sales & Designer only in nav).
-- Order form: designer dropdown becomes required for Sales; auto-filled + locked for Designer-created orders.
-- Order detail: add "Send to Production" button (designer only), "Start Production" / "Mark Completed" buttons (production only). Show Activity Timeline pulled from `activity_log`.
-- Nav updates:
-  - Sales: Dashboard, Leads, Customers, Products, Orders, Settings.
-  - Designer: Dashboard, Leads, Orders (assigned), Settings.
-  - Production: Dashboard, Orders (in production queue), Settings.
-  - Finance roles: unchanged.
-
-## 4. Activity log
-
-Triggers on `leads` and `orders` insert rows into `activity_log` with actor = `auth.uid()` for: created, converted, designer_assigned, sent_to_production, production_started, completed. Timeline component renders it on lead/order detail.
-
-## 5. Out of scope (untouched)
-
-- Invoices, payments, expenses, vendor bills/POs, commissions, wallets, shareholders, tax settings.
-- Accountant, admin, board dashboards.
-- Invoice numbering, draft invoice flow.
-
-## Files touched (approx.)
-
-- Migration: new tables, columns, triggers, RLS, GRANTs.
-- New: `src/pages/Leads.tsx`, `src/components/ActivityTimeline.tsx`, `src/components/ConvertLeadDialog.tsx`.
-- Edit: `src/App.tsx` (routes), `src/components/Layout.tsx` (nav per role), `src/pages/Orders.tsx`, `src/pages/OrderDetail.tsx`, `src/pages/SalesDashboard.tsx`, `src/pages/DesignerDashboard.tsx`, `src/pages/PrintOperatorDashboard.tsx`.
-
-Approve and I'll run the migration first, then wire the UI.
+- Migration: add `'contra'` to the `payment_method` enum; add `is_contra boolean default false` and `contra_reference text` to `payments` and `vendor_payments`; add a `contra_settlements` header table (customer_id, vendor_id, amount, reference, created_by) with GRANTs and RLS limited to admin/accountant (read) and admin/accountant (insert), no update/delete.
+- New component `src/components/ContraSettlementPanel.tsx` holding the dialog and processing logic; mounted in `src/pages/VendorPayments.tsx` and the Finance dashboard.
+- Uses existing triggers (`tg_payments_recompute_invoice`, `update_vendor_bill_on_payment`) so statuses and paid amounts stay consistent — no new balance math on invoices or bills.
+- Audit rows written to `activity_log` (entity_type `contra_settlement`).
+- Badges added where payment rows are rendered: `InvoiceDialog.tsx`, `PaymentReport.tsx`, `VendorBills.tsx`, `VendorPayments.tsx`.
