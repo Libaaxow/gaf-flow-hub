@@ -16,6 +16,9 @@ interface Transaction {
   shareholder_id: string;
   transaction_type: string;
   amount: number;
+  description: string | null;
+  reference_number: string | null;
+  transaction_date: string;
 }
 
 interface Dividend {
@@ -54,7 +57,7 @@ export function ShareholdersSummary({ variant = 'full' }: { variant?: 'full' | '
     const fetchData = async () => {
       const [shRes, txRes, invoicesRes, paymentsRes, expensesRes, balancesRes, assetsRes, billsRes, liabilitiesRes] = await Promise.all([
         supabase.from('shareholders').select('id, full_name, share_percentage').eq('status', 'active'),
-        supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount'),
+        supabase.from('shareholder_transactions').select('shareholder_id, transaction_type, amount, description, reference_number, transaction_date').order('transaction_date', { ascending: false }),
         supabase.from('invoices').select('total_amount, amount_paid, is_draft').eq('is_draft', false),
         supabase.from('payments').select('amount').eq('is_contra', false),
         supabase.from('expenses').select('amount, approval_status').eq('approval_status', 'approved'),
