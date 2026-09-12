@@ -399,6 +399,7 @@ const VendorPayments = () => {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           )}
         </div>
 
