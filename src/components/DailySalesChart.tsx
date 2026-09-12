@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { format, subDays, startOfDay } from 'date-fns';
 import {
   ResponsiveContainer,
@@ -26,12 +27,24 @@ interface DayPoint {
   invoices: number;
 }
 
+interface InvoiceRow {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  total_amount: number;
+  amount_paid: number;
+  status: string;
+  customer_name: string;
+}
+
 const fmt = (n: number) =>
   `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export default function DailySalesChart() {
   const [days, setDays] = useState<string>('1');
   const [rows, setRows] = useState<DayPoint[]>([]);
+  const [invoiceList, setInvoiceList] = useState<InvoiceRow[]>([]);
+  const [listOpen, setListOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
