@@ -10,6 +10,7 @@ import PrintOperatorDashboard from './PrintOperatorDashboard';
 import AdminDashboard from './AdminDashboard';
 import AccountantDashboard from './AccountantDashboard';
 import BoardDashboard from './BoardDashboard';
+import { applyTestRole, useTestRole } from '@/lib/testRole';
 
 interface DashboardStats {
   totalSales: number;
@@ -29,7 +30,9 @@ const Dashboard = () => {
     netIncome: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [dbRole, setDbRole] = useState<string | null>(null);
+  const testRole = useTestRole();
+  const userRole = applyTestRole(dbRole ? [dbRole] : [], testRole)[0] || dbRole;
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -47,7 +50,7 @@ const Dashboard = () => {
         
         if (roleData) {
           console.log('User role found:', roleData.role);
-          setUserRole(roleData.role);
+          setDbRole(roleData.role);
         } else {
           console.log('No role found for user:', user?.id);
         }
