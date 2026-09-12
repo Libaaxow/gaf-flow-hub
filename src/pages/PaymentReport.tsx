@@ -680,7 +680,13 @@ export default function PaymentReport() {
                               <TableCell className="whitespace-nowrap">{t.date}</TableCell>
                               <TableCell className="font-mono text-xs">{t.payment_id}</TableCell>
                               <TableCell className="max-w-[180px] truncate">{t.customer}</TableCell>
-                              <TableCell className="capitalize">{t.method}</TableCell>
+                              <TableCell className="capitalize">
+                                {t.method === 'contra' ? (
+                                  <Badge variant="outline">Paid via Contra Offset</Badge>
+                                ) : (
+                                  t.method
+                                )}
+                              </TableCell>
                               <TableCell className="text-right font-semibold">{money(t.received)}</TableCell>
                               <TableCell className="text-right">{money(t.allocated)}</TableCell>
                               <TableCell className="text-right">{money(t.unallocated)}</TableCell>

@@ -388,6 +388,54 @@ export type Database = {
         }
         Relationships: []
       }
+      contra_settlements: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          reference: string
+          vendor_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          reference: string
+          vendor_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          reference?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contra_settlements_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contra_settlements_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_audit_log: {
         Row: {
           action: string
@@ -1466,6 +1514,7 @@ export type Database = {
       payments: {
         Row: {
           amount: number
+          contra_reference: string | null
           created_at: string | null
           discount_amount: number | null
           discount_reason: string | null
@@ -1473,6 +1522,7 @@ export type Database = {
           discount_value: number | null
           id: string
           invoice_id: string | null
+          is_contra: boolean
           notes: string | null
           order_id: string | null
           payment_date: string
@@ -1486,6 +1536,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          contra_reference?: string | null
           created_at?: string | null
           discount_amount?: number | null
           discount_reason?: string | null
@@ -1493,6 +1544,7 @@ export type Database = {
           discount_value?: number | null
           id?: string
           invoice_id?: string | null
+          is_contra?: boolean
           notes?: string | null
           order_id?: string | null
           payment_date?: string
@@ -1506,6 +1558,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          contra_reference?: string | null
           created_at?: string | null
           discount_amount?: number | null
           discount_reason?: string | null
@@ -1513,6 +1566,7 @@ export type Database = {
           discount_value?: number | null
           id?: string
           invoice_id?: string | null
+          is_contra?: boolean
           notes?: string | null
           order_id?: string | null
           payment_date?: string
@@ -2668,8 +2722,10 @@ export type Database = {
       vendor_payments: {
         Row: {
           amount: number
+          contra_reference: string | null
           created_at: string
           id: string
+          is_contra: boolean
           notes: string | null
           payment_date: string
           payment_method: string
@@ -2681,8 +2737,10 @@ export type Database = {
         }
         Insert: {
           amount: number
+          contra_reference?: string | null
           created_at?: string
           id?: string
+          is_contra?: boolean
           notes?: string | null
           payment_date?: string
           payment_method: string
@@ -2694,8 +2752,10 @@ export type Database = {
         }
         Update: {
           amount?: number
+          contra_reference?: string | null
           created_at?: string
           id?: string
+          is_contra?: boolean
           notes?: string | null
           payment_date?: string
           payment_method?: string
@@ -2940,6 +3000,7 @@ export type Database = {
         | "mobile_money"
         | "cheque"
         | "card"
+        | "contra"
       payment_status: "unpaid" | "partial" | "paid"
       print_type_enum:
         | "business_card"
@@ -3138,6 +3199,7 @@ export const Constants = {
         "mobile_money",
         "cheque",
         "card",
+        "contra",
       ],
       payment_status: ["unpaid", "partial", "paid"],
       print_type_enum: [

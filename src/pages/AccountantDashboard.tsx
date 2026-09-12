@@ -74,6 +74,7 @@ import { EmployeesPanel } from '@/components/EmployeesPanel';
 
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
+import ContraSettlementPanel from '@/components/ContraSettlementPanel';
 
 interface FinancialStats {
   totalRevenue: number;
@@ -3586,9 +3587,11 @@ const AccountantDashboard = () => {
                           <SelectItem value="mobile_money">Mobile Money</SelectItem>
                           <SelectItem value="cheque">Cheque</SelectItem>
                           <SelectItem value="card">Card</SelectItem>
+                          <SelectItem value="contra">Contra Offset</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    <ContraSettlementPanel onProcessed={() => window.location.reload()} />
                   </div>
                 </div>
 
@@ -3657,7 +3660,11 @@ const AccountantDashboard = () => {
                                     {payment.order?.customer?.name || payment.invoice?.customer?.name || 'N/A'}
                                   </TableCell>
                                   <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                  <TableCell className="capitalize">{payment.payment_method.replace('_', ' ')}</TableCell>
+                                  <TableCell className="capitalize">
+                                    {payment.payment_method === 'contra'
+                                      ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                      : payment.payment_method.replace('_', ' ')}
+                                  </TableCell>
                                   <TableCell>{payment.reference_number || '-'}</TableCell>
                                 </TableRow>
                               ))
@@ -4721,7 +4728,11 @@ const AccountantDashboard = () => {
                                   {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
                                 </TableCell>
                                 <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                <TableCell className="capitalize">{payment.payment_method}</TableCell>
+                                <TableCell className="capitalize">
+                                  {payment.payment_method === 'contra'
+                                    ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                    : payment.payment_method}
+                                </TableCell>
                                 <TableCell>{payment.reference_number || '-'}</TableCell>
                               </TableRow>
                             ))
