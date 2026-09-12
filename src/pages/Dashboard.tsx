@@ -30,7 +30,9 @@ const Dashboard = () => {
     netIncome: 0,
   });
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const [dbRole, setDbRole] = useState<string | null>(null);
+  const testRole = useTestRole();
+  const userRole = applyTestRole(dbRole ? [dbRole] : [], testRole)[0] || dbRole;
 
   useEffect(() => {
     const fetchStats = async () => {
