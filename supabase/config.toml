@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-annual-report]
 verify_jwt = false
+
+[functions.send-sms-sent]
+verify_jwt = false
