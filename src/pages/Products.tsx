@@ -733,7 +733,7 @@ const Products = () => {
                 )}
                 
                 {/* Unit Conversion Info - for unit-based products */}
-                {selectedProduct.sale_type !== 'area' && (
+                {selectedProduct.sale_type === 'unit' && (
                   <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                     <p className="text-sm font-medium">Unit Conversion</p>
                     <div className="grid grid-cols-3 gap-4 text-sm">
