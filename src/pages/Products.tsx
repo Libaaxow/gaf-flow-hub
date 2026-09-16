@@ -633,15 +633,20 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={product.stock_quantity <= product.reorder_level ? 'text-destructive font-medium' : ''}>
-                            {product.stock_quantity} {product.retail_unit}
-                          </span>
-                          {product.stock_quantity <= product.reorder_level && (
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                          )}
-                        </div>
+                        {product.sale_type === 'service' ? (
+                          <Badge variant="secondary">Service</Badge>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={product.stock_quantity <= product.reorder_level ? 'text-destructive font-medium' : ''}>
+                              {product.stock_quantity} {product.retail_unit}
+                            </span>
+                            {product.stock_quantity <= product.reorder_level && (
+                              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                        )}
                       </td>
+
                       <td className="px-4 py-4 text-sm">
                         <span className="text-muted-foreground">${(product.cost_per_retail_unit || 0).toFixed(2)}</span>
                       </td>
