@@ -916,6 +916,9 @@ const Products = () => {
                     />
                   </div>
                 </div>
+                {editProductSaleType === 'service' ? (
+                  <p className="text-xs text-muted-foreground">Services are not stocked — no stock alerts and no stock limits on invoices.</p>
+                ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
@@ -937,6 +940,8 @@ const Products = () => {
                     </div>
                   )}
                 </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-preferred_vendor_id">Preferred Vendor</Label>
                   <Select name="preferred_vendor_id" defaultValue={selectedProduct.preferred_vendor_id || undefined}>
