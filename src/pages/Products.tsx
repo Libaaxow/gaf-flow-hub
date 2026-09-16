@@ -332,9 +332,11 @@ const Products = () => {
 
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.status === 'active').length;
-  const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
-  const outOfStock = products.filter(p => p.stock_quantity === 0).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.cost_price * p.stock_quantity), 0);
+  const stockedProducts = products.filter(p => p.sale_type !== 'service');
+  const lowStockProducts = stockedProducts.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
+  const outOfStock = stockedProducts.filter(p => p.stock_quantity === 0).length;
+  const totalValue = stockedProducts.reduce((sum, p) => sum + (p.cost_price * p.stock_quantity), 0);
+
 
   if (loading) {
     return (
