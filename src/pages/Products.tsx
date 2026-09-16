@@ -398,8 +398,11 @@ const Products = () => {
                     <p className="text-xs text-muted-foreground">
                       {newProductSaleType === 'area' 
                         ? 'For roll materials sold by area (m²) like Banner, Flex, Vinyl' 
+                        : newProductSaleType === 'service'
+                        ? 'Services are not stocked — no stock alerts and no stock limits on invoices'
                         : 'Standard unit-based selling (Pieces, Meters, etc.)'}
                     </p>
+
                   </div>
 
                   {/* Area-Based Roll Configuration */}
