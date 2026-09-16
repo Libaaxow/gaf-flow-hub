@@ -5514,7 +5514,7 @@ const AccountantDashboard = () => {
                         <SelectContent>
                           {products.map((product) => (
                             <SelectItem key={product.id} value={product.id}>
-                              {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} (Stock: {product.stock_quantity})
+                              {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} {product.sale_type === 'service' ? '(Service)' : `(Stock: ${product.stock_quantity})`}
                             </SelectItem>
                           ))}
                         </SelectContent>
