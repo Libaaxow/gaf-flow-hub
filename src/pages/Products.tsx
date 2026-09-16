@@ -53,7 +53,9 @@ const RETAIL_UNITS = ['Piece', 'Meter', 'Sheet', 'Kg', 'Liter', 'Unit', 'Pair', 
 const SALE_TYPES = [
   { value: 'unit', label: 'Unit-Based (Standard)' },
   { value: 'area', label: 'Area-Based (H × W in m²)' },
+  { value: 'service', label: 'Service (No Stock)' },
 ];
+
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -66,7 +68,7 @@ const productSchema = z.object({
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
   preferred_vendor_id: z.string().nullable().optional(),
-  sale_type: z.enum(['unit', 'area']).optional(),
+  sale_type: z.enum(['unit', 'area', 'service']).optional(),
   roll_width: z.number().nullable().optional(),
   roll_length: z.number().nullable().optional(),
   selling_price_per_m2: z.number().nullable().optional(),
@@ -166,17 +168,19 @@ const Products = () => {
     const totalRollArea = (rollWidth && rollLength) ? rollWidth * rollLength : null;
     const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
     
+    const isService = saleType === 'service';
+
     const productData = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: formData.get('purchase_unit') as string,
-      retail_unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      conversion_rate: saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1),
+      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
+      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -185,6 +189,7 @@ const Products = () => {
       cost_per_m2: saleType === 'area' ? costPerM2 : null,
       selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
+
 
     try {
       const productCode = await generateProductCode();
@@ -228,17 +233,19 @@ const Products = () => {
     const stockQuantityInput = formData.get('stock_quantity');
     const stockQuantity = stockQuantityInput !== null ? parseFloat(stockQuantityInput as string) : null;
     
+    const isService = saleType === 'service';
+
     const productData: Record<string, any> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: formData.get('purchase_unit') as string,
-      retail_unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      conversion_rate: saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1),
+      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
+      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -248,9 +255,10 @@ const Products = () => {
       selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
     
-    // Admins and accountants can make manual stock adjustments
-    if (canManageProducts && stockQuantity !== null && !isNaN(stockQuantity)) {
+    // Admins and accountants can make manual stock adjustments (not for services)
+    if (canManageProducts && !isService && stockQuantity !== null && !isNaN(stockQuantity)) {
       productData.stock_quantity = stockQuantity;
+
     }
 
     try {
@@ -324,9 +332,11 @@ const Products = () => {
 
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.status === 'active').length;
-  const lowStockProducts = products.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
-  const outOfStock = products.filter(p => p.stock_quantity === 0).length;
-  const totalValue = products.reduce((sum, p) => sum + (p.cost_price * p.stock_quantity), 0);
+  const stockedProducts = products.filter(p => p.sale_type !== 'service');
+  const lowStockProducts = stockedProducts.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
+  const outOfStock = stockedProducts.filter(p => p.stock_quantity === 0).length;
+  const totalValue = stockedProducts.reduce((sum, p) => sum + (p.cost_price * p.stock_quantity), 0);
+
 
   if (loading) {
     return (
@@ -388,8 +398,11 @@ const Products = () => {
                     <p className="text-xs text-muted-foreground">
                       {newProductSaleType === 'area' 
                         ? 'For roll materials sold by area (m²) like Banner, Flex, Vinyl' 
+                        : newProductSaleType === 'service'
+                        ? 'Services are not stocked — no stock alerts and no stock limits on invoices'
                         : 'Standard unit-based selling (Pieces, Meters, etc.)'}
                     </p>
+
                   </div>
 
                   {/* Area-Based Roll Configuration */}
@@ -469,12 +482,12 @@ const Products = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">Cost per {newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
+                      <Label htmlFor="cost_price">{newProductSaleType === 'service' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'}>
-                        Selling Price per {newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)
+                        {newProductSaleType === 'service' ? 'Service Price ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
                       </Label>
                       <Input 
                         id={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
@@ -485,10 +498,13 @@ const Products = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
-                    <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
-                  </div>
+                  {newProductSaleType !== 'service' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
+                      <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="preferred_vendor_id">Preferred Vendor</Label>
                     <Select name="preferred_vendor_id">
@@ -617,15 +633,20 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={product.stock_quantity <= product.reorder_level ? 'text-destructive font-medium' : ''}>
-                            {product.stock_quantity} {product.retail_unit}
-                          </span>
-                          {product.stock_quantity <= product.reorder_level && (
-                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
-                          )}
-                        </div>
+                        {product.sale_type === 'service' ? (
+                          <Badge variant="secondary">Service</Badge>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className={product.stock_quantity <= product.reorder_level ? 'text-destructive font-medium' : ''}>
+                              {product.stock_quantity} {product.retail_unit}
+                            </span>
+                            {product.stock_quantity <= product.reorder_level && (
+                              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            )}
+                          </div>
+                        )}
                       </td>
+
                       <td className="px-4 py-4 text-sm">
                         <span className="text-muted-foreground">${(product.cost_per_retail_unit || 0).toFixed(2)}</span>
                       </td>
@@ -691,9 +712,10 @@ const Products = () => {
                   <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{selectedProduct.name}</p></div>
                   <div><Label className="text-muted-foreground">Category</Label><p>{selectedProduct.category || '-'}</p></div>
                   <div><Label className="text-muted-foreground">Sale Type</Label>
-                    <Badge variant={selectedProduct.sale_type === 'area' ? 'outline' : 'default'}>
-                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : 'Unit-Based'}
+                    <Badge variant={selectedProduct.sale_type === 'unit' ? 'default' : selectedProduct.sale_type === 'service' ? 'secondary' : 'outline'}>
+                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : selectedProduct.sale_type === 'service' ? 'Service (No Stock)' : 'Unit-Based'}
                     </Badge>
+
                   </div>
                   <div><Label className="text-muted-foreground">Status</Label><Badge variant={selectedProduct.status === 'active' ? 'default' : 'secondary'}>{selectedProduct.status}</Badge></div>
                 </div>
@@ -711,7 +733,7 @@ const Products = () => {
                 )}
                 
                 {/* Unit Conversion Info - for unit-based products */}
-                {selectedProduct.sale_type !== 'area' && (
+                {selectedProduct.sale_type === 'unit' && (
                   <div className="p-3 bg-muted/50 rounded-lg space-y-2">
                     <p className="text-sm font-medium">Unit Conversion</p>
                     <div className="grid grid-cols-3 gap-4 text-sm">
@@ -748,10 +770,15 @@ const Products = () => {
                 </div>
 
                 {/* Stock Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
-                  <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
-                </div>
+                {selectedProduct.sale_type === 'service' ? (
+                  <p className="text-sm text-muted-foreground">This is a service — no stock is tracked and no stock alerts are shown.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
+                    <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
+                  </div>
+                )}
+
                 
                 {selectedProduct.description && (
                   <div><Label className="text-muted-foreground">Description</Label><p>{selectedProduct.description}</p></div>
@@ -889,6 +916,9 @@ const Products = () => {
                     />
                   </div>
                 </div>
+                {editProductSaleType === 'service' ? (
+                  <p className="text-xs text-muted-foreground">Services are not stocked — no stock alerts and no stock limits on invoices.</p>
+                ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
@@ -910,6 +940,8 @@ const Products = () => {
                     </div>
                   )}
                 </div>
+                )}
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-preferred_vendor_id">Preferred Vendor</Label>
                   <Select name="preferred_vendor_id" defaultValue={selectedProduct.preferred_vendor_id || undefined}>

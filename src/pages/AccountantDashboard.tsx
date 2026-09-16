@@ -2407,7 +2407,8 @@ const AccountantDashboard = () => {
     for (const item of invoiceItems) {
       if (item.product_id) {
         const product = products.find(p => p.id === item.product_id);
-        if (product && item.quantity > product.stock_quantity) {
+        if (product && product.sale_type !== 'service' && item.quantity > product.stock_quantity) {
+
           toast({
             title: 'Insufficient Stock',
             description: `Not enough stock for ${product.name}. Available: ${product.stock_quantity} ${product.retail_unit}(s)`,
@@ -2819,7 +2820,7 @@ const AccountantDashboard = () => {
     for (const item of invoiceItems) {
       if (item.product_id) {
         const product = products.find(p => p.id === item.product_id);
-        if (product && item.quantity > product.stock_quantity) {
+        if (product && product.sale_type !== 'service' && item.quantity > product.stock_quantity) {
           toast({
             title: 'Insufficient Stock',
             description: `Not enough stock for ${product.name}. Available: ${product.stock_quantity} ${product.retail_unit}(s)`,
@@ -5513,7 +5514,7 @@ const AccountantDashboard = () => {
                         <SelectContent>
                           {products.map((product) => (
                             <SelectItem key={product.id} value={product.id}>
-                              {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} (Stock: {product.stock_quantity})
+                              {product.name} - ${product.selling_price.toFixed(2)}/{product.retail_unit} {product.sale_type === 'service' ? '(Service)' : `(Stock: ${product.stock_quantity})`}
                             </SelectItem>
                           ))}
                         </SelectContent>
