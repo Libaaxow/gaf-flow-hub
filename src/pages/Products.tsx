@@ -482,12 +482,12 @@ const Products = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">Cost per {newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
+                      <Label htmlFor="cost_price">{newProductSaleType === 'service' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'}>
-                        Selling Price per {newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)
+                        {newProductSaleType === 'service' ? 'Service Price ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
                       </Label>
                       <Input 
                         id={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
@@ -498,10 +498,13 @@ const Products = () => {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
-                    <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
-                  </div>
+                  {newProductSaleType !== 'service' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
+                      <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label htmlFor="preferred_vendor_id">Preferred Vendor</Label>
                     <Select name="preferred_vendor_id">
