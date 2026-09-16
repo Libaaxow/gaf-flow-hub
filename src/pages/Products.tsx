@@ -233,17 +233,19 @@ const Products = () => {
     const stockQuantityInput = formData.get('stock_quantity');
     const stockQuantity = stockQuantityInput !== null ? parseFloat(stockQuantityInput as string) : null;
     
+    const isService = saleType === 'service';
+
     const productData: Record<string, any> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: formData.get('purchase_unit') as string,
-      retail_unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      unit: saleType === 'area' ? 'm²' : formData.get('retail_unit') as string,
-      conversion_rate: saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1),
+      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
+      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: parseInt(formData.get('reorder_level') as string) || 0,
+      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -253,9 +255,10 @@ const Products = () => {
       selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
     
-    // Admins and accountants can make manual stock adjustments
-    if (canManageProducts && stockQuantity !== null && !isNaN(stockQuantity)) {
+    // Admins and accountants can make manual stock adjustments (not for services)
+    if (canManageProducts && !isService && stockQuantity !== null && !isNaN(stockQuantity)) {
       productData.stock_quantity = stockQuantity;
+
     }
 
     try {
