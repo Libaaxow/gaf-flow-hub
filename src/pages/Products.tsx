@@ -770,10 +770,15 @@ const Products = () => {
                 </div>
 
                 {/* Stock Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
-                  <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
-                </div>
+                {selectedProduct.sale_type === 'service' ? (
+                  <p className="text-sm text-muted-foreground">This is a service — no stock is tracked and no stock alerts are shown.</p>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
+                    <div><Label className="text-muted-foreground">Reorder Level</Label><p>{selectedProduct.reorder_level}</p></div>
+                  </div>
+                )}
+
                 
                 {selectedProduct.description && (
                   <div><Label className="text-muted-foreground">Description</Label><p>{selectedProduct.description}</p></div>
