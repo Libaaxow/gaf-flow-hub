@@ -53,7 +53,9 @@ const RETAIL_UNITS = ['Piece', 'Meter', 'Sheet', 'Kg', 'Liter', 'Unit', 'Pair', 
 const SALE_TYPES = [
   { value: 'unit', label: 'Unit-Based (Standard)' },
   { value: 'area', label: 'Area-Based (H × W in m²)' },
+  { value: 'service', label: 'Service (No Stock)' },
 ];
+
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
