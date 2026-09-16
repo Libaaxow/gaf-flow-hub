@@ -168,7 +168,10 @@ export default function PaymentReport() {
           'id, amount, discount_amount, payment_method, payment_date, reference_number, notes, recorded_by, invoice_id, order_id, invoices:invoice_id(id, invoice_number, invoice_date, total_amount, amount_paid, status, customer_id, customers(name)), orders:order_id(customer_id, job_title, customers(name))',
         )
         .gte('payment_date', from.toISOString())
-        .lte('payment_date', to.toISOString());
+        .lte('payment_date', to.toISOString())
+        // Contra offsets move no money — exclude them so "Total Payment Received"
+        // matches the dashboards and the bank.
+        .eq('is_contra', false);
 
       if (invoiceIdsForCustomer) {
         // Include payments recorded straight against the customer's orders

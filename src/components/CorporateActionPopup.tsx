@@ -19,7 +19,16 @@ export const CorporateActionPopup = () => {
   const [actualRoles, setActualRoles] = useState<string[]>([]);
   const [requests, setRequests] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
-  const [dismissed, setDismissed] = useState<string>('');
+  // Persist the dismissal so navigating between pages (each page mounts its own
+  // Layout) does not re-open the popup for the same set of requests.
+  const DISMISS_KEY = 'gaf_corporate_popup_dismissed';
+  const [dismissed, setDismissed] = useState<string>(() => {
+    try {
+      return sessionStorage.getItem(DISMISS_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
 
   const roles = applyTestRole(actualRoles, testRole);
   const isBoard = roles.includes('board');
@@ -60,7 +69,13 @@ export const CorporateActionPopup = () => {
   if (!wanted || pending.length === 0) return null;
 
   const close = () => {
-    setDismissed(`${wanted}:${pending.map((p) => p.id).join(',')}`);
+    const key = `${wanted}:${pending.map((p) => p.id).join(',')}`;
+    setDismissed(key);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, key);
+    } catch {
+      /* ignore */
+    }
     setOpen(false);
   };
 
