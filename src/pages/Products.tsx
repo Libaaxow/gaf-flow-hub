@@ -68,7 +68,7 @@ const productSchema = z.object({
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
   preferred_vendor_id: z.string().nullable().optional(),
-  sale_type: z.enum(['unit', 'area']).optional(),
+  sale_type: z.enum(['unit', 'area', 'service']).optional(),
   roll_width: z.number().nullable().optional(),
   roll_length: z.number().nullable().optional(),
   selling_price_per_m2: z.number().nullable().optional(),
