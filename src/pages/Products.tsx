@@ -712,9 +712,10 @@ const Products = () => {
                   <div><Label className="text-muted-foreground">Name</Label><p className="font-medium">{selectedProduct.name}</p></div>
                   <div><Label className="text-muted-foreground">Category</Label><p>{selectedProduct.category || '-'}</p></div>
                   <div><Label className="text-muted-foreground">Sale Type</Label>
-                    <Badge variant={selectedProduct.sale_type === 'area' ? 'outline' : 'default'}>
-                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : 'Unit-Based'}
+                    <Badge variant={selectedProduct.sale_type === 'unit' ? 'default' : selectedProduct.sale_type === 'service' ? 'secondary' : 'outline'}>
+                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : selectedProduct.sale_type === 'service' ? 'Service (No Stock)' : 'Unit-Based'}
                     </Badge>
+
                   </div>
                   <div><Label className="text-muted-foreground">Status</Label><Badge variant={selectedProduct.status === 'active' ? 'default' : 'secondary'}>{selectedProduct.status}</Badge></div>
                 </div>
