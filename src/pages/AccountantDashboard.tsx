@@ -2407,7 +2407,8 @@ const AccountantDashboard = () => {
     for (const item of invoiceItems) {
       if (item.product_id) {
         const product = products.find(p => p.id === item.product_id);
-        if (product && item.quantity > product.stock_quantity) {
+        if (product && product.sale_type !== 'service' && item.quantity > product.stock_quantity) {
+
           toast({
             title: 'Insufficient Stock',
             description: `Not enough stock for ${product.name}. Available: ${product.stock_quantity} ${product.retail_unit}(s)`,
