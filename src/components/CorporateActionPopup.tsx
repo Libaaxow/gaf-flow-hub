@@ -69,7 +69,13 @@ export const CorporateActionPopup = () => {
   if (!wanted || pending.length === 0) return null;
 
   const close = () => {
-    setDismissed(`${wanted}:${pending.map((p) => p.id).join(',')}`);
+    const key = `${wanted}:${pending.map((p) => p.id).join(',')}`;
+    setDismissed(key);
+    try {
+      sessionStorage.setItem(DISMISS_KEY, key);
+    } catch {
+      /* ignore */
+    }
     setOpen(false);
   };
 
