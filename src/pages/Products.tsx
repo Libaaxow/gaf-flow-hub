@@ -894,10 +894,10 @@ const Products = () => {
                     <Label htmlFor="edit-reorder_level">Reorder Level (in {editProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
                     <Input id="edit-reorder_level" name="reorder_level" type="number" defaultValue={selectedProduct.reorder_level} />
                   </div>
-                  {isAdmin && (
+                  {canManageProducts && (
                     <div className="space-y-2">
                       <Label htmlFor="edit-stock_quantity" className="flex items-center gap-2">
-                        Stock Quantity <Badge variant="outline" className="text-xs">Admin</Badge>
+                        Stock Quantity
                       </Label>
                       <Input 
                         id="edit-stock_quantity" 
