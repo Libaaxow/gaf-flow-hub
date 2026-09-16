@@ -248,8 +248,8 @@ const Products = () => {
       selling_price_per_m2: saleType === 'area' ? sellingPriceM2 : null,
     };
     
-    // Only include stock_quantity if admin is making adjustment
-    if (isAdmin && stockQuantity !== null && !isNaN(stockQuantity)) {
+    // Admins and accountants can make manual stock adjustments
+    if (canManageProducts && stockQuantity !== null && !isNaN(stockQuantity)) {
       productData.stock_quantity = stockQuantity;
     }
 
