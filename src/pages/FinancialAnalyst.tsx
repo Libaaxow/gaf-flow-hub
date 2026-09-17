@@ -307,6 +307,7 @@ const FinancialAnalyst = () => {
         expensesByCategory,
         monthlyTrend,
         topCustomers,
+        customerLedger,
         customersWithOutstanding,
         recentTransactions: recentTransactions.slice(0, 15),
         products,
@@ -647,7 +648,7 @@ const FinancialAnalyst = () => {
                       {financialData.topCustomers.slice(0, 5).map((cust, idx) => (
                         <div key={idx} className="flex justify-between items-center text-sm">
                           <span className="truncate">{cust.name}</span>
-                          <Badge variant="secondary">{formatCurrency(cust.totalSpent)}</Badge>
+                          <Badge variant="secondary">{formatCurrency(cust.totalBilled)}</Badge>
                         </div>
                       ))}
                     </TabsContent>
