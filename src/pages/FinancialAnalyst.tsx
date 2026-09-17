@@ -228,6 +228,57 @@ const FinancialAnalyst = () => {
 
       recentTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
+      // Per-product profitability (cost/price are per retail unit or per m2)
+      const products = productRows.map((p) => {
+        const isArea = p.sale_type === 'area';
+        const isService = p.sale_type === 'service';
+        const cost = isArea
+          ? Number(p.cost_per_m2) || (Number(p.total_roll_area) ? Number(p.cost_price) / Number(p.total_roll_area) : Number(p.cost_price) || 0)
+          : Number(p.cost_per_retail_unit) || (Number(p.conversion_rate) ? Number(p.cost_price) / Number(p.conversion_rate) : Number(p.cost_price) || 0);
+        const price = isArea
+          ? Number(p.selling_price_per_m2) || Number(p.selling_price) || 0
+          : Number(p.selling_price) || 0;
+        const profitPerUnit = price - cost;
+        const stockQuantity = isService ? 0 : Number(p.stock_quantity || 0);
+        return {
+          name: p.name,
+          category: p.category ?? null,
+          saleType: p.sale_type,
+          unit: isArea ? 'm2' : (p.retail_unit || p.unit || 'unit'),
+          costPerUnit: Number(cost.toFixed(4)),
+          sellingPerUnit: Number(price.toFixed(4)),
+          profitPerUnit: Number(profitPerUnit.toFixed(4)),
+          marginPercent: price > 0 ? Number(((profitPerUnit / price) * 100).toFixed(2)) : 0,
+          stockQuantity,
+          potentialProfitOnStock: Number((profitPerUnit * stockQuantity).toFixed(2)),
+          stockValueAtCost: Number((cost * stockQuantity).toFixed(2)),
+        };
+      });
+
+      // Actually sold profit per product, from confirmed invoice items
+      const soldMap: Record<string, { name: string; quantitySold: number; revenue: number; cost: number; profit: number }> = {};
+      confirmedInvoices.forEach((inv: any) => {
+        (inv.invoice_items || []).forEach((item: any) => {
+          const prod = productRows.find((p) => p.id === item.product_id);
+          const key = prod?.name || item.description || 'Unknown';
+          if (!soldMap[key]) soldMap[key] = { name: key, quantitySold: 0, revenue: 0, cost: 0, profit: 0 };
+          soldMap[key].quantitySold += Number(item.quantity || 0);
+          soldMap[key].revenue += Number(item.amount || 0);
+          soldMap[key].cost += Number(item.line_cost || 0);
+          soldMap[key].profit += Number(item.line_profit || 0);
+        });
+      });
+      const soldByProduct = Object.values(soldMap)
+        .map((s) => ({
+          name: s.name,
+          quantitySold: Number(s.quantitySold.toFixed(2)),
+          revenue: Number(s.revenue.toFixed(2)),
+          cost: Number(s.cost.toFixed(2)),
+          profit: Number(s.profit.toFixed(2)),
+        }))
+        .sort((a, b) => b.profit - a.profit);
+
+
       setFinancialData({
         period: format(new Date(), 'MMMM yyyy'),
         beginningBalance,
