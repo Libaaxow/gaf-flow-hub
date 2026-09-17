@@ -191,6 +191,63 @@ const Products = () => {
     if (error) throw error;
   };
 
+  const renderIngredients = (lines: RecipeLine[], setLines: (l: RecipeLine[]) => void, prefix: string) => (
+    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+      <p className="text-sm font-medium text-primary">Ingredients / Raw Material Components</p>
+      <p className="text-xs text-muted-foreground">
+        Enter how much raw material is used to make 1 unit of this product (e.g. 0.125 m² of Sticker Roll per 1 Piece).
+      </p>
+      {lines.map((line, i) => (
+        <div key={`${prefix}-${i}`} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">
+          <div className="space-y-1 min-w-0">
+            <Label className="text-xs">Raw Material</Label>
+            <Select
+              value={line.component_product_id || undefined}
+              onValueChange={(v) => {
+                const next = [...lines];
+                next[i] = { ...next[i], component_product_id: v };
+                setLines(next);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select material" /></SelectTrigger>
+              <SelectContent>
+                {materialOptions.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} ({m.sale_type === 'area' ? 'm²' : (m.retail_unit || 'unit')})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 w-32">
+            <Label className="text-xs">Usage per 1 unit</Label>
+            <Input
+              type="number"
+              step="0.0001"
+              min="0"
+              placeholder="0.125"
+              value={line.quantity_required}
+              onChange={(e) => {
+                const next = [...lines];
+                next[i] = { ...next[i], quantity_required: e.target.value };
+                setLines(next);
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1 pb-2">
+            <span className="text-xs text-muted-foreground w-8">{line.component_product_id ? materialUnit(line.component_product_id) : ''}</span>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setLines(lines.length > 1 ? lines.filter((_, x) => x !== i) : [{ component_product_id: '', quantity_required: '' }])}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, { component_product_id: '', quantity_required: '' }])}>
+        <Plus className="mr-2 h-4 w-4" /> Add Material
+      </Button>
+    </div>
+  );
+
   const generateProductCode = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_product_code');
     if (error) throw error;
@@ -467,6 +524,8 @@ const Products = () => {
                         ? 'For roll materials sold by area (m²) like Banner, Flex, Vinyl' 
                         : newProductSaleType === 'service'
                         ? 'Services are not stocked — no stock alerts and no stock limits on invoices'
+                        : newProductSaleType === 'composite'
+                        ? 'Sold in Pieces, but stock is taken from its raw materials (e.g. Sticker Roll m²)'
                         : 'Standard unit-based selling (Pieces, Meters, etc.)'}
                     </p>
 
@@ -547,14 +606,33 @@ const Products = () => {
                     </div>
                   )}
 
+                  {/* Composite configuration */}
+                  {newProductSaleType === 'composite' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="retail_unit">Selling Unit *</Label>
+                        <Select name="retail_unit" defaultValue="Piece">
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {RETAIL_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Customers are invoiced in this unit (e.g. Piece).</p>
+                      </div>
+                      {renderIngredients(newRecipe, setNewRecipe, 'new')}
+                    </>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">{newProductSaleType === 'service' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
+                      <Label htmlFor="cost_price">{newProductSaleType === 'service' || newProductSaleType === 'composite' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'}>
-                        {newProductSaleType === 'service' ? 'Service Price ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
+                        {newProductSaleType === 'service' ? 'Service Price ($)' : newProductSaleType === 'composite' ? 'Selling Price per Unit ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
                       </Label>
                       <Input 
                         id={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
@@ -565,7 +643,7 @@ const Products = () => {
                       />
                     </div>
                   </div>
-                  {newProductSaleType !== 'service' && (
+                  {newProductSaleType !== 'service' && newProductSaleType !== 'composite' && (
                     <div className="space-y-2">
                       <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
                       <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
@@ -967,6 +1045,24 @@ const Products = () => {
                   </div>
                 )}
 
+                {/* Composite configuration */}
+                {editProductSaleType === 'composite' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-retail_unit">Selling Unit *</Label>
+                      <Select name="retail_unit" defaultValue={selectedProduct.retail_unit || 'Piece'}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {RETAIL_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {renderIngredients(editRecipe, setEditRecipe, 'edit')}
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-cost_price">Cost per {editProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
@@ -985,8 +1081,8 @@ const Products = () => {
                     />
                   </div>
                 </div>
-                {editProductSaleType === 'service' ? (
-                  <p className="text-xs text-muted-foreground">Services are not stocked — no stock alerts and no stock limits on invoices.</p>
+                {editProductSaleType === 'service' || editProductSaleType === 'composite' ? (
+                  <p className="text-xs text-muted-foreground">Not stocked directly — no stock alerts and no stock limits on invoices.</p>
                 ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
