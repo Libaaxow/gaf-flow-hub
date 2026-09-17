@@ -3214,8 +3214,21 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
+        {/* Quick action — Create Invoice at top left of home */}
+        <div className="flex justify-start">
+          <Button size="sm" onClick={async () => {
+            const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+            setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+            setCreateInvoiceDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Invoice
+          </Button>
+        </div>
+
         {/* Daily Sales / Invoices / Collections chart — top of home */}
         <DailySalesChart />
+
 
         {/* Stats Grid */}
         <SalesRequestsPanel />
