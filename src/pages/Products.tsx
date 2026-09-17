@@ -259,7 +259,7 @@ const Products = () => {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    const saleType = (formData.get('sale_type') as string) || 'unit';
+    const saleType = newProductSaleType || (formData.get('sale_type') as string) || 'unit';
     const rollWidth = parseFloat(formData.get('roll_width') as string) || null;
     const rollLength = parseFloat(formData.get('roll_length') as string) || null;
     const costPrice = parseFloat(formData.get('cost_price') as string) || 0;
