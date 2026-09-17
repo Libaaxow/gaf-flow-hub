@@ -54,7 +54,13 @@ const SALE_TYPES = [
   { value: 'unit', label: 'Unit-Based (Standard)' },
   { value: 'area', label: 'Area-Based (H × W in m²)' },
   { value: 'service', label: 'Service (No Stock)' },
+  { value: 'composite', label: 'Composite (Made from raw materials)' },
 ];
+
+interface RecipeLine {
+  component_product_id: string;
+  quantity_required: string;
+}
 
 
 const productSchema = z.object({
@@ -68,7 +74,7 @@ const productSchema = z.object({
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
   preferred_vendor_id: z.string().nullable().optional(),
-  sale_type: z.enum(['unit', 'area', 'service']).optional(),
+  sale_type: z.enum(['unit', 'area', 'service', 'composite']).optional(),
   roll_width: z.number().nullable().optional(),
   roll_length: z.number().nullable().optional(),
   selling_price_per_m2: z.number().nullable().optional(),
@@ -90,6 +96,8 @@ const Products = () => {
   const [canManageProducts, setCanManageProducts] = useState(false);
   const [newProductSaleType, setNewProductSaleType] = useState<string>('unit');
   const [editProductSaleType, setEditProductSaleType] = useState<string>('unit');
+  const [newRecipe, setNewRecipe] = useState<RecipeLine[]>([{ component_product_id: '', quantity_required: '' }]);
+  const [editRecipe, setEditRecipe] = useState<RecipeLine[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -148,6 +156,41 @@ const Products = () => {
     setVendors(data || []);
   };
 
+  const materialOptions = products.filter(p => p.sale_type === 'unit' || p.sale_type === 'area');
+
+  const materialUnit = (id: string) => {
+    const m = products.find(p => p.id === id);
+    if (!m) return 'unit';
+    return m.sale_type === 'area' ? 'm²' : (m.retail_unit || 'unit');
+  };
+
+  const loadRecipe = async (productId: string) => {
+    const { data } = await supabase
+      .from('product_recipes')
+      .select('component_product_id, quantity_required')
+      .eq('product_id', productId);
+    const lines = (data || []).map((r: any) => ({
+      component_product_id: r.component_product_id,
+      quantity_required: String(r.quantity_required),
+    }));
+    setEditRecipe(lines.length ? lines : [{ component_product_id: '', quantity_required: '' }]);
+  };
+
+  const saveRecipe = async (productId: string, lines: RecipeLine[]) => {
+    const valid = lines.filter(l => l.component_product_id && parseFloat(l.quantity_required) > 0);
+    await supabase.from('product_recipes').delete().eq('product_id', productId);
+    if (!valid.length) return;
+    const { error } = await supabase.from('product_recipes').insert(
+      valid.map(l => ({
+        product_id: productId,
+        component_product_id: l.component_product_id,
+        quantity_required: parseFloat(l.quantity_required),
+        created_by: user?.id || null,
+      }))
+    );
+    if (error) throw error;
+  };
+
   const generateProductCode = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_product_code');
     if (error) throw error;
@@ -170,18 +213,19 @@ const Products = () => {
     const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
     
     const isService = saleType === 'service';
+    const isComposite = saleType === 'composite';
 
     const productData = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      purchase_unit: isService ? 'Service' : (isComposite ? ((formData.get('retail_unit') as string) || 'Piece') : (formData.get('purchase_unit') as string)),
       retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
       unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
-      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
+      conversion_rate: (isService || isComposite) ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
+      reorder_level: (isService || isComposite) ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -195,18 +239,25 @@ const Products = () => {
     try {
       const productCode = await generateProductCode();
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('products')
         .insert([{ 
           ...productData,
           product_code: productCode,
           created_by: user?.id || null,
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
+      if (isComposite && inserted?.id) {
+        await saveRecipe(inserted.id, newRecipe);
+      }
+
       toast({ title: 'Success', description: 'Product added successfully' });
       form.reset();
+      setNewRecipe([{ component_product_id: '', quantity_required: '' }]);
       setIsDialogOpen(false);
       fetchProducts();
     } catch (error: any) {
@@ -235,18 +286,19 @@ const Products = () => {
     const stockQuantity = stockQuantityInput !== null ? parseFloat(stockQuantityInput as string) : null;
     
     const isService = saleType === 'service';
+    const isComposite = saleType === 'composite';
 
     const productData: Record<string, any> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      purchase_unit: isService ? 'Service' : (isComposite ? ((formData.get('retail_unit') as string) || 'Piece') : (formData.get('purchase_unit') as string)),
       retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
       unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
-      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
+      conversion_rate: (isService || isComposite) ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
+      reorder_level: (isService || isComposite) ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -269,6 +321,12 @@ const Products = () => {
         .eq('id', selectedProduct.id);
 
       if (error) throw error;
+
+      if (isComposite) {
+        await saveRecipe(selectedProduct.id, editRecipe);
+      } else {
+        await supabase.from('product_recipes').delete().eq('product_id', selectedProduct.id);
+      }
 
       toast({ title: 'Success', description: 'Product updated successfully' });
       setIsEditDialogOpen(false);
@@ -333,7 +391,7 @@ const Products = () => {
 
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.status === 'active').length;
-  const stockedProducts = products.filter(p => p.sale_type !== 'service');
+  const stockedProducts = products.filter(p => p.sale_type !== 'service' && p.sale_type !== 'composite');
   const lowStockProducts = stockedProducts.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
   const outOfStock = stockedProducts.filter(p => p.stock_quantity === 0).length;
   // Stock is held in retail units (pieces) or m² for area products, so value it
@@ -642,7 +700,7 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        {product.sale_type === 'service' ? (
+                        {product.sale_type === 'service' || product.sale_type === 'composite' ? (
                           <Badge variant="secondary">Service</Badge>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -802,6 +860,8 @@ const Products = () => {
           setIsEditDialogOpen(open);
           if (open && selectedProduct) {
             setEditProductSaleType(selectedProduct.sale_type || 'unit');
+            setEditRecipe([{ component_product_id: '', quantity_required: '' }]);
+            loadRecipe(selectedProduct.id);
           }
         }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
