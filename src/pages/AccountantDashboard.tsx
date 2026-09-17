@@ -5043,7 +5043,7 @@ const AccountantDashboard = () => {
                               <SelectContent className="bg-background z-50">
                                 {products.map((product) => (
                                   <SelectItem key={product.id} value={product.id}>
-                                    {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                    {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`} {product.sale_type === 'service' ? '· Service' : `· Left: ${product.stock_quantity} ${product.sale_type === 'area' ? 'm²' : (product.retail_unit || 'pc')}`}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
