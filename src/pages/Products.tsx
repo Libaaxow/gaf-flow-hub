@@ -335,7 +335,15 @@ const Products = () => {
   const stockedProducts = products.filter(p => p.sale_type !== 'service');
   const lowStockProducts = stockedProducts.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
   const outOfStock = stockedProducts.filter(p => p.stock_quantity === 0).length;
-  const totalValue = stockedProducts.reduce((sum, p) => sum + (p.cost_price * p.stock_quantity), 0);
+  // Stock is held in retail units (pieces) or m² for area products, so value it
+  // with the matching per-unit cost, not the purchase-unit (box/roll) cost.
+  const unitCostForStock = (p: any) => {
+    if (p.sale_type === 'area') {
+      return Number(p.cost_per_m2) || (Number(p.total_roll_area) ? Number(p.cost_price) / Number(p.total_roll_area) : Number(p.cost_price) || 0);
+    }
+    return Number(p.cost_per_retail_unit) || (Number(p.conversion_rate) ? Number(p.cost_price) / Number(p.conversion_rate) : Number(p.cost_price) || 0);
+  };
+  const totalValue = stockedProducts.reduce((sum, p) => sum + unitCostForStock(p) * Number(p.stock_quantity || 0), 0);
 
 
   if (loading) {
