@@ -236,6 +236,78 @@ const AccountantDashboard = () => {
       setSavingExpenseEdit(false);
     }
   };
+
+  // ---- Payment record edit (with audit note) ----
+  const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [editPaymentForm, setEditPaymentForm] = useState({ amount: '', payment_method: 'cash', reference_number: '', payment_date: '', reason: '' });
+  const [savingPaymentEdit, setSavingPaymentEdit] = useState(false);
+
+  const openEditPayment = (payment: any) => {
+    setEditingPayment(payment);
+    setEditPaymentForm({
+      amount: String(payment.amount ?? ''),
+      payment_method: payment.payment_method ?? 'cash',
+      reference_number: payment.reference_number ?? '',
+      payment_date: payment.payment_date ? format(new Date(payment.payment_date), "yyyy-MM-dd'T'HH:mm") : '',
+      reason: '',
+    });
+  };
+
+  const handleSavePaymentEdit = async () => {
+    if (!editingPayment) return;
+    if (!editPaymentForm.reason.trim()) {
+      toast({ title: 'Reason required', description: 'Fadlan qor sababta aad u beddelayso (edit reason is required).', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(editPaymentForm.amount);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: 'Invalid amount', description: 'Please enter a valid amount.', variant: 'destructive' });
+      return;
+    }
+    setSavingPaymentEdit(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const editNote = `[EDIT ${format(new Date(), 'yyyy-MM-dd HH:mm')}] Amount: $${Number(editingPayment.amount).toFixed(2)} -> $${amount.toFixed(2)}. Reason: ${editPaymentForm.reason.trim()}`;
+      const combinedNotes = editingPayment.notes ? `${editingPayment.notes}\n${editNote}` : editNote;
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          amount,
+          payment_method: editPaymentForm.payment_method as any,
+          reference_number: editPaymentForm.reference_number.trim() || null,
+          payment_date: editPaymentForm.payment_date
+            ? new Date(editPaymentForm.payment_date).toISOString()
+            : editingPayment.payment_date,
+          notes: combinedNotes,
+        })
+        .eq('id', editingPayment.id);
+      if (error) throw error;
+      await supabase.from('activity_log').insert({
+        entity_type: 'payment',
+        entity_id: editingPayment.id,
+        actor_id: userData?.user?.id ?? null,
+        actor_role: 'accountant',
+        action: 'payment_edited',
+        details: {
+          previous_amount: editingPayment.amount,
+          new_amount: amount,
+          previous_method: editingPayment.payment_method,
+          new_method: editPaymentForm.payment_method,
+          previous_date: editingPayment.payment_date,
+          new_date: editPaymentForm.payment_date,
+          reference_number: editPaymentForm.reference_number,
+          reason: editPaymentForm.reason.trim(),
+        },
+      });
+      toast({ title: 'Payment updated', description: 'Payment-ka waa la beddelay, invoice-kana waa la cusboonaysiiyay.' });
+      setEditingPayment(null);
+      fetchAllData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingPaymentEdit(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
@@ -4542,6 +4614,83 @@ const AccountantDashboard = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Payment Dialog */}
+          <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
+            <DialogContent className="sm:max-w-[480px]">
+              <DialogHeader>
+                <DialogTitle>Edit Payment Record</DialogTitle>
+                <DialogDescription>
+                  Sax lacagta si khaldan la gelisay. Sababta beddelka waa qasab — waxay ku keydsan doontaa audit trail-ka, invoice-kana wuu is cusboonaysiiyaa.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editPaymentForm.amount}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, amount: e.target.value })}
+                    />
+                    {editingPayment && (
+                      <p className="text-xs text-muted-foreground">Was: ${Number(editingPayment.amount).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Payment Date</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editPaymentForm.payment_date}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, payment_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Payment Method</Label>
+                    <Select
+                      value={editPaymentForm.payment_method}
+                      onValueChange={(v) => setEditPaymentForm({ ...editPaymentForm, payment_method: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reference</Label>
+                    <Input
+                      value={editPaymentForm.reference_number}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, reference_number: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sababta beddelka (Edit reason) *</Label>
+                  <Textarea
+                    placeholder="Tusaale: lacagta waa $100, anigu si khaldan $1000 ayaan gelye..."
+                    value={editPaymentForm.reason}
+                    onChange={(e) => setEditPaymentForm({ ...editPaymentForm, reason: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancel</Button>
+                <Button onClick={handleSavePaymentEdit} disabled={savingPaymentEdit}>
+                  {savingPaymentEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
@@ -4902,32 +5051,38 @@ const AccountantDashboard = () => {
                             <TableHead className="min-w-[120px]">Amount</TableHead>
                             <TableHead className="min-w-[120px]">Payment Method</TableHead>
                             <TableHead className="min-w-[150px]">Reference</TableHead>
+                            <TableHead className="min-w-[90px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {payments.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                No payments found for the selected period
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            payments.map((payment) => (
-                              <TableRow key={payment.id}>
-                                <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
-                                <TableCell className="font-medium">
-                                  {payment.order?.customer?.name || payment.invoice?.customer?.name || '-'}
-                                </TableCell>
-                                <TableCell>
-                                  {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
-                                </TableCell>
-                                <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                <TableCell className="capitalize">
-                                  {payment.payment_method === 'contra'
-                                    ? <Badge variant="outline">Paid via Contra Offset</Badge>
-                                    : payment.payment_method}
-                                </TableCell>
-                                <TableCell>{payment.reference_number || '-'}</TableCell>
+                               <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                 No payments found for the selected period
+                               </TableCell>
+                             </TableRow>
+                           ) : (
+                             payments.map((payment) => (
+                               <TableRow key={payment.id}>
+                                 <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
+                                 <TableCell className="font-medium">
+                                   {payment.order?.customer?.name || payment.invoice?.customer?.name || '-'}
+                                 </TableCell>
+                                 <TableCell>
+                                   {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
+                                 </TableCell>
+                                 <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                                 <TableCell className="capitalize">
+                                   {payment.payment_method === 'contra'
+                                     ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                     : payment.payment_method}
+                                 </TableCell>
+                                 <TableCell>{payment.reference_number || '-'}</TableCell>
+                                 <TableCell>
+                                   <Button size="sm" variant="outline" onClick={() => openEditPayment(payment)}>
+                                     Edit
+                                   </Button>
+                                 </TableCell>
                               </TableRow>
                             ))
                           )}
