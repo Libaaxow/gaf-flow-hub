@@ -199,7 +199,7 @@ const CustomerOrderHistory = () => {
 
           if (order.designer_id) {
             const { data } = await supabase
-              .from('profiles')
+              .from('staff_directory')
               .select('full_name')
               .eq('id', order.designer_id)
               .maybeSingle();
@@ -208,7 +208,7 @@ const CustomerOrderHistory = () => {
 
           if (order.salesperson_id) {
             const { data } = await supabase
-              .from('profiles')
+              .from('staff_directory')
               .select('full_name')
               .eq('id', order.salesperson_id)
               .maybeSingle();
@@ -282,7 +282,7 @@ const CustomerOrderHistory = () => {
 
         if (request.designer_id) {
           const { data } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('full_name')
             .eq('id', request.designer_id)
             .maybeSingle();
@@ -291,7 +291,7 @@ const CustomerOrderHistory = () => {
 
         if (request.print_operator_id) {
           const { data } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('full_name')
             .eq('id', request.print_operator_id)
             .maybeSingle();

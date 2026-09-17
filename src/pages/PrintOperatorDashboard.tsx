@@ -122,7 +122,7 @@ const PrintOperatorDashboard = () => {
               let designerName = 'Unknown';
               if (payload.new.designer_id) {
                 const { data } = await supabase
-                  .from('profiles')
+                  .from('staff_directory')
                   .select('full_name')
                   .eq('id', payload.new.designer_id)
                   .single();
@@ -196,7 +196,7 @@ const PrintOperatorDashboard = () => {
         let designerMap = new Map();
         if (designerIds.length > 0) {
           const { data: designerData } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('id, full_name')
             .in('id', designerIds);
           designerMap = new Map((designerData || []).map(p => [p.id, p]));
@@ -247,7 +247,7 @@ const PrintOperatorDashboard = () => {
         let designerMap = new Map();
         if (designerIds.length > 0) {
           const { data: designerData } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('id, full_name')
             .in('id', designerIds);
           

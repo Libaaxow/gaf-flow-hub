@@ -195,7 +195,7 @@ const DesignerDashboard = () => {
         let creatorMap = new Map();
         if (creatorIds.length > 0) {
           const { data: creatorData } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('id, full_name')
             .in('id', creatorIds);
           
