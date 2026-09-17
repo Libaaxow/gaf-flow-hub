@@ -236,6 +236,78 @@ const AccountantDashboard = () => {
       setSavingExpenseEdit(false);
     }
   };
+
+  // ---- Payment record edit (with audit note) ----
+  const [editingPayment, setEditingPayment] = useState<any | null>(null);
+  const [editPaymentForm, setEditPaymentForm] = useState({ amount: '', payment_method: 'cash', reference_number: '', payment_date: '', reason: '' });
+  const [savingPaymentEdit, setSavingPaymentEdit] = useState(false);
+
+  const openEditPayment = (payment: any) => {
+    setEditingPayment(payment);
+    setEditPaymentForm({
+      amount: String(payment.amount ?? ''),
+      payment_method: payment.payment_method ?? 'cash',
+      reference_number: payment.reference_number ?? '',
+      payment_date: payment.payment_date ? format(new Date(payment.payment_date), "yyyy-MM-dd'T'HH:mm") : '',
+      reason: '',
+    });
+  };
+
+  const handleSavePaymentEdit = async () => {
+    if (!editingPayment) return;
+    if (!editPaymentForm.reason.trim()) {
+      toast({ title: 'Reason required', description: 'Fadlan qor sababta aad u beddelayso (edit reason is required).', variant: 'destructive' });
+      return;
+    }
+    const amount = parseFloat(editPaymentForm.amount);
+    if (isNaN(amount) || amount < 0) {
+      toast({ title: 'Invalid amount', description: 'Please enter a valid amount.', variant: 'destructive' });
+      return;
+    }
+    setSavingPaymentEdit(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      const editNote = `[EDIT ${format(new Date(), 'yyyy-MM-dd HH:mm')}] Amount: $${Number(editingPayment.amount).toFixed(2)} -> $${amount.toFixed(2)}. Reason: ${editPaymentForm.reason.trim()}`;
+      const combinedNotes = editingPayment.notes ? `${editingPayment.notes}\n${editNote}` : editNote;
+      const { error } = await supabase
+        .from('payments')
+        .update({
+          amount,
+          payment_method: editPaymentForm.payment_method as any,
+          reference_number: editPaymentForm.reference_number.trim() || null,
+          payment_date: editPaymentForm.payment_date
+            ? new Date(editPaymentForm.payment_date).toISOString()
+            : editingPayment.payment_date,
+          notes: combinedNotes,
+        })
+        .eq('id', editingPayment.id);
+      if (error) throw error;
+      await supabase.from('activity_log').insert({
+        entity_type: 'payment',
+        entity_id: editingPayment.id,
+        actor_id: userData?.user?.id ?? null,
+        actor_role: 'accountant',
+        action: 'payment_edited',
+        details: {
+          previous_amount: editingPayment.amount,
+          new_amount: amount,
+          previous_method: editingPayment.payment_method,
+          new_method: editPaymentForm.payment_method,
+          previous_date: editingPayment.payment_date,
+          new_date: editPaymentForm.payment_date,
+          reference_number: editPaymentForm.reference_number,
+          reason: editPaymentForm.reason.trim(),
+        },
+      });
+      toast({ title: 'Payment updated', description: 'Payment-ka waa la beddelay, invoice-kana waa la cusboonaysiiyay.' });
+      setEditingPayment(null);
+      fetchAllData();
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setSavingPaymentEdit(false);
+    }
+  };
   const [loading, setLoading] = useState(true);
   const [dateRangePreset, setDateRangePreset] = useState<string>('this_month');
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
