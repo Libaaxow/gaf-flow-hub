@@ -42,7 +42,8 @@ interface FinancialData {
   unpaidCommissions: number;
   expensesByCategory: Record<string, number>;
   monthlyTrend: Array<{ month: string; revenue: number; expenses: number; profit: number }>;
-  topCustomers: Array<{ name: string; totalSpent: number; outstanding: number }>;
+  topCustomers: Array<{ name: string; totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }>;
+  customerLedger: Array<{ name: string; totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }>;
   customersWithOutstanding: Array<{ name: string; outstanding: number }>;
   recentTransactions: Array<{ date: string; type: string; amount: number; description: string }>;
   products: Array<{
@@ -183,21 +184,32 @@ const FinancialAnalyst = () => {
       }
 
       // Top customers by spending
-      const customerSpending: Record<string, { name: string; totalSpent: number; outstanding: number }> = {};
+      const customerSpending: Record<string, { name: string; totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }> = {};
       confirmedInvoices.forEach(inv => {
         const customerId = inv.customer_id;
         const customer = customers.find(c => c.id === customerId);
         if (customer) {
           if (!customerSpending[customerId]) {
-            customerSpending[customerId] = { name: customer.name, totalSpent: 0, outstanding: 0 };
+            customerSpending[customerId] = { name: customer.name, totalBilled: 0, totalPaid: 0, outstanding: 0, invoiceCount: 0 };
           }
-          customerSpending[customerId].totalSpent += Number(inv.amount_paid || 0);
-          customerSpending[customerId].outstanding += Number(inv.total_amount || 0) - Number(inv.amount_paid || 0);
+          const total = Number(inv.total_amount || 0);
+          const paid = Number(inv.amount_paid || 0);
+          customerSpending[customerId].totalBilled += total;
+          customerSpending[customerId].totalPaid += paid;
+          customerSpending[customerId].outstanding += total - paid;
+          customerSpending[customerId].invoiceCount += 1;
         }
       });
-      const topCustomers = Object.values(customerSpending)
-        .sort((a, b) => b.totalSpent - a.totalSpent)
-        .slice(0, 10);
+      const customerLedger = Object.values(customerSpending)
+        .map((c) => ({
+          name: c.name,
+          totalBilled: Number(c.totalBilled.toFixed(2)),
+          totalPaid: Number(c.totalPaid.toFixed(2)),
+          outstanding: Number(c.outstanding.toFixed(2)),
+          invoiceCount: c.invoiceCount,
+        }))
+        .sort((a, b) => b.totalBilled - a.totalBilled);
+      const topCustomers = [...customerLedger].slice(0, 10);
 
       // All customers with outstanding balances (complete list for AI)
       const customersWithOutstanding = Object.values(customerSpending)
@@ -295,6 +307,7 @@ const FinancialAnalyst = () => {
         expensesByCategory,
         monthlyTrend,
         topCustomers,
+        customerLedger,
         customersWithOutstanding,
         recentTransactions: recentTransactions.slice(0, 15),
         products,
@@ -635,7 +648,7 @@ const FinancialAnalyst = () => {
                       {financialData.topCustomers.slice(0, 5).map((cust, idx) => (
                         <div key={idx} className="flex justify-between items-center text-sm">
                           <span className="truncate">{cust.name}</span>
-                          <Badge variant="secondary">{formatCurrency(cust.totalSpent)}</Badge>
+                          <Badge variant="secondary">{formatCurrency(cust.totalBilled)}</Badge>
                         </div>
                       ))}
                     </TabsContent>
