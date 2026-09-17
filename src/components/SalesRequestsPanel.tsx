@@ -54,7 +54,7 @@ export const SalesRequestsPanel = () => {
 
     const ids = [...new Set(list.map(r => r.created_by).filter(Boolean))] as string[];
     if (ids.length) {
-      const { data: ps } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      const { data: ps } = await supabase.from('staff_directory').select('id, full_name').in('id', ids);
       const map: Record<string, string> = {};
       (ps || []).forEach((p: any) => { map[p.id] = p.full_name; });
       setSenders(map);

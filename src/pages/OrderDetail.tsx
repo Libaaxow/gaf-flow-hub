@@ -184,7 +184,7 @@ const OrderDetail = () => {
       
       if (orderData.salesperson_id) {
         const { data: salesData } = await supabase
-          .from('profiles')
+          .from('staff_directory')
           .select('id, full_name')
           .eq('id', orderData.salesperson_id)
           .single();
@@ -193,7 +193,7 @@ const OrderDetail = () => {
 
       if (orderData.designer_id) {
         const { data: designerData } = await supabase
-          .from('profiles')
+          .from('staff_directory')
           .select('id, full_name')
           .eq('id', orderData.designer_id)
           .single();
@@ -203,7 +203,7 @@ const OrderDetail = () => {
       let print_operator = null;
       if (orderData.print_operator_id) {
         const { data: printOpData } = await supabase
-          .from('profiles')
+          .from('staff_directory')
           .select('id, full_name')
           .eq('id', orderData.print_operator_id)
           .single();
@@ -222,7 +222,7 @@ const OrderDetail = () => {
       const filesWithProfiles = await Promise.all(
         (filesData || []).map(async (file) => {
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('full_name')
             .eq('id', file.uploaded_by)
             .single();
@@ -242,7 +242,7 @@ const OrderDetail = () => {
       const commentsWithProfiles = await Promise.all(
         (commentsData || []).map(async (comment) => {
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('staff_directory')
             .select('full_name')
             .eq('id', comment.user_id)
             .single();
@@ -295,7 +295,7 @@ const OrderDetail = () => {
         (historyData || []).map(async (entry) => {
           if (entry.user_id) {
             const { data: profile } = await supabase
-              .from('profiles')
+              .from('staff_directory')
               .select('full_name')
               .eq('id', entry.user_id)
               .single();

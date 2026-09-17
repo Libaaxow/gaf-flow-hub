@@ -136,7 +136,7 @@ const Orders = () => {
     const { data } = await supabase.from('user_roles').select('user_id').eq('role', 'designer');
     const ids = (data || []).map((r: any) => r.user_id);
     if (!ids.length) { setDesigners([]); return; }
-    const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+    const { data: profs } = await supabase.from('staff_directory').select('id, full_name').in('id', ids);
     setDesigners(profs || []);
   };
 
