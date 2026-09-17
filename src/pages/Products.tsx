@@ -778,7 +778,9 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        {product.sale_type === 'service' || product.sale_type === 'composite' ? (
+                        {product.sale_type === 'composite' ? (
+                          <Badge variant="outline">Composite</Badge>
+                        ) : product.sale_type === 'service' ? (
                           <Badge variant="secondary">Service</Badge>
                         ) : (
                           <div className="flex items-center gap-2">
