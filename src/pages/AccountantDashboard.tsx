@@ -4974,6 +4974,7 @@ const AccountantDashboard = () => {
                             <TableHead className="min-w-[120px]">Amount</TableHead>
                             <TableHead className="min-w-[120px]">Payment Method</TableHead>
                             <TableHead className="min-w-[150px]">Reference</TableHead>
+                            <TableHead className="min-w-[90px]">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
