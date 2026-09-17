@@ -54,7 +54,13 @@ const SALE_TYPES = [
   { value: 'unit', label: 'Unit-Based (Standard)' },
   { value: 'area', label: 'Area-Based (H × W in m²)' },
   { value: 'service', label: 'Service (No Stock)' },
+  { value: 'composite', label: 'Composite (Made from raw materials)' },
 ];
+
+interface RecipeLine {
+  component_product_id: string;
+  quantity_required: string;
+}
 
 
 const productSchema = z.object({
@@ -68,7 +74,7 @@ const productSchema = z.object({
   selling_price: z.number().min(0, 'Selling price must be positive'),
   reorder_level: z.number().min(0, 'Reorder level must be positive'),
   preferred_vendor_id: z.string().nullable().optional(),
-  sale_type: z.enum(['unit', 'area', 'service']).optional(),
+  sale_type: z.enum(['unit', 'area', 'service', 'composite']).optional(),
   roll_width: z.number().nullable().optional(),
   roll_length: z.number().nullable().optional(),
   selling_price_per_m2: z.number().nullable().optional(),
@@ -90,6 +96,8 @@ const Products = () => {
   const [canManageProducts, setCanManageProducts] = useState(false);
   const [newProductSaleType, setNewProductSaleType] = useState<string>('unit');
   const [editProductSaleType, setEditProductSaleType] = useState<string>('unit');
+  const [newRecipe, setNewRecipe] = useState<RecipeLine[]>([{ component_product_id: '', quantity_required: '' }]);
+  const [editRecipe, setEditRecipe] = useState<RecipeLine[]>([]);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -148,6 +156,98 @@ const Products = () => {
     setVendors(data || []);
   };
 
+  const materialOptions = products.filter(p => p.sale_type === 'unit' || p.sale_type === 'area');
+
+  const materialUnit = (id: string) => {
+    const m = products.find(p => p.id === id);
+    if (!m) return 'unit';
+    return m.sale_type === 'area' ? 'm²' : (m.retail_unit || 'unit');
+  };
+
+  const loadRecipe = async (productId: string) => {
+    const { data } = await supabase
+      .from('product_recipes')
+      .select('component_product_id, quantity_required')
+      .eq('product_id', productId);
+    const lines = (data || []).map((r: any) => ({
+      component_product_id: r.component_product_id,
+      quantity_required: String(r.quantity_required),
+    }));
+    setEditRecipe(lines.length ? lines : [{ component_product_id: '', quantity_required: '' }]);
+  };
+
+  const saveRecipe = async (productId: string, lines: RecipeLine[]) => {
+    const valid = lines.filter(l => l.component_product_id && parseFloat(l.quantity_required) > 0);
+    await supabase.from('product_recipes').delete().eq('product_id', productId);
+    if (!valid.length) return;
+    const { error } = await supabase.from('product_recipes').insert(
+      valid.map(l => ({
+        product_id: productId,
+        component_product_id: l.component_product_id,
+        quantity_required: parseFloat(l.quantity_required),
+        created_by: user?.id || null,
+      }))
+    );
+    if (error) throw error;
+  };
+
+  const renderIngredients = (lines: RecipeLine[], setLines: (l: RecipeLine[]) => void, prefix: string) => (
+    <div className="p-3 bg-primary/5 border border-primary/20 rounded-lg space-y-3">
+      <p className="text-sm font-medium text-primary">Ingredients / Raw Material Components</p>
+      <p className="text-xs text-muted-foreground">
+        Enter how much raw material is used to make 1 unit of this product (e.g. 0.125 m² of Sticker Roll per 1 Piece).
+      </p>
+      {lines.map((line, i) => (
+        <div key={`${prefix}-${i}`} className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">
+          <div className="space-y-1 min-w-0">
+            <Label className="text-xs">Raw Material</Label>
+            <Select
+              value={line.component_product_id || undefined}
+              onValueChange={(v) => {
+                const next = [...lines];
+                next[i] = { ...next[i], component_product_id: v };
+                setLines(next);
+              }}
+            >
+              <SelectTrigger><SelectValue placeholder="Select material" /></SelectTrigger>
+              <SelectContent>
+                {materialOptions.map((m) => (
+                  <SelectItem key={m.id} value={m.id}>
+                    {m.name} ({m.sale_type === 'area' ? 'm²' : (m.retail_unit || 'unit')})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1 w-32">
+            <Label className="text-xs">Usage per 1 unit</Label>
+            <Input
+              type="number"
+              step="0.0001"
+              min="0"
+              placeholder="0.125"
+              value={line.quantity_required}
+              onChange={(e) => {
+                const next = [...lines];
+                next[i] = { ...next[i], quantity_required: e.target.value };
+                setLines(next);
+              }}
+            />
+          </div>
+          <div className="flex items-center gap-1 pb-2">
+            <span className="text-xs text-muted-foreground w-8">{line.component_product_id ? materialUnit(line.component_product_id) : ''}</span>
+            <Button type="button" variant="ghost" size="icon" onClick={() => setLines(lines.length > 1 ? lines.filter((_, x) => x !== i) : [{ component_product_id: '', quantity_required: '' }])}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" onClick={() => setLines([...lines, { component_product_id: '', quantity_required: '' }])}>
+        <Plus className="mr-2 h-4 w-4" /> Add Material
+      </Button>
+    </div>
+  );
+
   const generateProductCode = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_product_code');
     if (error) throw error;
@@ -170,18 +270,19 @@ const Products = () => {
     const costPerM2 = (totalRollArea && costPrice) ? costPrice / totalRollArea : null;
     
     const isService = saleType === 'service';
+    const isComposite = saleType === 'composite';
 
     const productData = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      purchase_unit: isService ? 'Service' : (isComposite ? ((formData.get('retail_unit') as string) || 'Piece') : (formData.get('purchase_unit') as string)),
       retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
       unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
-      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
+      conversion_rate: (isService || isComposite) ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
+      reorder_level: (isService || isComposite) ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -195,18 +296,25 @@ const Products = () => {
     try {
       const productCode = await generateProductCode();
 
-      const { error } = await supabase
+      const { data: inserted, error } = await supabase
         .from('products')
         .insert([{ 
           ...productData,
           product_code: productCode,
           created_by: user?.id || null,
-        }]);
+        }])
+        .select('id')
+        .single();
 
       if (error) throw error;
 
+      if (isComposite && inserted?.id) {
+        await saveRecipe(inserted.id, newRecipe);
+      }
+
       toast({ title: 'Success', description: 'Product added successfully' });
       form.reset();
+      setNewRecipe([{ component_product_id: '', quantity_required: '' }]);
       setIsDialogOpen(false);
       fetchProducts();
     } catch (error: any) {
@@ -235,18 +343,19 @@ const Products = () => {
     const stockQuantity = stockQuantityInput !== null ? parseFloat(stockQuantityInput as string) : null;
     
     const isService = saleType === 'service';
+    const isComposite = saleType === 'composite';
 
     const productData: Record<string, any> = {
       name: formData.get('name') as string,
       description: (formData.get('description') as string) || null,
       category: (formData.get('category') as string) || null,
-      purchase_unit: isService ? 'Service' : (formData.get('purchase_unit') as string),
+      purchase_unit: isService ? 'Service' : (isComposite ? ((formData.get('retail_unit') as string) || 'Piece') : (formData.get('purchase_unit') as string)),
       retail_unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
       unit: isService ? 'Service' : (saleType === 'area' ? 'm²' : formData.get('retail_unit') as string),
-      conversion_rate: isService ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
+      conversion_rate: (isService || isComposite) ? 1 : (saleType === 'area' ? (totalRollArea || 1) : (parseFloat(formData.get('conversion_rate') as string) || 1)),
       cost_price: costPrice,
       selling_price: saleType === 'area' ? (sellingPriceM2 || 0) : (parseFloat(formData.get('selling_price') as string) || 0),
-      reorder_level: isService ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
+      reorder_level: (isService || isComposite) ? 0 : (parseInt(formData.get('reorder_level') as string) || 0),
       preferred_vendor_id: (formData.get('preferred_vendor_id') as string) || null,
       sale_type: saleType,
       roll_width: saleType === 'area' ? rollWidth : null,
@@ -269,6 +378,12 @@ const Products = () => {
         .eq('id', selectedProduct.id);
 
       if (error) throw error;
+
+      if (isComposite) {
+        await saveRecipe(selectedProduct.id, editRecipe);
+      } else {
+        await supabase.from('product_recipes').delete().eq('product_id', selectedProduct.id);
+      }
 
       toast({ title: 'Success', description: 'Product updated successfully' });
       setIsEditDialogOpen(false);
@@ -333,7 +448,7 @@ const Products = () => {
 
   const totalProducts = products.length;
   const activeProducts = products.filter(p => p.status === 'active').length;
-  const stockedProducts = products.filter(p => p.sale_type !== 'service');
+  const stockedProducts = products.filter(p => p.sale_type !== 'service' && p.sale_type !== 'composite');
   const lowStockProducts = stockedProducts.filter(p => p.stock_quantity <= p.reorder_level && p.stock_quantity > 0).length;
   const outOfStock = stockedProducts.filter(p => p.stock_quantity === 0).length;
   // Stock is held in retail units (pieces) or m² for area products, so value it
@@ -409,6 +524,8 @@ const Products = () => {
                         ? 'For roll materials sold by area (m²) like Banner, Flex, Vinyl' 
                         : newProductSaleType === 'service'
                         ? 'Services are not stocked — no stock alerts and no stock limits on invoices'
+                        : newProductSaleType === 'composite'
+                        ? 'Sold in Pieces, but stock is taken from its raw materials (e.g. Sticker Roll m²)'
                         : 'Standard unit-based selling (Pieces, Meters, etc.)'}
                     </p>
 
@@ -489,14 +606,33 @@ const Products = () => {
                     </div>
                   )}
 
+                  {/* Composite configuration */}
+                  {newProductSaleType === 'composite' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="retail_unit">Selling Unit *</Label>
+                        <Select name="retail_unit" defaultValue="Piece">
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {RETAIL_UNITS.map((u) => (
+                              <SelectItem key={u} value={u}>{u}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Customers are invoiced in this unit (e.g. Piece).</p>
+                      </div>
+                      {renderIngredients(newRecipe, setNewRecipe, 'new')}
+                    </>
+                  )}
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="cost_price">{newProductSaleType === 'service' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
+                      <Label htmlFor="cost_price">{newProductSaleType === 'service' || newProductSaleType === 'composite' ? 'Cost (optional) ($)' : `Cost per ${newProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)`}</Label>
                       <Input id="cost_price" name="cost_price" type="number" step="0.01" defaultValue="0" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'}>
-                        {newProductSaleType === 'service' ? 'Service Price ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
+                        {newProductSaleType === 'service' ? 'Service Price ($)' : newProductSaleType === 'composite' ? 'Selling Price per Unit ($)' : `Selling Price per ${newProductSaleType === 'area' ? 'm²' : 'Retail Unit'} ($)`}
                       </Label>
                       <Input 
                         id={newProductSaleType === 'area' ? 'selling_price_per_m2' : 'selling_price'} 
@@ -507,7 +643,7 @@ const Products = () => {
                       />
                     </div>
                   </div>
-                  {newProductSaleType !== 'service' && (
+                  {newProductSaleType !== 'service' && newProductSaleType !== 'composite' && (
                     <div className="space-y-2">
                       <Label htmlFor="reorder_level">Reorder Level (in {newProductSaleType === 'area' ? 'm²' : 'retail units'})</Label>
                       <Input id="reorder_level" name="reorder_level" type="number" defaultValue="10" />
@@ -642,7 +778,7 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        {product.sale_type === 'service' ? (
+                        {product.sale_type === 'service' || product.sale_type === 'composite' ? (
                           <Badge variant="secondary">Service</Badge>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -802,6 +938,8 @@ const Products = () => {
           setIsEditDialogOpen(open);
           if (open && selectedProduct) {
             setEditProductSaleType(selectedProduct.sale_type || 'unit');
+            setEditRecipe([{ component_product_id: '', quantity_required: '' }]);
+            loadRecipe(selectedProduct.id);
           }
         }}>
           <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -907,6 +1045,24 @@ const Products = () => {
                   </div>
                 )}
 
+                {/* Composite configuration */}
+                {editProductSaleType === 'composite' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-retail_unit">Selling Unit *</Label>
+                      <Select name="retail_unit" defaultValue={selectedProduct.retail_unit || 'Piece'}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {RETAIL_UNITS.map((u) => (
+                            <SelectItem key={u} value={u}>{u}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {renderIngredients(editRecipe, setEditRecipe, 'edit')}
+                  </>
+                )}
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="edit-cost_price">Cost per {editProductSaleType === 'area' ? 'Roll' : 'Purchase Unit'} ($)</Label>
@@ -925,8 +1081,8 @@ const Products = () => {
                     />
                   </div>
                 </div>
-                {editProductSaleType === 'service' ? (
-                  <p className="text-xs text-muted-foreground">Services are not stocked — no stock alerts and no stock limits on invoices.</p>
+                {editProductSaleType === 'service' || editProductSaleType === 'composite' ? (
+                  <p className="text-xs text-muted-foreground">Not stocked directly — no stock alerts and no stock limits on invoices.</p>
                 ) : (
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
