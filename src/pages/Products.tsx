@@ -259,7 +259,7 @@ const Products = () => {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    const saleType = (formData.get('sale_type') as string) || 'unit';
+    const saleType = newProductSaleType || (formData.get('sale_type') as string) || 'unit';
     const rollWidth = parseFloat(formData.get('roll_width') as string) || null;
     const rollLength = parseFloat(formData.get('roll_length') as string) || null;
     const costPrice = parseFloat(formData.get('cost_price') as string) || 0;
@@ -329,7 +329,7 @@ const Products = () => {
     const form = e.currentTarget;
     const formData = new FormData(form);
     
-    const saleType = (formData.get('sale_type') as string) || 'unit';
+    const saleType = editProductSaleType || (formData.get('sale_type') as string) || 'unit';
     const rollWidth = parseFloat(formData.get('roll_width') as string) || null;
     const rollLength = parseFloat(formData.get('roll_length') as string) || null;
     const costPrice = parseFloat(formData.get('cost_price') as string) || 0;
@@ -778,7 +778,9 @@ const Products = () => {
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        {product.sale_type === 'service' || product.sale_type === 'composite' ? (
+                        {product.sale_type === 'composite' ? (
+                          <Badge variant="outline">Composite</Badge>
+                        ) : product.sale_type === 'service' ? (
                           <Badge variant="secondary">Service</Badge>
                         ) : (
                           <div className="flex items-center gap-2">
@@ -858,7 +860,7 @@ const Products = () => {
                   <div><Label className="text-muted-foreground">Category</Label><p>{selectedProduct.category || '-'}</p></div>
                   <div><Label className="text-muted-foreground">Sale Type</Label>
                     <Badge variant={selectedProduct.sale_type === 'unit' ? 'default' : selectedProduct.sale_type === 'service' ? 'secondary' : 'outline'}>
-                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : selectedProduct.sale_type === 'service' ? 'Service (No Stock)' : 'Unit-Based'}
+                      {selectedProduct.sale_type === 'area' ? 'Area-Based (m²)' : selectedProduct.sale_type === 'service' ? 'Service (No Stock)' : selectedProduct.sale_type === 'composite' ? 'Composite (Made from raw materials)' : 'Unit-Based'}
                     </Badge>
 
                   </div>
@@ -917,6 +919,8 @@ const Products = () => {
                 {/* Stock Info */}
                 {selectedProduct.sale_type === 'service' ? (
                   <p className="text-sm text-muted-foreground">This is a service — no stock is tracked and no stock alerts are shown.</p>
+                ) : selectedProduct.sale_type === 'composite' ? (
+                  <p className="text-sm text-muted-foreground">Composite product — stock is deducted from its raw materials when sold.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
