@@ -3827,12 +3827,13 @@ const AccountantDashboard = () => {
                               <TableHead className="min-w-[100px]">Amount</TableHead>
                               <TableHead className="min-w-[120px]">Method</TableHead>
                               <TableHead className="min-w-[120px]">Receipt #</TableHead>
+                              <TableHead className="min-w-[90px]">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {basePayments.length === 0 ? (
                               <TableRow>
-                                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                                   No payments found for the selected filters
                                 </TableCell>
                               </TableRow>
@@ -3852,8 +3853,13 @@ const AccountantDashboard = () => {
                                       ? <Badge variant="outline">Paid via Contra Offset</Badge>
                                       : payment.payment_method.replace('_', ' ')}
                                   </TableCell>
-                                  <TableCell>{payment.reference_number || '-'}</TableCell>
-                                </TableRow>
+                                   <TableCell>{payment.reference_number || '-'}</TableCell>
+                                   <TableCell>
+                                     <Button size="sm" variant="outline" onClick={() => openEditPayment(payment)}>
+                                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                                     </Button>
+                                   </TableCell>
+                                 </TableRow>
                               ))
                             )}
                           </TableBody>
