@@ -2317,7 +2317,27 @@ const AccountantDashboard = () => {
     };
 
     setInvoiceItems(newItems);
+
+    // Popup showing the remaining balance (stock) of the selected goods
+    if (product.sale_type === 'service') {
+      toast({
+        title: product.name,
+        description: 'Service item — no stock is tracked.',
+      });
+    } else {
+      const unitLabel = isAreaBased ? 'm²' : (product.retail_unit || 'piece');
+      const remaining = Number(product.stock_quantity || 0);
+      const afterThis = remaining - (isAreaBased ? (areaM2 || 0) * quantity : quantity);
+      toast({
+        title: `${product.name} — Remaining: ${remaining} ${unitLabel}`,
+        description: remaining <= 0
+          ? 'Out of stock!'
+          : `After this line: ${afterThis.toFixed(2)} ${unitLabel} left`,
+        variant: remaining <= 0 || afterThis < 0 ? 'destructive' : 'default',
+      });
+    }
   };
+
 
   const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number | null) => {
     const newItems = [...invoiceItems];
