@@ -919,6 +919,8 @@ const Products = () => {
                 {/* Stock Info */}
                 {selectedProduct.sale_type === 'service' ? (
                   <p className="text-sm text-muted-foreground">This is a service — no stock is tracked and no stock alerts are shown.</p>
+                ) : selectedProduct.sale_type === 'composite' ? (
+                  <p className="text-sm text-muted-foreground">Composite product — stock is deducted from its raw materials when sold.</p>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
                     <div><Label className="text-muted-foreground">Stock (in {selectedProduct.sale_type === 'area' ? 'm²' : selectedProduct.retail_unit})</Label><p className="font-medium">{selectedProduct.stock_quantity} {selectedProduct.sale_type === 'area' ? 'm²' : ''}</p></div>
