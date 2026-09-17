@@ -296,7 +296,9 @@ const FinancialAnalyst = () => {
         monthlyTrend,
         topCustomers,
         customersWithOutstanding,
-        recentTransactions: recentTransactions.slice(0, 15)
+        recentTransactions: recentTransactions.slice(0, 15),
+        products,
+        soldByProduct
       });
     } catch (error) {
       console.error('Error fetching financial data:', error);
