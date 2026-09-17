@@ -29,6 +29,17 @@ interface Message {
 
 interface FinancialData {
   period: string;
+  currentMonth: {
+    period: string;
+    startDate: string;
+    endDate: string;
+    totalRevenue: number;
+    collectedAmount: number;
+    outstandingAmount: number;
+    totalExpenses: number;
+    netProfit: number;
+    invoiceCount: number;
+  };
   beginningBalance: number;
   totalRevenue: number;
   collectedAmount: number;
@@ -125,6 +136,30 @@ const FinancialAnalyst = () => {
 
       // Net profit calculation
       const netProfit = beginningBalance + collectedAmount - totalExpenses;
+
+      // Current calendar month only. Revenue follows invoice_date, collections
+      // follow payment_date, and expenses follow expense_date.
+      const now = new Date();
+      const currentMonthStart = startOfMonth(now);
+      const currentMonthEnd = endOfMonth(now);
+      const isInCurrentMonth = (value: string | null | undefined) => {
+        if (!value) return false;
+        const date = new Date(value);
+        return date >= currentMonthStart && date <= currentMonthEnd;
+      };
+      const currentMonthInvoices = confirmedInvoices.filter((inv) => isInCurrentMonth(inv.invoice_date));
+      const currentMonthRevenue = currentMonthInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+      const currentMonthOutstanding = currentMonthInvoices.reduce(
+        (sum, inv) => sum + Math.max(0, Number(inv.total_amount || 0) - Number(inv.amount_paid || 0)),
+        0,
+      );
+      const currentMonthCollected = payments
+        .filter((payment) => !payment.is_contra && isInCurrentMonth(payment.payment_date))
+        .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+      const currentMonthExpenses = expenses
+        .filter((expense) => isInCurrentMonth(expense.expense_date))
+        .reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+      const currentMonthNetProfit = currentMonthCollected - currentMonthExpenses;
 
       // Calculate profit recognition
       let recognizedProfit = 0;
@@ -293,6 +328,17 @@ const FinancialAnalyst = () => {
 
       setFinancialData({
         period: format(new Date(), 'MMMM yyyy'),
+        currentMonth: {
+          period: format(now, 'MMMM yyyy'),
+          startDate: format(currentMonthStart, 'yyyy-MM-dd'),
+          endDate: format(currentMonthEnd, 'yyyy-MM-dd'),
+          totalRevenue: Number(currentMonthRevenue.toFixed(2)),
+          collectedAmount: Number(currentMonthCollected.toFixed(2)),
+          outstandingAmount: Number(currentMonthOutstanding.toFixed(2)),
+          totalExpenses: Number(currentMonthExpenses.toFixed(2)),
+          netProfit: Number(currentMonthNetProfit.toFixed(2)),
+          invoiceCount: currentMonthInvoices.length,
+        },
         beginningBalance,
         totalRevenue,
         collectedAmount,

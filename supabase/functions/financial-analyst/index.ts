@@ -20,6 +20,12 @@ DATA RULES:
 - The system's computed totals are authoritative; you explain and interpret them.
 - If the data needed for the question is not provided, say clearly what is missing instead of substituting other analysis.
 
+DATE/PERIOD RULES (critical):
+- currentMonth contains ONLY the current calendar month's figures and exact start/end dates.
+- If the user says "this month", "current month", "bishan", or "bisha hadda", use ONLY currentMonth. Never use the all-time top-level totals.
+- In currentMonth: totalRevenue is invoices dated this month; collectedAmount is non-contra cash payments received this month; totalExpenses is approved expenses dated this month; outstandingAmount is the unpaid balance on invoices created this month; netProfit is this month's collectedAmount minus this month's totalExpenses.
+- Clearly name the period used. Do not mix current-month figures with all-time figures.
+
 PRODUCT PROFIT GUIDE (when asked about product profitability):
 - products[] includes cost and selling price per retail unit or per m2, stock quantity and sale type.
 - Profit per unit = selling price - cost. Also show margin % when useful.
