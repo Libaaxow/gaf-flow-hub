@@ -1732,6 +1732,54 @@ export type Database = {
           },
         ]
       }
+      product_recipes: {
+        Row: {
+          component_product_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          product_id: string
+          quantity_required: number
+          updated_at: string
+        }
+        Insert: {
+          component_product_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id: string
+          quantity_required: number
+          updated_at?: string
+        }
+        Update: {
+          component_product_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          product_id?: string
+          quantity_required?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_recipes_component_product_id_fkey"
+            columns: ["component_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_recipes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_vendors: {
         Row: {
           created_at: string
@@ -2977,6 +3025,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_product_stock_change: {
+        Args: { _product_id: string; _qty_delta: number }
+        Returns: undefined
+      }
       auto_manage_fiscal_year: { Args: never; Returns: undefined }
       generate_corporate_reference: {
         Args: { _prefix: string }
