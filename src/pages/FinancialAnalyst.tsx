@@ -108,6 +108,7 @@ const FinancialAnalyst = () => {
       const commissions = commissionsResult.data || [];
       const payments = paymentsResult.data || [];
       const customers = customersResult.data || [];
+      const productRows: any[] = productsResult.data || [];
 
       // Calculate beginning balance
       const beginningBalance = balances.reduce((sum, b) => sum + Number(b.amount || 0), 0);
