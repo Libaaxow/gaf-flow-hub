@@ -98,7 +98,8 @@ const FinancialAnalyst = () => {
         supabase.from('beginning_balances').select('*'),
         supabase.from('commissions').select('*'),
         supabase.from('payments').select('*, order:orders(job_title, customer:customers(name))'),
-        supabase.from('customers').select('id, name')
+        supabase.from('customers').select('id, name'),
+        supabase.from('products').select('*')
       ]);
 
       const invoices = invoicesResult.data || [];
