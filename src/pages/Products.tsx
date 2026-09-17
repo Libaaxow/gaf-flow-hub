@@ -134,12 +134,24 @@ const Products = () => {
     try {
       const { data, error } = await supabase
         .from('products')
-        .select('*')
-        .order('category', { ascending: true, nullsFirst: false })
-        .order('name', { ascending: true });
+        .select('*');
 
       if (error) throw error;
-      setProducts(data || []);
+      const isStocked = (p: any) =>
+        p.sale_type !== 'service' && p.sale_type !== 'composite' && (p.stock_quantity ?? 0) > 0;
+      const sorted = (data || []).sort((a: any, b: any) => {
+        // In-stock items first
+        const stockedA = isStocked(a) ? 0 : 1;
+        const stockedB = isStocked(b) ? 0 : 1;
+        if (stockedA !== stockedB) return stockedA - stockedB;
+        // Then by category
+        const catA = (a.category || '').toLowerCase();
+        const catB = (b.category || '').toLowerCase();
+        if (catA !== catB) return catA.localeCompare(catB);
+        // Then by name
+        return (a.name || '').localeCompare(b.name || '');
+      });
+      setProducts(sorted);
     } catch (error: any) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } finally {
