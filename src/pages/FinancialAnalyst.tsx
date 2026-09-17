@@ -90,7 +90,8 @@ const FinancialAnalyst = () => {
         balancesResult,
         commissionsResult,
         paymentsResult,
-        customersResult
+        customersResult,
+        productsResult
       ] = await Promise.all([
         supabase.from('invoices').select('*, invoice_items(*)'),
         supabase.from('expenses').select('*').eq('approval_status', 'approved'),
