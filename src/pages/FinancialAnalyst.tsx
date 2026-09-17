@@ -554,7 +554,20 @@ const FinancialAnalyst = () => {
         customersWithOutstanding,
         recentTransactions: recentTransactions.slice(0, 15),
         products,
-        soldByProduct
+        soldByProduct,
+        invoiceList,
+        vendors: vendorsData,
+        liabilities,
+        liabilitiesSummary,
+        employees: employeesData,
+        payroll,
+        payrollSummary,
+        shareholders: shareholdersData,
+        companyAssets,
+        companyAssetsTotal,
+        quotations: quotationsData,
+        orders: ordersData,
+        leads: leadsData
       });
     } catch (error) {
       console.error('Error fetching financial data:', error);
