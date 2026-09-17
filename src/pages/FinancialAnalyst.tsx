@@ -45,6 +45,20 @@ interface FinancialData {
   topCustomers: Array<{ name: string; totalSpent: number; outstanding: number }>;
   customersWithOutstanding: Array<{ name: string; outstanding: number }>;
   recentTransactions: Array<{ date: string; type: string; amount: number; description: string }>;
+  products: Array<{
+    name: string;
+    category: string | null;
+    saleType: string;
+    unit: string;
+    costPerUnit: number;
+    sellingPerUnit: number;
+    profitPerUnit: number;
+    marginPercent: number;
+    stockQuantity: number;
+    potentialProfitOnStock: number;
+    stockValueAtCost: number;
+  }>;
+  soldByProduct: Array<{ name: string; quantitySold: number; revenue: number; cost: number; profit: number }>;
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-analyst`;
