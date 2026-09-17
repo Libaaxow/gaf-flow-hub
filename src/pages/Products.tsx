@@ -472,6 +472,17 @@ const Products = () => {
     return Number(p.cost_per_retail_unit) || (Number(p.conversion_rate) ? Number(p.cost_price) / Number(p.conversion_rate) : Number(p.cost_price) || 0);
   };
   const totalValue = stockedProducts.reduce((sum, p) => sum + unitCostForStock(p) * Number(p.stock_quantity || 0), 0);
+  // Profit per stocked unit (m² for area products, retail piece otherwise).
+  const unitProfitForStock = (p: any) => {
+    if (p.sale_type === 'area') {
+      const sell = Number(p.selling_price_per_m2) || 0;
+      return sell - unitCostForStock(p);
+    }
+    return Number(p.profit_per_unit ?? 0) || ((Number(p.selling_price) || 0) - unitCostForStock(p));
+  };
+  const activeStockedProducts = stockedProducts.filter(p => p.status === 'active' && Number(p.stock_quantity || 0) > 0);
+  const expectedTotalProfit = activeStockedProducts.reduce((sum, p) => sum + unitProfitForStock(p) * Number(p.stock_quantity || 0), 0);
+
 
 
   if (loading) {
@@ -718,6 +729,12 @@ const Products = () => {
               <p className="text-sm text-muted-foreground">Inventory Value</p>
             </CardContent>
           </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className={`text-2xl font-bold ${expectedTotalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>${expectedTotalProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <p className="text-sm text-muted-foreground">Expected Total Profit</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filters */}
@@ -811,9 +828,24 @@ const Products = () => {
                       </td>
                       <td className="px-4 py-4">${product.selling_price.toLocaleString()}</td>
                       <td className="px-4 py-4">
-                        <span className={`font-medium ${(product.profit_per_unit || 0) >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                          ${(product.profit_per_unit || 0).toFixed(2)}
-                        </span>
+                        {(() => {
+                          const unitProfit = (product.sale_type === 'area' || product.sale_type === 'unit') ? unitProfitForStock(product) : (product.profit_per_unit || 0);
+                          const stockQty = (product.sale_type === 'area' || product.sale_type === 'unit') ? Number(product.stock_quantity || 0) : 0;
+                          const potential = unitProfit * stockQty;
+                          return (
+                            <div>
+                              <span className={`font-medium ${unitProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                                ${unitProfit.toFixed(2)}
+                                <span className="text-xs text-muted-foreground font-normal">/{product.sale_type === 'area' ? 'm²' : product.retail_unit}</span>
+                              </span>
+                              {stockQty > 0 && (
+                                <span className={`block text-xs ${potential >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                                  Total: ${potential.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-4">
                         <Badge variant={product.status === 'active' ? 'default' : 'secondary'}>
