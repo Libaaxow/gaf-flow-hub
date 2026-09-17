@@ -116,7 +116,19 @@ const FinancialAnalyst = () => {
         commissionsResult,
         paymentsResult,
         customersResult,
-        productsResult
+        productsResult,
+        vendorsResult,
+        vendorBillsResult,
+        vendorPaymentsResult,
+        liabilitiesResult,
+        employeesResult,
+        payrollResult,
+        shareholdersResult,
+        shareholderTxResult,
+        assetsResult,
+        quotationsResult,
+        ordersResult,
+        leadsResult
       ] = await Promise.all([
         supabase.from('invoices').select('*, invoice_items(*)'),
         supabase.from('expenses').select('*').eq('approval_status', 'approved'),
@@ -124,7 +136,19 @@ const FinancialAnalyst = () => {
         supabase.from('commissions').select('*'),
         supabase.from('payments').select('*, order:orders(job_title, customer:customers(name))'),
         supabase.from('customers').select('id, name'),
-        supabase.from('products').select('*')
+        supabase.from('products').select('*'),
+        supabase.from('vendors').select('id, name, status'),
+        supabase.from('vendor_bills').select('*'),
+        supabase.from('vendor_payments').select('*'),
+        supabase.from('company_liabilities').select('*'),
+        supabase.from('employees').select('*'),
+        supabase.from('payroll_payments').select('*'),
+        supabase.from('shareholders').select('*'),
+        supabase.from('shareholder_transactions').select('*'),
+        supabase.from('company_assets').select('*'),
+        supabase.from('quotations').select('id, status, total_amount'),
+        supabase.from('orders').select('id, status, production_stage, order_value'),
+        supabase.from('leads').select('id, status, amount')
       ]);
 
       const invoices = invoicesResult.data || [];
