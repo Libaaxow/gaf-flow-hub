@@ -3853,8 +3853,13 @@ const AccountantDashboard = () => {
                                       ? <Badge variant="outline">Paid via Contra Offset</Badge>
                                       : payment.payment_method.replace('_', ' ')}
                                   </TableCell>
-                                  <TableCell>{payment.reference_number || '-'}</TableCell>
-                                </TableRow>
+                                   <TableCell>{payment.reference_number || '-'}</TableCell>
+                                   <TableCell>
+                                     <Button size="sm" variant="outline" onClick={() => openEditPayment(payment)}>
+                                       <Pencil className="h-3.5 w-3.5 mr-1" /> Edit
+                                     </Button>
+                                   </TableCell>
+                                 </TableRow>
                               ))
                             )}
                           </TableBody>
