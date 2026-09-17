@@ -2324,6 +2324,11 @@ const AccountantDashboard = () => {
         title: product.name,
         description: 'Service item — no stock is tracked.',
       });
+    } else if (product.sale_type === 'composite') {
+      toast({
+        title: product.name,
+        description: 'Made from raw materials — raw material stock is deducted automatically.',
+      });
     } else {
       const unitLabel = isAreaBased ? 'm²' : (product.retail_unit || 'piece');
       const remaining = Number(product.stock_quantity || 0);
