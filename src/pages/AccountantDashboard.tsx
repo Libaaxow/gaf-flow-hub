@@ -2317,7 +2317,27 @@ const AccountantDashboard = () => {
     };
 
     setInvoiceItems(newItems);
+
+    // Popup showing the remaining balance (stock) of the selected goods
+    if (product.sale_type === 'service') {
+      toast({
+        title: product.name,
+        description: 'Service item — no stock is tracked.',
+      });
+    } else {
+      const unitLabel = isAreaBased ? 'm²' : (product.retail_unit || 'piece');
+      const remaining = Number(product.stock_quantity || 0);
+      const afterThis = remaining - (isAreaBased ? (areaM2 || 0) * quantity : quantity);
+      toast({
+        title: `${product.name} — Remaining: ${remaining} ${unitLabel}`,
+        description: remaining <= 0
+          ? 'Out of stock!'
+          : `After this line: ${afterThis.toFixed(2)} ${unitLabel} left`,
+        variant: remaining <= 0 || afterThis < 0 ? 'destructive' : 'default',
+      });
+    }
   };
+
 
   const updateInvoiceItem = (index: number, field: keyof InvoiceItem, value: string | number | null) => {
     const newItems = [...invoiceItems];
@@ -3194,8 +3214,21 @@ const AccountantDashboard = () => {
           </div>
         </div>
 
+        {/* Quick action — Create Invoice at top left of home */}
+        <div className="flex justify-start">
+          <Button size="sm" onClick={async () => {
+            const { data: invoiceNumberData } = await supabase.rpc('generate_invoice_number');
+            setInvoiceNumber(invoiceNumberData || `inv-${Date.now()}`);
+            setCreateInvoiceDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Invoice
+          </Button>
+        </div>
+
         {/* Daily Sales / Invoices / Collections chart — top of home */}
         <DailySalesChart />
+
 
         {/* Stats Grid */}
         <SalesRequestsPanel />
@@ -5010,7 +5043,7 @@ const AccountantDashboard = () => {
                               <SelectContent className="bg-background z-50">
                                 {products.map((product) => (
                                   <SelectItem key={product.id} value={product.id}>
-                                    {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`}
+                                    {product.name} {product.sale_type === 'area' ? `($${product.selling_price_per_m2}/m²)` : `($${product.selling_price})`} {product.sale_type === 'service' ? '· Service' : `· Left: ${product.stock_quantity} ${product.sale_type === 'area' ? 'm²' : (product.retail_unit || 'pc')}`}
                                   </SelectItem>
                                 ))}
                               </SelectContent>
