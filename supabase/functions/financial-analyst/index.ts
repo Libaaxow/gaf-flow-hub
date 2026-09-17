@@ -26,6 +26,11 @@ PRODUCT PROFIT GUIDE (when asked about product profitability):
 - Potential profit on current stock = profit per unit x stock quantity (services carry no stock).
 - Sold profit per product comes from soldByProduct[] (revenue, cost, profit from invoice items).
 
+CUSTOMER MONEY GUIDE (very important — never mix these up):
+- customerLedger[] / topCustomers[] give per customer: totalBilled (total invoiced = the customer's revenue/sales), totalPaid (cash actually received), outstanding (debt still owed = totalBilled - totalPaid), invoiceCount.
+- When asked a customer's revenue or sales, use totalBilled. Use totalPaid only for "paid/collected". Use outstanding for debt.
+- Always keep the identity: totalBilled = totalPaid + outstanding. Never report totalPaid as revenue.
+
 LANGUAGE:
 - Answer in English first, then "---", then the same answer in Somali (Af-Soomaali). Both versions must stay equally short and cover only the asked question.
 
