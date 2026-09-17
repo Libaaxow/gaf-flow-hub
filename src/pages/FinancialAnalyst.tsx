@@ -71,6 +71,19 @@ interface FinancialData {
     stockValueAtCost: number;
   }>;
   soldByProduct: Array<{ name: string; quantitySold: number; revenue: number; cost: number; profit: number }>;
+  invoiceList: Array<{ invoiceNumber: string; customer: string; date: string; dueDate: string | null; status: string; total: number; paid: number; outstanding: number }>;
+  vendors: Array<{ name: string; status: string; totalBilled: number; totalPaid: number; balanceDue: number; billCount: number }>;
+  liabilities: Array<{ title: string; vendorName: string | null; amount: number; paidAmount: number; remaining: number; status: string; dueDate: string | null }>;
+  liabilitiesSummary: { total: number; paid: number; remaining: number; count: number };
+  employees: Array<{ name: string; jobTitle: string | null; department: string | null; monthlySalary: number; status: string; hireDate: string | null }>;
+  payroll: Array<{ employee: string; period: string; gross: number; allowances: number; deductions: number; net: number; status: string; paidAt: string | null }>;
+  payrollSummary: { totalNetPaid: number; totalMonthlySalaries: number; paymentCount: number };
+  shareholders: Array<{ name: string; sharePercentage: number; sharesOwned: number; status: string; debtTaken: number; debtRepaid: number; debtOutstanding: number }>;
+  companyAssets: Array<{ name: string; quantity: number; unitPrice: number; totalValue: number; status: string }>;
+  companyAssetsTotal: number;
+  quotations: { count: number; totalValue: number; byStatus: Record<string, { count: number; value: number }> };
+  orders: { count: number; totalValue: number; byStatus: Record<string, number>; byProductionStage: Record<string, number> };
+  leads: { count: number; totalAmount: number; byStatus: Record<string, number> };
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-analyst`;
