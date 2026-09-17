@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.update_product_on_po_receive() FROM anon, authenticated, PUBLIC;
