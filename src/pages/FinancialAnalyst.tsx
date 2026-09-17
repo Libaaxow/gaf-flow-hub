@@ -42,7 +42,8 @@ interface FinancialData {
   unpaidCommissions: number;
   expensesByCategory: Record<string, number>;
   monthlyTrend: Array<{ month: string; revenue: number; expenses: number; profit: number }>;
-  topCustomers: Array<{ name: string; totalSpent: number; outstanding: number }>;
+  topCustomers: Array<{ name: string; totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }>;
+  customerLedger: Array<{ name: string; totalBilled: number; totalPaid: number; outstanding: number; invoiceCount: number }>;
   customersWithOutstanding: Array<{ name: string; outstanding: number }>;
   recentTransactions: Array<{ date: string; type: string; amount: number; description: string }>;
   products: Array<{
