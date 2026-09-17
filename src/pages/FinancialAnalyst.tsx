@@ -71,6 +71,19 @@ interface FinancialData {
     stockValueAtCost: number;
   }>;
   soldByProduct: Array<{ name: string; quantitySold: number; revenue: number; cost: number; profit: number }>;
+  invoiceList: Array<{ invoiceNumber: string; customer: string; date: string; dueDate: string | null; status: string; total: number; paid: number; outstanding: number }>;
+  vendors: Array<{ name: string; status: string; totalBilled: number; totalPaid: number; balanceDue: number; billCount: number }>;
+  liabilities: Array<{ title: string; vendorName: string | null; amount: number; paidAmount: number; remaining: number; status: string; dueDate: string | null }>;
+  liabilitiesSummary: { total: number; paid: number; remaining: number; count: number };
+  employees: Array<{ name: string; jobTitle: string | null; department: string | null; monthlySalary: number; status: string; hireDate: string | null }>;
+  payroll: Array<{ employee: string; period: string; gross: number; allowances: number; deductions: number; net: number; status: string; paidAt: string | null }>;
+  payrollSummary: { totalNetPaid: number; totalMonthlySalaries: number; paymentCount: number };
+  shareholders: Array<{ name: string; sharePercentage: number; sharesOwned: number; status: string; debtTaken: number; debtRepaid: number; debtOutstanding: number }>;
+  companyAssets: Array<{ name: string; quantity: number; unitPrice: number; totalValue: number; status: string }>;
+  companyAssetsTotal: number;
+  quotations: { count: number; totalValue: number; byStatus: Record<string, { count: number; value: number }> };
+  orders: { count: number; totalValue: number; byStatus: Record<string, number>; byProductionStage: Record<string, number> };
+  leads: { count: number; totalAmount: number; byStatus: Record<string, number> };
 }
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/financial-analyst`;
@@ -103,7 +116,19 @@ const FinancialAnalyst = () => {
         commissionsResult,
         paymentsResult,
         customersResult,
-        productsResult
+        productsResult,
+        vendorsResult,
+        vendorBillsResult,
+        vendorPaymentsResult,
+        liabilitiesResult,
+        employeesResult,
+        payrollResult,
+        shareholdersResult,
+        shareholderTxResult,
+        assetsResult,
+        quotationsResult,
+        ordersResult,
+        leadsResult
       ] = await Promise.all([
         supabase.from('invoices').select('*, invoice_items(*)'),
         supabase.from('expenses').select('*').eq('approval_status', 'approved'),
@@ -111,7 +136,19 @@ const FinancialAnalyst = () => {
         supabase.from('commissions').select('*'),
         supabase.from('payments').select('*, order:orders(job_title, customer:customers(name))'),
         supabase.from('customers').select('id, name'),
-        supabase.from('products').select('*')
+        supabase.from('products').select('*'),
+        supabase.from('vendors').select('id, name, status'),
+        supabase.from('vendor_bills').select('*'),
+        supabase.from('vendor_payments').select('*'),
+        supabase.from('company_liabilities').select('*'),
+        supabase.from('employees').select('*'),
+        supabase.from('payroll_payments').select('*'),
+        supabase.from('shareholders').select('*'),
+        supabase.from('shareholder_transactions').select('*'),
+        supabase.from('company_assets').select('*'),
+        supabase.from('quotations').select('id, status, total_amount'),
+        supabase.from('orders').select('id, status, production_stage, order_value'),
+        supabase.from('leads').select('id, status, amount')
       ]);
 
       const invoices = invoicesResult.data || [];
@@ -325,6 +362,166 @@ const FinancialAnalyst = () => {
         }))
         .sort((a, b) => b.profit - a.profit);
 
+      // ---- Wider system data so the AI can answer anything ----
+      const vendorRows: any[] = vendorsResult.data || [];
+      const vendorBills: any[] = vendorBillsResult.data || [];
+      const vendorPaymentRows: any[] = vendorPaymentsResult.data || [];
+      const liabilityRows: any[] = liabilitiesResult.data || [];
+      const employeeRows: any[] = employeesResult.data || [];
+      const payrollRows: any[] = payrollResult.data || [];
+      const shareholderRows: any[] = shareholdersResult.data || [];
+      const shareholderTx: any[] = shareholderTxResult.data || [];
+      const assetRows: any[] = assetsResult.data || [];
+      const quotationRows: any[] = quotationsResult.data || [];
+      const orderRows: any[] = ordersResult.data || [];
+      const leadRows: any[] = leadsResult.data || [];
+
+      const invoiceList = confirmedInvoices
+        .map((inv: any) => {
+          const total = Number(inv.total_amount || 0);
+          const paid = Number(inv.amount_paid || 0);
+          return {
+            invoiceNumber: inv.invoice_number || '',
+            customer: customers.find((c) => c.id === inv.customer_id)?.name || 'Unknown',
+            date: inv.invoice_date,
+            dueDate: inv.due_date ?? null,
+            status: inv.status,
+            total: Number(total.toFixed(2)),
+            paid: Number(paid.toFixed(2)),
+            outstanding: Number((total - paid).toFixed(2)),
+          };
+        })
+        .sort((a, b) => (a.date < b.date ? 1 : -1));
+
+      const vendorsData = vendorRows.map((v) => {
+        const bills = vendorBills.filter((b) => b.vendor_id === v.id);
+        const totalBilled = bills.reduce((s, b) => s + Number(b.total_amount || 0), 0);
+        const totalPaid = vendorPaymentRows
+          .filter((p) => p.vendor_id === v.id)
+          .reduce((s, p) => s + Number(p.amount || 0), 0);
+        return {
+          name: v.name,
+          status: v.status,
+          totalBilled: Number(totalBilled.toFixed(2)),
+          totalPaid: Number(totalPaid.toFixed(2)),
+          balanceDue: Number((totalBilled - totalPaid).toFixed(2)),
+          billCount: bills.length,
+        };
+      }).sort((a, b) => b.balanceDue - a.balanceDue);
+
+      const liabilities = liabilityRows.map((l) => {
+        const amount = Number(l.amount || 0);
+        const paidAmount = Number(l.paid_amount || 0);
+        return {
+          title: l.title,
+          vendorName: l.vendor_name ?? null,
+          amount: Number(amount.toFixed(2)),
+          paidAmount: Number(paidAmount.toFixed(2)),
+          remaining: Number((amount - paidAmount).toFixed(2)),
+          status: l.status,
+          dueDate: l.due_date ?? null,
+        };
+      });
+      const liabilitiesSummary = {
+        total: Number(liabilities.reduce((s, l) => s + l.amount, 0).toFixed(2)),
+        paid: Number(liabilities.reduce((s, l) => s + l.paidAmount, 0).toFixed(2)),
+        remaining: Number(liabilities.reduce((s, l) => s + l.remaining, 0).toFixed(2)),
+        count: liabilities.length,
+      };
+
+      const employeesData = employeeRows.map((e) => ({
+        name: e.full_name,
+        jobTitle: e.job_title ?? null,
+        department: e.department ?? null,
+        monthlySalary: Number(Number(e.monthly_salary || 0).toFixed(2)),
+        status: e.status,
+        hireDate: e.hire_date ?? null,
+      }));
+
+      const payroll = payrollRows.map((p) => ({
+        employee: employeeRows.find((e) => e.id === p.employee_id)?.full_name || 'Unknown',
+        period: `${p.period_month}/${p.period_year}`,
+        gross: Number(Number(p.gross_amount || 0).toFixed(2)),
+        allowances: Number(Number(p.allowances || 0).toFixed(2)),
+        deductions: Number(Number(p.deductions || 0).toFixed(2)),
+        net: Number(Number(p.net_amount || 0).toFixed(2)),
+        status: p.status,
+        paidAt: p.paid_at ?? null,
+      }));
+      const payrollSummary = {
+        totalNetPaid: Number(payrollRows
+          .filter((p) => p.status === 'paid' || p.status === 'approved')
+          .reduce((s, p) => s + Number(p.net_amount || 0), 0).toFixed(2)),
+        totalMonthlySalaries: Number(employeeRows
+          .filter((e) => e.status === 'active')
+          .reduce((s, e) => s + Number(e.monthly_salary || 0), 0).toFixed(2)),
+        paymentCount: payrollRows.length,
+      };
+
+      const shareholdersData = shareholderRows.map((s) => {
+        const tx = shareholderTx.filter((t) => t.shareholder_id === s.id);
+        const debtTaken = tx
+          .filter((t) => ['debt', 'loan', 'debt_taken', 'withdrawal'].includes(String(t.transaction_type)))
+          .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        const debtRepaid = tx
+          .filter((t) => ['repayment', 'debt_repayment', 'payment'].includes(String(t.transaction_type)))
+          .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+        return {
+          name: s.full_name,
+          sharePercentage: Number(s.share_percentage || 0),
+          sharesOwned: Number(s.shares_owned || 0),
+          status: s.status,
+          debtTaken: Number(debtTaken.toFixed(2)),
+          debtRepaid: Number(debtRepaid.toFixed(2)),
+          debtOutstanding: Number((debtTaken - debtRepaid).toFixed(2)),
+        };
+      });
+
+      const companyAssets = assetRows.map((a) => ({
+        name: a.asset_name,
+        quantity: Number(a.quantity || 0),
+        unitPrice: Number(Number(a.unit_price || 0).toFixed(2)),
+        totalValue: Number(Number(a.total_value || 0).toFixed(2)),
+        status: a.status,
+      }));
+      const companyAssetsTotal = Number(companyAssets.reduce((s, a) => s + a.totalValue, 0).toFixed(2));
+
+      const quotationsByStatus: Record<string, { count: number; value: number }> = {};
+      quotationRows.forEach((q) => {
+        const key = q.status || 'unknown';
+        if (!quotationsByStatus[key]) quotationsByStatus[key] = { count: 0, value: 0 };
+        quotationsByStatus[key].count += 1;
+        quotationsByStatus[key].value += Number(q.total_amount || 0);
+      });
+      const quotationsData = {
+        count: quotationRows.length,
+        totalValue: Number(quotationRows.reduce((s, q) => s + Number(q.total_amount || 0), 0).toFixed(2)),
+        byStatus: quotationsByStatus,
+      };
+
+      const ordersByStatus: Record<string, number> = {};
+      const ordersByStage: Record<string, number> = {};
+      orderRows.forEach((o) => {
+        ordersByStatus[o.status || 'unknown'] = (ordersByStatus[o.status || 'unknown'] || 0) + 1;
+        const stage = o.production_stage || 'none';
+        ordersByStage[stage] = (ordersByStage[stage] || 0) + 1;
+      });
+      const ordersData = {
+        count: orderRows.length,
+        totalValue: Number(orderRows.reduce((s, o) => s + Number(o.order_value || 0), 0).toFixed(2)),
+        byStatus: ordersByStatus,
+        byProductionStage: ordersByStage,
+      };
+
+      const leadsByStatus: Record<string, number> = {};
+      leadRows.forEach((l) => {
+        leadsByStatus[l.status || 'unknown'] = (leadsByStatus[l.status || 'unknown'] || 0) + 1;
+      });
+      const leadsData = {
+        count: leadRows.length,
+        totalAmount: Number(leadRows.reduce((s, l) => s + Number(l.amount || 0), 0).toFixed(2)),
+        byStatus: leadsByStatus,
+      };
 
       setFinancialData({
         period: format(new Date(), 'MMMM yyyy'),
@@ -357,7 +554,20 @@ const FinancialAnalyst = () => {
         customersWithOutstanding,
         recentTransactions: recentTransactions.slice(0, 15),
         products,
-        soldByProduct
+        soldByProduct,
+        invoiceList,
+        vendors: vendorsData,
+        liabilities,
+        liabilitiesSummary,
+        employees: employeesData,
+        payroll,
+        payrollSummary,
+        shareholders: shareholdersData,
+        companyAssets,
+        companyAssetsTotal,
+        quotations: quotationsData,
+        orders: ordersData,
+        leads: leadsData
       });
     } catch (error) {
       console.error('Error fetching financial data:', error);
