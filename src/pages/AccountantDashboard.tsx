@@ -4980,27 +4980,32 @@ const AccountantDashboard = () => {
                         <TableBody>
                           {payments.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                                No payments found for the selected period
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            payments.map((payment) => (
-                              <TableRow key={payment.id}>
-                                <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
-                                <TableCell className="font-medium">
-                                  {payment.order?.customer?.name || payment.invoice?.customer?.name || '-'}
-                                </TableCell>
-                                <TableCell>
-                                  {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
-                                </TableCell>
-                                <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
-                                <TableCell className="capitalize">
-                                  {payment.payment_method === 'contra'
-                                    ? <Badge variant="outline">Paid via Contra Offset</Badge>
-                                    : payment.payment_method}
-                                </TableCell>
-                                <TableCell>{payment.reference_number || '-'}</TableCell>
+                               <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                                 No payments found for the selected period
+                               </TableCell>
+                             </TableRow>
+                           ) : (
+                             payments.map((payment) => (
+                               <TableRow key={payment.id}>
+                                 <TableCell>{format(new Date(payment.payment_date), 'PPp')}</TableCell>
+                                 <TableCell className="font-medium">
+                                   {payment.order?.customer?.name || payment.invoice?.customer?.name || '-'}
+                                 </TableCell>
+                                 <TableCell>
+                                   {payment.order?.job_title || payment.invoice?.invoice_number || '-'}
+                                 </TableCell>
+                                 <TableCell className="font-medium">${payment.amount.toFixed(2)}</TableCell>
+                                 <TableCell className="capitalize">
+                                   {payment.payment_method === 'contra'
+                                     ? <Badge variant="outline">Paid via Contra Offset</Badge>
+                                     : payment.payment_method}
+                                 </TableCell>
+                                 <TableCell>{payment.reference_number || '-'}</TableCell>
+                                 <TableCell>
+                                   <Button size="sm" variant="outline" onClick={() => openEditPayment(payment)}>
+                                     Edit
+                                   </Button>
+                                 </TableCell>
                               </TableRow>
                             ))
                           )}
