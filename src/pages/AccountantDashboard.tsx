@@ -4614,6 +4614,83 @@ const AccountantDashboard = () => {
             </DialogContent>
           </Dialog>
 
+          {/* Edit Payment Dialog */}
+          <Dialog open={!!editingPayment} onOpenChange={(open) => !open && setEditingPayment(null)}>
+            <DialogContent className="sm:max-w-[480px]">
+              <DialogHeader>
+                <DialogTitle>Edit Payment Record</DialogTitle>
+                <DialogDescription>
+                  Sax lacagta si khaldan la gelisay. Sababta beddelka waa qasab — waxay ku keydsan doontaa audit trail-ka, invoice-kana wuu is cusboonaysiiyaa.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Amount ($)</Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editPaymentForm.amount}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, amount: e.target.value })}
+                    />
+                    {editingPayment && (
+                      <p className="text-xs text-muted-foreground">Was: ${Number(editingPayment.amount).toFixed(2)}</p>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Payment Date</Label>
+                    <Input
+                      type="datetime-local"
+                      value={editPaymentForm.payment_date}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, payment_date: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Payment Method</Label>
+                    <Select
+                      value={editPaymentForm.payment_method}
+                      onValueChange={(v) => setEditPaymentForm({ ...editPaymentForm, payment_method: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                        <SelectItem value="mobile_money">Mobile Money</SelectItem>
+                        <SelectItem value="cheque">Cheque</SelectItem>
+                        <SelectItem value="card">Card</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reference</Label>
+                    <Input
+                      value={editPaymentForm.reference_number}
+                      onChange={(e) => setEditPaymentForm({ ...editPaymentForm, reference_number: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Sababta beddelka (Edit reason) *</Label>
+                  <Textarea
+                    placeholder="Tusaale: lacagta waa $100, anigu si khaldan $1000 ayaan gelye..."
+                    value={editPaymentForm.reason}
+                    onChange={(e) => setEditPaymentForm({ ...editPaymentForm, reason: e.target.value })}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditingPayment(null)}>Cancel</Button>
+                <Button onClick={handleSavePaymentEdit} disabled={savingPaymentEdit}>
+                  {savingPaymentEdit ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {/* Commissions Tab */}
           <TabsContent value="commissions" className="space-y-4">
             <Card>
