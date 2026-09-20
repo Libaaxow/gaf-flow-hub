@@ -308,6 +308,11 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                       return (
                         <div key={pr.id} className="flex flex-wrap items-center gap-3 rounded-md border p-2">
                           <span className="flex-1 min-w-0 truncate">{product?.name || 'Product'}</span>
+                          {product && (
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {product.sale_type === 'area' ? 'per m²' : `per ${product.retail_unit || 'piece'}`}
+                            </Badge>
+                          )}
                           <span className="text-sm text-muted-foreground line-through">${std.toFixed(2)}</span>
                           <span className="font-semibold text-primary">
                             ${Number(pr.custom_price).toFixed(2)}{product ? priceUnitOf(product) : ''}
@@ -339,17 +344,36 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                           </SelectContent>
                         </Select>
                       </div>
-                      <div className="grid gap-1 w-[160px]">
-                        <Label>Contract price</Label>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={newPrice.custom_price}
-                          onChange={(e) => setNewPrice({ ...newPrice, custom_price: e.target.value })}
-                          placeholder="0.00"
-                        />
-                      </div>
+                      {(() => {
+                        const sel = products.find(p => p.id === newPrice.product_id) || null;
+                        const isArea = sel?.sale_type === 'area';
+                        const unitLabel = sel ? (isArea ? 'per m²' : `per ${sel.retail_unit || 'piece'}`) : 'per unit';
+                        return (
+                          <div className="grid gap-1 w-[220px]">
+                            <Label>Contract price ({unitLabel})</Label>
+                            <div className="flex items-center gap-2">
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={newPrice.custom_price}
+                                onChange={(e) => setNewPrice({ ...newPrice, custom_price: e.target.value })}
+                                placeholder="0.00"
+                              />
+                              <Badge variant="secondary" className="whitespace-nowrap">
+                                {sel ? (isArea ? 'm²' : (sel.retail_unit || 'pcs')) : 'unit'}
+                              </Badge>
+                            </div>
+                            {sel && (
+                              <p className="text-xs text-muted-foreground">
+                                {isArea
+                                  ? 'Measured by area — price is for 1 square meter (width × height).'
+                                  : 'Measured by piece — price is for 1 item.'}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <Button onClick={addPrice} className="gap-2">
                         <Plus className="h-4 w-4" /> Add price
                       </Button>
