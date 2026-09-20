@@ -108,15 +108,15 @@ const Customers = () => {
 
   const checkAdminRole = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+      .eq('user_id', user.id);
+
+    const roles = (data || []).map((r: any) => r.role);
+    setIsAdmin(roles.includes('admin'));
+    setCanManageAgreements(roles.includes('admin') || roles.includes('accountant'));
   };
 
   const fetchCustomers = async () => {
