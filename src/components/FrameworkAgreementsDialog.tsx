@@ -67,7 +67,7 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
   const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState({ agreement_name: '', start_date: today(), end_date: inOneYear(), notes: '' });
-  const [newPrice, setNewPrice] = useState({ product_id: '', custom_price: '' });
+  const [newPrice, setNewPrice] = useState({ product_id: '', custom_price: '', width: '', height: '' });
 
   const loadPrices = useCallback(async (agreementId: string) => {
     const { data } = await supabase
