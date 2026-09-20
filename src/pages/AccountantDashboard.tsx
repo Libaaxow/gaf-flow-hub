@@ -2437,7 +2437,10 @@ const AccountantDashboard = () => {
     const standardPrice = isAreaBased
       ? Number(product.selling_price_per_m2 || 0)
       : Number(product.selling_price || 0);
-    const agreementPrice = contractPrices[productId];
+    const sizeMatch = isAreaBased
+      ? findContractSize(productId, Number(item.width_m || 0), Number(item.height_m || 0))
+      : null;
+    const agreementPrice = sizeMatch ? sizeMatch.per_m2 : contractPrices[productId];
     const hasAgreementPrice = agreementPrice !== undefined && agreementPrice !== null;
     // Framework agreement price overrides the standard retail price
     const unitPrice = hasAgreementPrice ? Number(agreementPrice) : (item.unit_price || 0);
