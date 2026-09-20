@@ -7,7 +7,7 @@ interface InvoiceItem { description: string; quantity: number; unit_price: numbe
 interface ReportInvoice { invoice_number: string; invoice_date: string; status: string; total_amount: number; amount_paid: number; invoice_items: InvoiceItem[] }
 interface CustomerInfo { id: string; name: string; email?: string; phone?: string; company_name?: string }
 interface CustomerReportData { customer: CustomerInfo; invoices: ReportInvoice[] }
-interface FilterOptions { dateFrom?: Date; dateTo?: Date; invoiceStatus?: string }
+interface FilterOptions { dateFrom?: Date; dateTo?: Date; invoiceStatus?: string; minAmount?: string; maxAmount?: string }
 
 export const generateCombinedCustomerReportPDF = (customersData: CustomerReportData[], filters: FilterOptions) => {
   const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
