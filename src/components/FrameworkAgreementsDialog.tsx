@@ -195,21 +195,31 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
     // With a size, the typed price is the TOTAL for that size; store the per-m² rate too
     const perUnit = hasSize && area > 0 ? enteredPrice / area : enteredPrice;
 
-    const { data, error } = await supabase
-      .from('contract_product_prices')
-      .upsert(
-        {
-          agreement_id: selectedAgreement,
-          product_id: newPrice.product_id,
-          custom_price: perUnit,
-          width: hasSize ? w : null,
-          height: hasSize ? h : null,
-          total_price: hasSize ? enteredPrice : null,
-        },
-        { onConflict: 'agreement_id,product_id,width,height' }
-      )
-      .select('id, product_id, custom_price, width, height, total_price')
-      .maybeSingle();
+    const payload = {
+      agreement_id: selectedAgreement,
+      product_id: newPrice.product_id,
+      custom_price: perUnit,
+      width: hasSize ? w : null,
+      height: hasSize ? h : null,
+      total_price: hasSize ? enteredPrice : null,
+    };
+    const existing = prices.find(
+      p => p.product_id === newPrice.product_id &&
+        Number(p.width ?? 0) === (hasSize ? w : 0) &&
+        Number(p.height ?? 0) === (hasSize ? h : 0)
+    );
+    const { data, error } = existing
+      ? await supabase
+          .from('contract_product_prices')
+          .update(payload)
+          .eq('id', existing.id)
+          .select('id, product_id, custom_price, width, height, total_price')
+          .maybeSingle()
+      : await supabase
+          .from('contract_product_prices')
+          .insert(payload)
+          .select('id, product_id, custom_price, width, height, total_price')
+          .maybeSingle();
     if (error || !data) {
       toast({ title: 'Could not save price', description: error?.message, variant: 'destructive' });
       return;
