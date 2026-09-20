@@ -24,6 +24,12 @@ interface InvoiceItem {
   quantity: number;
   unit_price: number;
   amount: number;
+  sale_type?: string;
+  width_m?: number | null;
+  height_m?: number | null;
+  area_m2?: number | null;
+  rate_per_m2?: number | null;
+  products?: { name?: string } | null;
 }
 
 interface Payment {
@@ -206,7 +212,13 @@ const CustomerReports = () => {
             description,
             quantity,
             unit_price,
-            amount
+             amount,
+             sale_type,
+             width_m,
+             height_m,
+             area_m2,
+             rate_per_m2,
+             products (name)
           )
         `)
         .eq('customer_id', selectedCustomerId)
@@ -368,7 +380,13 @@ const CustomerReports = () => {
               description,
               quantity,
               unit_price,
-              amount
+               amount,
+               sale_type,
+               width_m,
+               height_m,
+               area_m2,
+               rate_per_m2,
+               products (name)
             )
           `)
           .eq('customer_id', customerId)

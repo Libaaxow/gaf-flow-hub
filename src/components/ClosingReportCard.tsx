@@ -28,7 +28,7 @@ export function ClosingReportCard() {
       ] = await Promise.all([
         supabase
           .from('invoices')
-          .select('invoice_number, invoice_date, due_date, total_amount, amount_paid, status, customers(name)')
+          .select('invoice_number, invoice_date, due_date, total_amount, amount_paid, status, customers(name), invoice_items(description, quantity, unit_price, amount, sale_type, width_m, height_m, area_m2, rate_per_m2, products(name))')
           .eq('is_draft', false),
         supabase.from('payments').select('amount, payment_date, payment_method').eq('is_contra', false),
         supabase.from('expenses').select('category, amount, expense_date').eq('approval_status', 'approved'),
@@ -57,6 +57,7 @@ export function ClosingReportCard() {
           amount_paid: i.amount_paid || 0,
           status: i.status,
           customer_name: i.customers?.name || 'Unknown',
+           invoice_items: i.invoice_items || [],
         })),
         payments: (paymentsRes.data || []) as any,
         expenses: (expensesRes.data || []) as any,
