@@ -351,15 +351,28 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                       return (
                         <div key={pr.id} className="flex flex-wrap items-center gap-3 rounded-md border p-2">
                           <span className="flex-1 min-w-0 truncate">{product?.name || 'Product'}</span>
-                          {product && (
+                          {pr.width && pr.height ? (
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {Number(pr.width)}m × {Number(pr.height)}m ({(Number(pr.width) * Number(pr.height)).toFixed(2)} m²)
+                            </Badge>
+                          ) : product && (
                             <Badge variant="outline" className="whitespace-nowrap">
                               {product.sale_type === 'area' ? 'per m²' : `per ${product.retail_unit || 'piece'}`}
                             </Badge>
                           )}
                           <span className="text-sm text-muted-foreground line-through">${std.toFixed(2)}</span>
-                          <span className="font-semibold text-primary">
-                            ${Number(pr.custom_price).toFixed(2)}{product ? priceUnitOf(product) : ''}
-                          </span>
+                          {pr.total_price ? (
+                            <span className="font-semibold text-primary whitespace-nowrap">
+                              ${Number(pr.total_price).toFixed(2)}
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                (${Number(pr.custom_price).toFixed(2)}/m²)
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-primary">
+                              ${Number(pr.custom_price).toFixed(2)}{product ? priceUnitOf(product) : ''}
+                            </span>
+                          )}
                           {canEdit && (
                             <Button variant="ghost" size="sm" onClick={() => removePrice(pr.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
