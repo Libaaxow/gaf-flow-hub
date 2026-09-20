@@ -435,6 +435,49 @@ const AccountantDashboard = () => {
   const customersRef = useRef<Customer[]>([]);
   useEffect(() => { customersRef.current = customers; }, [customers]);
 
+  // Load the active framework agreement prices whenever the invoice customer changes
+  useEffect(() => {
+    const loadAgreement = async () => {
+      if (!invoiceCustomer) {
+        setContractAgreement(null);
+        setContractPrices({});
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: agreement } = await supabase
+        .from('customer_price_lists')
+        .select('id, agreement_name, end_date')
+        .eq('customer_id', invoiceCustomer)
+        .eq('is_active', true)
+        .lte('start_date', today)
+        .gte('end_date', today)
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!agreement) {
+        setContractAgreement(null);
+        setContractPrices({});
+        return;
+      }
+
+      const { data: prices } = await supabase
+        .from('contract_product_prices')
+        .select('product_id, custom_price')
+        .eq('agreement_id', agreement.id);
+
+      const map: Record<string, number> = {};
+      (prices || []).forEach((p: any) => { map[p.product_id] = Number(p.custom_price); });
+      setContractAgreement(agreement as any);
+      setContractPrices(map);
+      toast({
+        title: 'Framework Agreement active',
+        description: `${agreement.agreement_name} — ${Object.keys(map).length} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
+      });
+    };
+    loadAgreement();
+  }, [invoiceCustomer]);
+
   // Open the invoice creation dialog when triggered from the Finance Notes panel
   useEffect(() => {
     const handler = async (e: Event) => {
