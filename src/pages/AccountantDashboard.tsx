@@ -387,6 +387,9 @@ const AccountantDashboard = () => {
   const [invoiceFilterDate, setInvoiceFilterDate] = useState<string>('today');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
+  // Framework agreement (contract) pricing for the selected customer
+  const [contractAgreement, setContractAgreement] = useState<{ id: string; agreement_name: string; end_date: string } | null>(null);
+  const [contractPrices, setContractPrices] = useState<Record<string, number>>({});
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
@@ -411,6 +414,8 @@ const AccountantDashboard = () => {
     width_m: number | null;
     height_m: number | null;
     area_m2: number | null;
+    standard_price?: number;
+    contract_price?: number;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }
