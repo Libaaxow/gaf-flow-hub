@@ -443,6 +443,7 @@ const AccountantDashboard = () => {
       if (!invoiceCustomer) {
         setContractAgreement(null);
         setContractPrices({});
+        setContractSizes({});
         return;
       }
       const today = new Date().toISOString().slice(0, 10);
