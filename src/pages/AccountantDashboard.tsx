@@ -390,6 +390,8 @@ const AccountantDashboard = () => {
   // Framework agreement (contract) pricing for the selected customer
   const [contractAgreement, setContractAgreement] = useState<{ id: string; agreement_name: string; end_date: string } | null>(null);
   const [contractPrices, setContractPrices] = useState<Record<string, number>>({});
+  // Size-specific contract prices (rolls): product_id -> list of agreed sizes with their price
+  const [contractSizes, setContractSizes] = useState<Record<string, { width: number; height: number; total: number; per_m2: number }[]>>({});
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
