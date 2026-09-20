@@ -75,8 +75,9 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
   const loadPrices = useCallback(async (agreementId: string) => {
     const { data } = await supabase
       .from('contract_product_prices')
-      .select('id, product_id, custom_price')
-      .eq('agreement_id', agreementId);
+      .select('id, product_id, custom_price, width, height, total_price')
+      .eq('agreement_id', agreementId)
+      .order('created_at', { ascending: true });
     setPrices((data as ContractPrice[]) || []);
   }, []);
 
