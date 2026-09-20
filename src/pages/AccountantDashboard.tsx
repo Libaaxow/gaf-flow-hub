@@ -5201,6 +5201,13 @@ const AccountantDashboard = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {contractAgreement && (
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+                  <span className="font-semibold text-primary">Framework Agreement active: </span>
+                  {contractAgreement.agreement_name} — contract prices apply until {contractAgreement.end_date}
+                  {Object.keys(contractPrices).length === 0 && ' (no contract prices defined yet)'}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="send-sms"
