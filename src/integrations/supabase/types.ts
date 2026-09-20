@@ -451,25 +451,34 @@ export type Database = {
           agreement_id: string
           created_at: string
           custom_price: number
+          height: number | null
           id: string
           product_id: string
+          total_price: number | null
           updated_at: string
+          width: number | null
         }
         Insert: {
           agreement_id: string
           created_at?: string
           custom_price: number
+          height?: number | null
           id?: string
           product_id: string
+          total_price?: number | null
           updated_at?: string
+          width?: number | null
         }
         Update: {
           agreement_id?: string
           created_at?: string
           custom_price?: number
+          height?: number | null
           id?: string
           product_id?: string
+          total_price?: number | null
           updated_at?: string
+          width?: number | null
         }
         Relationships: [
           {
