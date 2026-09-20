@@ -25,6 +25,9 @@ interface ContractPrice {
   id: string;
   product_id: string;
   custom_price: number;
+  width: number | null;
+  height: number | null;
+  total_price: number | null;
 }
 
 interface ProductOption {
@@ -72,8 +75,9 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
   const loadPrices = useCallback(async (agreementId: string) => {
     const { data } = await supabase
       .from('contract_product_prices')
-      .select('id, product_id, custom_price')
-      .eq('agreement_id', agreementId);
+      .select('id, product_id, custom_price, width, height, total_price')
+      .eq('agreement_id', agreementId)
+      .order('created_at', { ascending: true });
     setPrices((data as ContractPrice[]) || []);
   }, []);
 
@@ -183,27 +187,55 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
         return;
       }
     }
-    const priceToSave = Number(newPrice.custom_price);
-    const { data, error } = await supabase
-      .from('contract_product_prices')
-      .upsert(
-        {
-          agreement_id: selectedAgreement,
-          product_id: newPrice.product_id,
-          custom_price: priceToSave,
-        },
-        { onConflict: 'agreement_id,product_id' }
-      )
-      .select('id, product_id, custom_price')
-      .maybeSingle();
+    const enteredPrice = Number(newPrice.custom_price);
+    const w = Number(newPrice.width);
+    const h = Number(newPrice.height);
+    const hasSize = isArea && w > 0 && h > 0;
+    const area = hasSize ? w * h : 0;
+    // With a size, the typed price is the TOTAL for that size; store the per-m² rate too
+    const perUnit = hasSize && area > 0 ? enteredPrice / area : enteredPrice;
+
+    const payload = {
+      agreement_id: selectedAgreement,
+      product_id: newPrice.product_id,
+      custom_price: perUnit,
+      width: hasSize ? w : null,
+      height: hasSize ? h : null,
+      total_price: hasSize ? enteredPrice : null,
+    };
+    const existing = prices.find(
+      p => p.product_id === newPrice.product_id &&
+        Number(p.width ?? 0) === (hasSize ? w : 0) &&
+        Number(p.height ?? 0) === (hasSize ? h : 0)
+    );
+    const { data, error } = existing
+      ? await supabase
+          .from('contract_product_prices')
+          .update(payload)
+          .eq('id', existing.id)
+          .select('id, product_id, custom_price, width, height, total_price')
+          .maybeSingle()
+      : await supabase
+          .from('contract_product_prices')
+          .insert(payload)
+          .select('id, product_id, custom_price, width, height, total_price')
+          .maybeSingle();
     if (error || !data) {
       toast({ title: 'Could not save price', description: error?.message, variant: 'destructive' });
       return;
     }
     const row = data as ContractPrice;
-    setPrices([...prices.filter(p => p.product_id !== row.product_id), row]);
+    setPrices([
+      ...prices.filter(p => p.id !== row.id),
+      row,
+    ]);
     setNewPrice({ product_id: '', custom_price: '', width: '', height: '' });
-    toast({ title: 'Contract price saved' });
+    toast({
+      title: 'Contract price saved',
+      description: hasSize
+        ? `${w}m × ${h}m = $${enteredPrice.toFixed(2)} (you can add more sizes for the same product)`
+        : undefined,
+    });
   };
 
   const removePrice = async (id: string) => {
@@ -319,15 +351,28 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                       return (
                         <div key={pr.id} className="flex flex-wrap items-center gap-3 rounded-md border p-2">
                           <span className="flex-1 min-w-0 truncate">{product?.name || 'Product'}</span>
-                          {product && (
+                          {pr.width && pr.height ? (
+                            <Badge variant="outline" className="whitespace-nowrap">
+                              {Number(pr.width)}m × {Number(pr.height)}m ({(Number(pr.width) * Number(pr.height)).toFixed(2)} m²)
+                            </Badge>
+                          ) : product && (
                             <Badge variant="outline" className="whitespace-nowrap">
                               {product.sale_type === 'area' ? 'per m²' : `per ${product.retail_unit || 'piece'}`}
                             </Badge>
                           )}
                           <span className="text-sm text-muted-foreground line-through">${std.toFixed(2)}</span>
-                          <span className="font-semibold text-primary">
-                            ${Number(pr.custom_price).toFixed(2)}{product ? priceUnitOf(product) : ''}
-                          </span>
+                          {pr.total_price ? (
+                            <span className="font-semibold text-primary whitespace-nowrap">
+                              ${Number(pr.total_price).toFixed(2)}
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                (${Number(pr.custom_price).toFixed(2)}/m²)
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-primary">
+                              ${Number(pr.custom_price).toFixed(2)}{product ? priceUnitOf(product) : ''}
+                            </span>
+                          )}
                           {canEdit && (
                             <Button variant="ghost" size="sm" onClick={() => removePrice(pr.id)}>
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -394,7 +439,7 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                               </>
                             )}
                             <div className="grid gap-1 w-[220px]">
-                              <Label>{isArea ? 'Price per m²' : `Price per ${sel?.retail_unit || 'piece'}`}</Label>
+                              <Label>{isArea ? (hasSize ? 'Price for this size' : 'Price per m²') : `Price per ${sel?.retail_unit || 'piece'}`}</Label>
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
@@ -405,15 +450,15 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                                   placeholder="0.00"
                                 />
                                 <Badge variant="secondary" className="whitespace-nowrap">
-                                  {sel ? (isArea ? 'm²' : (sel.retail_unit || 'pcs')) : 'unit'}
+                                  {sel ? (isArea ? (hasSize ? 'total' : 'm²') : (sel.retail_unit || 'pcs')) : 'unit'}
                                 </Badge>
                               </div>
                               {sel && (
                                 <p className="text-xs text-muted-foreground">
                                   {isArea
                                     ? hasSize
-                                      ? `Total for ${newPrice.width}m × ${newPrice.height}m (${area.toFixed(2)} m²) = $${(area * rate).toFixed(2)}`
-                                      : 'Enter Width × Height like on an invoice — the m² and total are calculated for you. Price is per m².'
+                                      ? `${newPrice.width}m × ${newPrice.height}m = ${area.toFixed(2)} m² for $${rate.toFixed(2)} (= $${(rate / (area || 1)).toFixed(2)}/m²). Add this size, then add another size with its own price.`
+                                      : 'Type Width × Height for a fixed size and its price, or leave them empty for a price per m². You can save many sizes for the same roll.'
                                     : 'Measured by piece — price is for 1 item.'}
                                 </p>
                               )}

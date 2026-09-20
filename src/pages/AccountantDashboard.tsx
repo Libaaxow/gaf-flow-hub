@@ -390,6 +390,8 @@ const AccountantDashboard = () => {
   // Framework agreement (contract) pricing for the selected customer
   const [contractAgreement, setContractAgreement] = useState<{ id: string; agreement_name: string; end_date: string } | null>(null);
   const [contractPrices, setContractPrices] = useState<Record<string, number>>({});
+  // Size-specific contract prices (rolls): product_id -> list of agreed sizes with their price
+  const [contractSizes, setContractSizes] = useState<Record<string, { width: number; height: number; total: number; per_m2: number }[]>>({});
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
@@ -441,6 +443,7 @@ const AccountantDashboard = () => {
       if (!invoiceCustomer) {
         setContractAgreement(null);
         setContractPrices({});
+        setContractSizes({});
         return;
       }
       const today = new Date().toISOString().slice(0, 10);
@@ -458,21 +461,37 @@ const AccountantDashboard = () => {
       if (!agreement) {
         setContractAgreement(null);
         setContractPrices({});
+        setContractSizes({});
         return;
       }
 
       const { data: prices } = await supabase
         .from('contract_product_prices')
-        .select('product_id, custom_price')
+        .select('product_id, custom_price, width, height, total_price')
         .eq('agreement_id', agreement.id);
 
       const map: Record<string, number> = {};
-      (prices || []).forEach((p: any) => { map[p.product_id] = Number(p.custom_price); });
+      const sizeMap: Record<string, { width: number; height: number; total: number; per_m2: number }[]> = {};
+      (prices || []).forEach((p: any) => {
+        const w = Number(p.width || 0);
+        const h = Number(p.height || 0);
+        if (w > 0 && h > 0) {
+          const perM2 = Number(p.custom_price || 0);
+          const total = p.total_price !== null && p.total_price !== undefined
+            ? Number(p.total_price)
+            : perM2 * w * h;
+          (sizeMap[p.product_id] = sizeMap[p.product_id] || []).push({ width: w, height: h, total, per_m2: perM2 });
+        } else {
+          map[p.product_id] = Number(p.custom_price);
+        }
+      });
       setContractAgreement(agreement as any);
       setContractPrices(map);
+      setContractSizes(sizeMap);
+      const count = Object.keys(map).length + Object.values(sizeMap).reduce((s, l) => s + l.length, 0);
       toast({
         title: 'Framework Agreement active',
-        description: `${agreement.agreement_name} — ${Object.keys(map).length} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
+        description: `${agreement.agreement_name} — ${count} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
       });
     };
     loadAgreement();
@@ -2393,6 +2412,17 @@ const AccountantDashboard = () => {
     }
   };
 
+  // Find an agreed size (roll cut) for this product, e.g. 1m × 1.5m = $18
+  const findContractSize = (productId: string, width: number, height: number) => {
+    const list = contractSizes[productId];
+    if (!list || !(width > 0) || !(height > 0)) return null;
+    return (
+      list.find(s => Math.abs(s.width - width) < 0.005 && Math.abs(s.height - height) < 0.005) ||
+      list.find(s => Math.abs(s.width - height) < 0.005 && Math.abs(s.height - width) < 0.005) ||
+      null
+    );
+  };
+
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
@@ -2407,7 +2437,10 @@ const AccountantDashboard = () => {
     const standardPrice = isAreaBased
       ? Number(product.selling_price_per_m2 || 0)
       : Number(product.selling_price || 0);
-    const agreementPrice = contractPrices[productId];
+    const sizeMatch = isAreaBased
+      ? findContractSize(productId, Number(item.width_m || 0), Number(item.height_m || 0))
+      : null;
+    const agreementPrice = sizeMatch ? sizeMatch.per_m2 : contractPrices[productId];
     const hasAgreementPrice = agreementPrice !== undefined && agreementPrice !== null;
     // Framework agreement price overrides the standard retail price
     const unitPrice = hasAgreementPrice ? Number(agreementPrice) : (item.unit_price || 0);
@@ -2495,7 +2528,21 @@ const AccountantDashboard = () => {
         const quantity = field === 'quantity' ? Number(value) || 1 : item.quantity || 1;
         const area = width * height;
         const totalArea = area * quantity;
-        const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+        let unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+
+        // When the typed size matches an agreed size in the framework agreement, use that price
+        if ((field === 'width_m' || field === 'height_m') && item.product_id) {
+          const sizeMatch = findContractSize(item.product_id, width, height);
+          if (sizeMatch) {
+            unitPrice = sizeMatch.per_m2;
+            newItems[index].unit_price = unitPrice;
+            newItems[index].contract_price = sizeMatch.per_m2;
+            toast({
+              title: 'Framework Agreement Price applied',
+              description: `${width}m × ${height}m = $${sizeMatch.total.toFixed(2)} (agreed size price)`,
+            });
+          }
+        }
         const costPerUnit = item.cost_per_unit || 0;
         
         newItems[index].area_m2 = area;
