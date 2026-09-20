@@ -2404,7 +2404,13 @@ const AccountantDashboard = () => {
     // Preserve user-entered details (description, qty, unit price, dimensions).
     // Only link the product and update internal cost/unit labels for reporting.
     const quantity = item.quantity || 1;
-    const unitPrice = item.unit_price || 0;
+    const standardPrice = isAreaBased
+      ? Number(product.selling_price_per_m2 || 0)
+      : Number(product.selling_price || 0);
+    const agreementPrice = contractPrices[productId];
+    const hasAgreementPrice = agreementPrice !== undefined && agreementPrice !== null;
+    // Framework agreement price overrides the standard retail price
+    const unitPrice = hasAgreementPrice ? Number(agreementPrice) : (item.unit_price || 0);
     const widthM = isAreaBased ? item.width_m : null;
     const heightM = isAreaBased ? item.height_m : null;
     const areaM2 = isAreaBased
@@ -2428,6 +2434,9 @@ const AccountantDashboard = () => {
       sale_type: product.sale_type || 'unit',
       retail_unit: isAreaBased ? 'm²' : product.retail_unit,
       cost_per_unit: costPerUnit,
+      unit_price: unitPrice,
+      standard_price: standardPrice,
+      contract_price: hasAgreementPrice ? Number(agreementPrice) : undefined,
       amount,
       line_cost: lineCost,
       line_profit: lineProfit,
