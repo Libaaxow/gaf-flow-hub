@@ -7,5 +7,4 @@
    - App type: PWA (installable web app).
    - Blocker: Firebase Cloud Messaging connection was not completed; user will provide Firebase credentials later.
 
-2. **Detailed PDF Reports** — Apply the approved detailed table layout to all report downloads and visually verify each report type.
 

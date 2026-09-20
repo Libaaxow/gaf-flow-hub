@@ -22,6 +22,8 @@ export const drawReportHeader = (
   title: string,
   subtitle?: string,
 ) => {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const right = pageWidth - 20;
   try {
     pdf.addImage(logoImg, "PNG", 20, 12, 45, 18);
   } catch {
@@ -31,16 +33,16 @@ export const drawReportHeader = (
   pdf.setFontSize(9);
   pdf.setFont(undefined, "bold");
   pdf.setTextColor(...REPORT_TEXT);
-  pdf.text("GAF MEDIA", 190, 16, { align: "right" });
+  pdf.text("GAF MEDIA", right, 16, { align: "right" });
   pdf.setFont(undefined, "normal");
   pdf.setTextColor(...REPORT_MUTED);
-  pdf.text("Shanemo Shatrale, Baidoa, Somalia", 190, 21, { align: "right" });
-  pdf.text("Hormuud 0619130707  |  Somtel 0629130707", 190, 26, { align: "right" });
-  pdf.text("gafmedia02@gmail.com  |  www.gafsom.com", 190, 31, { align: "right" });
+  pdf.text("Shanemo Shatrale, Baidoa, Somalia", right, 21, { align: "right" });
+  pdf.text("Hormuud 0619130707  |  Somtel 0629130707", right, 26, { align: "right" });
+  pdf.text("gafmedia02@gmail.com  |  www.gafsom.com", right, 31, { align: "right" });
 
   pdf.setDrawColor(...REPORT_LINE);
   pdf.setLineWidth(0.35);
-  pdf.line(20, 36, 190, 36);
+  pdf.line(20, 36, right, 36);
 
   pdf.setFontSize(17);
   pdf.setFont(undefined, "bold");
@@ -50,7 +52,7 @@ export const drawReportHeader = (
   pdf.setFont(undefined, "normal");
   pdf.setTextColor(...REPORT_MUTED);
   if (subtitle) pdf.text(subtitle, 20, 53);
-  pdf.text(`Generated ${format(new Date(), "dd MMM yyyy, HH:mm")}`, 190, 53, { align: "right" });
+  pdf.text(`Generated ${format(new Date(), "dd MMM yyyy, HH:mm")}`, right, 53, { align: "right" });
   return 61;
 };
 
@@ -58,14 +60,16 @@ export const addReportFooters = (pdf: jsPDF, label: string) => {
   const pages = pdf.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
     pdf.setPage(page);
+    const right = pdf.internal.pageSize.getWidth() - 20;
+    const footerY = pdf.internal.pageSize.getHeight() - 14;
     pdf.setDrawColor(...REPORT_LINE);
     pdf.setLineWidth(0.25);
-    pdf.line(20, 283, 190, 283);
+    pdf.line(20, footerY, right, footerY);
     pdf.setFontSize(7.5);
     pdf.setFont(undefined, "normal");
     pdf.setTextColor(...REPORT_MUTED);
-    pdf.text(`GAF MEDIA — ${label}`, 20, 288);
-    pdf.text(`Page ${page} of ${pages}`, 190, 288, { align: "right" });
+    pdf.text(`GAF MEDIA — ${label}`, 20, footerY + 5);
+    pdf.text(`Page ${page} of ${pages}`, right, footerY + 5, { align: "right" });
   }
 };
 
@@ -98,7 +102,8 @@ export const drawReportSummary = (
 ) => {
   const columns = Math.min(4, Math.max(1, items.length));
   const gap = 3;
-  const width = (170 - gap * (columns - 1)) / columns;
+  const availableWidth = pdf.internal.pageSize.getWidth() - 40;
+  const width = (availableWidth - gap * (columns - 1)) / columns;
   const rows = Math.ceil(items.length / columns);
   items.forEach((item, index) => {
     const column = index % columns;
