@@ -2412,6 +2412,17 @@ const AccountantDashboard = () => {
     }
   };
 
+  // Find an agreed size (roll cut) for this product, e.g. 1m × 1.5m = $18
+  const findContractSize = (productId: string, width: number, height: number) => {
+    const list = contractSizes[productId];
+    if (!list || !(width > 0) || !(height > 0)) return null;
+    return (
+      list.find(s => Math.abs(s.width - width) < 0.005 && Math.abs(s.height - height) < 0.005) ||
+      list.find(s => Math.abs(s.width - height) < 0.005 && Math.abs(s.height - width) < 0.005) ||
+      null
+    );
+  };
+
   const handleProductSelect = (index: number, productId: string) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
