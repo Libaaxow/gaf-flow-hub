@@ -450,15 +450,15 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                                   placeholder="0.00"
                                 />
                                 <Badge variant="secondary" className="whitespace-nowrap">
-                                  {sel ? (isArea ? 'm²' : (sel.retail_unit || 'pcs')) : 'unit'}
+                                  {sel ? (isArea ? (hasSize ? 'total' : 'm²') : (sel.retail_unit || 'pcs')) : 'unit'}
                                 </Badge>
                               </div>
                               {sel && (
                                 <p className="text-xs text-muted-foreground">
                                   {isArea
                                     ? hasSize
-                                      ? `Total for ${newPrice.width}m × ${newPrice.height}m (${area.toFixed(2)} m²) = $${(area * rate).toFixed(2)}`
-                                      : 'Enter Width × Height like on an invoice — the m² and total are calculated for you. Price is per m².'
+                                      ? `${newPrice.width}m × ${newPrice.height}m = ${area.toFixed(2)} m² for $${rate.toFixed(2)} (= $${(rate / (area || 1)).toFixed(2)}/m²). Add this size, then add another size with its own price.`
+                                      : 'Type Width × Height for a fixed size and its price, or leave them empty for a price per m². You can save many sizes for the same roll.'
                                     : 'Measured by piece — price is for 1 item.'}
                                 </p>
                               )}
