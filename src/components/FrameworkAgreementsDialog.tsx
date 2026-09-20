@@ -175,17 +175,15 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
     }
     const sel = products.find(p => p.id === newPrice.product_id) || null;
     const isArea = sel?.sale_type === 'area';
-    const w = Number(newPrice.width);
-    const h = Number(newPrice.height);
-    let priceToSave = Number(newPrice.custom_price);
-    if (isArea && newPrice.width !== '' && newPrice.height !== '') {
+    if (isArea && (newPrice.width !== '' || newPrice.height !== '')) {
+      const w = Number(newPrice.width);
+      const h = Number(newPrice.height);
       if (!(w > 0) || !(h > 0)) {
-        toast({ title: 'Width and height must be greater than 0', variant: 'destructive' });
+        toast({ title: 'Width and height must both be greater than 0', variant: 'destructive' });
         return;
       }
-      // Entered price is the TOTAL for that size — store the per-m² rate
-      priceToSave = priceToSave / (w * h);
     }
+    const priceToSave = Number(newPrice.custom_price);
     const { data, error } = await supabase
       .from('contract_product_prices')
       .upsert(
