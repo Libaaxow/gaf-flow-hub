@@ -5351,6 +5351,11 @@ const AccountantDashboard = () => {
                               {isAreaBased && (
                                 <span className="text-xs text-muted-foreground">/m²</span>
                               )}
+                              {item.contract_price !== undefined && (
+                                <span className="text-xs text-primary font-medium mt-1">
+                                  Framework Agreement Price applied (${(item.standard_price || 0).toFixed(2)} standard → ${item.contract_price.toFixed(2)} agreement)
+                                </span>
+                              )}
                             </div>
                           </TableCell>
                           <TableCell className="font-semibold">
