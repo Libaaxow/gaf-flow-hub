@@ -844,6 +844,15 @@ const Customers = () => {
         />
       )}
 
+      {/* Framework Agreement Prices */}
+      <FrameworkAgreementsDialog
+        open={agreementDialogOpen}
+        onOpenChange={setAgreementDialogOpen}
+        customerId={agreementCustomer?.id || null}
+        customerName={agreementCustomer?.name || ''}
+        canEdit={canManageAgreements}
+      />
+
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent>
