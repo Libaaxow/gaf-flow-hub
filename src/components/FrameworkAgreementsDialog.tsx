@@ -360,18 +360,14 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                       {(() => {
                         const sel = products.find(p => p.id === newPrice.product_id) || null;
                         const isArea = sel?.sale_type === 'area';
-                        const hasSize = isArea && newPrice.width !== '' && newPrice.height !== '';
+                        const hasSize = isArea && Number(newPrice.width) > 0 && Number(newPrice.height) > 0;
                         const area = hasSize ? Number(newPrice.width) * Number(newPrice.height) : 0;
-                        const unitLabel = sel
-                          ? isArea
-                            ? hasSize ? `total for ${(area || 0).toFixed(2)} m²` : 'per m²'
-                            : `per ${sel.retail_unit || 'piece'}`
-                          : 'per unit';
+                        const rate = Number(newPrice.custom_price || '0');
                         return (
                           <>
                             {isArea && (
                               <>
-                                <div className="grid gap-1 w-[110px]">
+                                <div className="grid gap-1 w-[100px]">
                                   <Label>Width (m)</Label>
                                   <Input
                                     type="number"
@@ -379,10 +375,10 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                                     min="0"
                                     value={newPrice.width}
                                     onChange={(e) => setNewPrice({ ...newPrice, width: e.target.value })}
-                                    placeholder="W"
+                                    placeholder="0.00"
                                   />
                                 </div>
-                                <div className="grid gap-1 w-[110px]">
+                                <div className="grid gap-1 w-[100px]">
                                   <Label>Height (m)</Label>
                                   <Input
                                     type="number"
@@ -390,13 +386,17 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                                     min="0"
                                     value={newPrice.height}
                                     onChange={(e) => setNewPrice({ ...newPrice, height: e.target.value })}
-                                    placeholder="H"
+                                    placeholder="0.00"
                                   />
+                                </div>
+                                <div className="grid gap-1 w-[90px]">
+                                  <Label>m²</Label>
+                                  <Input readOnly value={hasSize ? area.toFixed(2) : ''} placeholder="auto" className="bg-muted" />
                                 </div>
                               </>
                             )}
                             <div className="grid gap-1 w-[220px]">
-                              <Label>Contract price ({unitLabel})</Label>
+                              <Label>{isArea ? 'Price per m²' : `Price per ${sel?.retail_unit || 'piece'}`}</Label>
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
@@ -414,8 +414,8 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                                 <p className="text-xs text-muted-foreground">
                                   {isArea
                                     ? hasSize
-                                      ? `Enter the TOTAL price for ${newPrice.width}m × ${newPrice.height}m — saved as $${(Number(newPrice.custom_price || '0') / (area || 1)).toFixed(2)} per m².`
-                                      : 'Measured by area — price is for 1 square meter. Or enter Width × Height above and give the total price for that size.'
+                                      ? `Total for ${newPrice.width}m × ${newPrice.height}m (${area.toFixed(2)} m²) = $${(area * rate).toFixed(2)}`
+                                      : 'Enter Width × Height like on an invoice — the m² and total are calculated for you. Price is per m².'
                                     : 'Measured by piece — price is for 1 item.'}
                                 </p>
                               )}
