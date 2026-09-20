@@ -14,6 +14,18 @@ export interface ClosingInvoice {
   amount_paid: number;
   status: string;
   customer_name: string;
+  invoice_items?: {
+    description: string;
+    quantity: number;
+    unit_price: number;
+    amount: number;
+    sale_type?: string;
+    width_m?: number | null;
+    height_m?: number | null;
+    area_m2?: number | null;
+    rate_per_m2?: number | null;
+    products?: { name?: string } | null;
+  }[];
 }
 
 export interface ClosingPayment {
@@ -84,24 +96,25 @@ const drawHeader = (pdf: jsPDF, title: string, subtitle: string) => {
   pdf.setFont(undefined, "normal");
   pdf.setTextColor(102, 102, 102);
   pdf.text("Shanemo Shatrale, Baidoa, Somalia", 190, 22, { align: "right" });
-  pdf.text("Phone: 0619130707  |  gafmedia02@gmail.com", 190, 27, { align: "right" });
+  pdf.text("Hormuud 0619130707  |  Somtel 0629130707", 190, 27, { align: "right" });
+  pdf.text("gafmedia02@gmail.com  |  www.gafsom.com", 190, 32, { align: "right" });
 
   pdf.setDrawColor(230, 230, 230);
   pdf.setLineWidth(0.5);
-  pdf.line(20, 34, 190, 34);
+  pdf.line(20, 37, 190, 37);
 
   pdf.setFontSize(16);
   pdf.setTextColor(...BRAND);
   pdf.setFont(undefined, "bold");
-  pdf.text(title, 20, 44);
+  pdf.text(title, 20, 47);
 
   pdf.setFontSize(9);
   pdf.setTextColor(102, 102, 102);
   pdf.setFont(undefined, "normal");
-  pdf.text(subtitle, 20, 50);
-  pdf.text(`Generated: ${format(new Date(), "MMMM dd, yyyy HH:mm")}`, 190, 50, { align: "right" });
+  pdf.text(subtitle, 20, 53);
+  pdf.text(`Generated: ${format(new Date(), "MMMM dd, yyyy HH:mm")}`, 190, 53, { align: "right" });
 
-  return 58;
+  return 61;
 };
 
 const sectionTitle = (pdf: jsPDF, text: string, y: number) => {
@@ -279,7 +292,7 @@ export const generateClosingReportPDF = (data: ClosingReportData) => {
       ]),
     foot: [["TOTAL", money(expensesTotal), "100%"]],
     theme: "striped",
-    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9 },
+    headStyles: { fillColor: NAVY, textColor: 255, fontSize: 9 },
     footStyles: { fillColor: [254, 242, 242], textColor: [30, 41, 59], fontStyle: "bold", fontSize: 9 },
     bodyStyles: { fontSize: 8.5 },
     columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
@@ -331,6 +344,42 @@ export const generateClosingReportPDF = (data: ClosingReportData) => {
     columnStyles: { 1: { halign: "right", cellWidth: 45 } },
     margin: { left: 20, right: 20 },
   });
+
+  const detailedInvoices = data.invoices.filter((invoice) => (invoice.invoice_items || []).length > 0);
+  if (detailedInvoices.length) {
+    pdf.addPage();
+    y = drawHeader(pdf, "INVOICE ITEM DETAILS", data.periodLabel);
+    y = sectionTitle(pdf, "DETAILED PRODUCTS, SIZES, RATES & AMOUNTS", y);
+    detailedInvoices.forEach((invoice) => {
+      if (y > 225) { pdf.addPage(); y = drawHeader(pdf, "INVOICE ITEM DETAILS", data.periodLabel); }
+      autoTable(pdf, {
+        startY: y,
+        head: [["Invoice / Customer", "Description", "Qty / Size", "Rate", "Amount"]],
+        body: (invoice.invoice_items || []).map((item) => {
+          const width = Number(item.width_m || 0);
+          const height = Number(item.height_m || 0);
+          const quantity = Number(item.quantity || 1);
+          const area = Number(item.area_m2 || (width && height ? width * height * quantity : 0));
+          const measure = area > 0 ? (width && height ? `${quantity} × ${width.toFixed(2)} × ${height.toFixed(2)} m\n${area.toFixed(2)} m²` : `${area.toFixed(2)} m²`) : `${quantity} pcs`;
+          return [
+            `${invoice.invoice_number}\n${invoice.customer_name}`,
+            item.products?.name ? `${item.products.name}\n${item.description || ""}` : item.description,
+            measure,
+            money(Number(item.rate_per_m2 || item.unit_price || 0)),
+            money(item.amount),
+          ];
+        }),
+        foot: [["INVOICE TOTAL", "", "", "", money(invoice.total_amount)]],
+        theme: "striped",
+        headStyles: { fillColor: NAVY, textColor: 255, fontSize: 8 },
+        footStyles: { fillColor: [241, 245, 249], textColor: NAVY, fontStyle: "bold", fontSize: 8 },
+        bodyStyles: { fontSize: 7.5 },
+        columnStyles: { 0: { cellWidth: 38 }, 1: { cellWidth: 57 }, 2: { cellWidth: 34 }, 3: { halign: "right" }, 4: { halign: "right", fontStyle: "bold" } },
+        margin: { left: 20, right: 20, bottom: 18 },
+      });
+      y = (pdf as any).lastAutoTable.finalY + 7;
+    });
+  }
 
   autoTable(pdf, {
     startY: (pdf as any).lastAutoTable.finalY + 8,
@@ -395,7 +444,7 @@ export const generateClosingReportPDF = (data: ClosingReportData) => {
     ]),
     foot: [["TOTAL PAYABLES", "", "", "", "", money(payablesDue), ""]],
     theme: "striped",
-    headStyles: { fillColor: BRAND, textColor: 255, fontSize: 8 },
+    headStyles: { fillColor: NAVY, textColor: 255, fontSize: 8 },
     footStyles: { fillColor: [254, 242, 242], textColor: [30, 41, 59], fontStyle: "bold", fontSize: 8.5 },
     bodyStyles: { fontSize: 7.5 },
     columnStyles: { 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right", fontStyle: "bold" } },
@@ -522,7 +571,7 @@ export const generateClosingReportPDF = (data: ClosingReportData) => {
         ["Loan balance remaining after this payout", money(remainingLoan)],
       ],
       theme: "striped",
-      headStyles: { fillColor: BRAND, textColor: 255, fontSize: 9 },
+      headStyles: { fillColor: NAVY, textColor: 255, fontSize: 9 },
       bodyStyles: { fontSize: 8.5 },
       columnStyles: { 1: { halign: "right", cellWidth: 50 } },
       margin: { left: 20, right: 20 },
