@@ -697,6 +697,15 @@ const Customers = () => {
                               <FileText className="h-4 w-4" />
                               Report
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setAgreementCustomer(customer); setAgreementDialogOpen(true); }}
+                              className="gap-2"
+                            >
+                              <FileSignature className="h-4 w-4" />
+                              Contract Prices
+                            </Button>
                             {isAdmin && (
                               <>
                                 <Button
