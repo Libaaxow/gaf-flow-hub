@@ -226,7 +226,7 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
     }
     const row = data as ContractPrice;
     setPrices([
-      ...prices.filter(p => !(p.product_id === row.product_id && (p.width ?? null) === (row.width ?? null) && (p.height ?? null) === (row.height ?? null))),
+      ...prices.filter(p => p.id !== row.id),
       row,
     ]);
     setNewPrice({ product_id: '', custom_price: '', width: '', height: '' });
