@@ -461,21 +461,37 @@ const AccountantDashboard = () => {
       if (!agreement) {
         setContractAgreement(null);
         setContractPrices({});
+        setContractSizes({});
         return;
       }
 
       const { data: prices } = await supabase
         .from('contract_product_prices')
-        .select('product_id, custom_price')
+        .select('product_id, custom_price, width, height, total_price')
         .eq('agreement_id', agreement.id);
 
       const map: Record<string, number> = {};
-      (prices || []).forEach((p: any) => { map[p.product_id] = Number(p.custom_price); });
+      const sizeMap: Record<string, { width: number; height: number; total: number; per_m2: number }[]> = {};
+      (prices || []).forEach((p: any) => {
+        const w = Number(p.width || 0);
+        const h = Number(p.height || 0);
+        if (w > 0 && h > 0) {
+          const perM2 = Number(p.custom_price || 0);
+          const total = p.total_price !== null && p.total_price !== undefined
+            ? Number(p.total_price)
+            : perM2 * w * h;
+          (sizeMap[p.product_id] = sizeMap[p.product_id] || []).push({ width: w, height: h, total, per_m2: perM2 });
+        } else {
+          map[p.product_id] = Number(p.custom_price);
+        }
+      });
       setContractAgreement(agreement as any);
       setContractPrices(map);
+      setContractSizes(sizeMap);
+      const count = Object.keys(map).length + Object.values(sizeMap).reduce((s, l) => s + l.length, 0);
       toast({
         title: 'Framework Agreement active',
-        description: `${agreement.agreement_name} — ${Object.keys(map).length} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
+        description: `${agreement.agreement_name} — ${count} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
       });
     };
     loadAgreement();
