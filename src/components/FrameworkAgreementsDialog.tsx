@@ -173,13 +173,26 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
       toast({ title: 'Select a product and price', variant: 'destructive' });
       return;
     }
+    const sel = products.find(p => p.id === newPrice.product_id) || null;
+    const isArea = sel?.sale_type === 'area';
+    const w = Number(newPrice.width);
+    const h = Number(newPrice.height);
+    let priceToSave = Number(newPrice.custom_price);
+    if (isArea && newPrice.width !== '' && newPrice.height !== '') {
+      if (!(w > 0) || !(h > 0)) {
+        toast({ title: 'Width and height must be greater than 0', variant: 'destructive' });
+        return;
+      }
+      // Entered price is the TOTAL for that size — store the per-m² rate
+      priceToSave = priceToSave / (w * h);
+    }
     const { data, error } = await supabase
       .from('contract_product_prices')
       .upsert(
         {
           agreement_id: selectedAgreement,
           product_id: newPrice.product_id,
-          custom_price: Number(newPrice.custom_price),
+          custom_price: priceToSave,
         },
         { onConflict: 'agreement_id,product_id' }
       )
@@ -191,7 +204,7 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
     }
     const row = data as ContractPrice;
     setPrices([...prices.filter(p => p.product_id !== row.product_id), row]);
-    setNewPrice({ product_id: '', custom_price: '' });
+    setNewPrice({ product_id: '', custom_price: '', width: '', height: '' });
     toast({ title: 'Contract price saved' });
   };
 
