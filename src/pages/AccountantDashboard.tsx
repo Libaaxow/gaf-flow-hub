@@ -2528,7 +2528,21 @@ const AccountantDashboard = () => {
         const quantity = field === 'quantity' ? Number(value) || 1 : item.quantity || 1;
         const area = width * height;
         const totalArea = area * quantity;
-        const unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+        let unitPrice = field === 'unit_price' ? Number(value) : item.unit_price;
+
+        // When the typed size matches an agreed size in the framework agreement, use that price
+        if ((field === 'width_m' || field === 'height_m') && item.product_id) {
+          const sizeMatch = findContractSize(item.product_id, width, height);
+          if (sizeMatch) {
+            unitPrice = sizeMatch.per_m2;
+            newItems[index].unit_price = unitPrice;
+            newItems[index].contract_price = sizeMatch.per_m2;
+            toast({
+              title: 'Framework Agreement Price applied',
+              description: `${width}m × ${height}m = $${sizeMatch.total.toFixed(2)} (agreed size price)`,
+            });
+          }
+        }
         const costPerUnit = item.cost_per_unit || 0;
         
         newItems[index].area_m2 = area;
