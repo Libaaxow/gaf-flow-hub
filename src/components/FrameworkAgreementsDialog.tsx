@@ -25,6 +25,9 @@ interface ContractPrice {
   id: string;
   product_id: string;
   custom_price: number;
+  width: number | null;
+  height: number | null;
+  total_price: number | null;
 }
 
 interface ProductOption {
