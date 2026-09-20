@@ -439,7 +439,7 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                               </>
                             )}
                             <div className="grid gap-1 w-[220px]">
-                              <Label>{isArea ? 'Price per m²' : `Price per ${sel?.retail_unit || 'piece'}`}</Label>
+                              <Label>{isArea ? (hasSize ? 'Price for this size' : 'Price per m²') : `Price per ${sel?.retail_unit || 'piece'}`}</Label>
                               <div className="flex items-center gap-2">
                                 <Input
                                   type="number"
