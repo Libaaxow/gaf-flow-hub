@@ -7,3 +7,4 @@
    - App type: PWA (installable web app).
    - Blocker: Firebase Cloud Messaging connection was not completed; user will provide Firebase credentials later.
 
+
