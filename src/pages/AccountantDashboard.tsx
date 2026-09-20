@@ -2447,6 +2447,13 @@ const AccountantDashboard = () => {
 
     setInvoiceItems(newItems);
 
+    if (hasAgreementPrice) {
+      toast({
+        title: 'Framework Agreement Price applied',
+        description: `${product.name}: $${standardPrice.toFixed(2)} standard → $${Number(agreementPrice).toFixed(2)} agreement${contractAgreement ? ` (${contractAgreement.agreement_name})` : ''}`,
+      });
+    }
+
     // Popup showing the remaining balance (stock) of the selected goods
     if (product.sale_type === 'service') {
       toast({
