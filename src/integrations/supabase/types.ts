@@ -446,6 +446,48 @@ export type Database = {
           },
         ]
       }
+      contract_product_prices: {
+        Row: {
+          agreement_id: string
+          created_at: string
+          custom_price: number
+          id: string
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          agreement_id: string
+          created_at?: string
+          custom_price: number
+          id?: string
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          agreement_id?: string
+          created_at?: string
+          custom_price?: number
+          id?: string
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_product_prices_agreement_id_fkey"
+            columns: ["agreement_id"]
+            isOneToOne: false
+            referencedRelation: "customer_price_lists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       corporate_audit_log: {
         Row: {
           action: string
@@ -627,6 +669,53 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      customer_price_lists: {
+        Row: {
+          agreement_name: string
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          end_date: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          agreement_name: string
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          agreement_name?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_price_lists_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customers: {
         Row: {

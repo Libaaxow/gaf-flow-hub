@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, Search, ChevronDown, ChevronUp, FileText, Package, Pencil, Trash2, DollarSign, AlertCircle } from 'lucide-react';
+import { Plus, Search, ChevronDown, ChevronUp, FileText, Package, Pencil, Trash2, DollarSign, AlertCircle, FileSignature } from 'lucide-react';
+import { FrameworkAgreementsDialog } from '@/components/FrameworkAgreementsDialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
@@ -66,6 +67,9 @@ const Customers = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canManageAgreements, setCanManageAgreements] = useState(false);
+  const [agreementCustomer, setAgreementCustomer] = useState<Customer | null>(null);
+  const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteCustomerId, setDeleteCustomerId] = useState<string | null>(null);
@@ -104,15 +108,15 @@ const Customers = () => {
 
   const checkAdminRole = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', user.id)
-      .eq('role', 'admin')
-      .maybeSingle();
-    
-    setIsAdmin(!!data);
+      .eq('user_id', user.id);
+
+    const roles = (data || []).map((r: any) => r.role);
+    setIsAdmin(roles.includes('admin'));
+    setCanManageAgreements(roles.includes('admin') || roles.includes('accountant'));
   };
 
   const fetchCustomers = async () => {
@@ -693,6 +697,15 @@ const Customers = () => {
                               <FileText className="h-4 w-4" />
                               Report
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => { setAgreementCustomer(customer); setAgreementDialogOpen(true); }}
+                              className="gap-2"
+                            >
+                              <FileSignature className="h-4 w-4" />
+                              Contract Prices
+                            </Button>
                             {isAdmin && (
                               <>
                                 <Button
@@ -830,6 +843,15 @@ const Customers = () => {
           order={selectedInvoice}
         />
       )}
+
+      {/* Framework Agreement Prices */}
+      <FrameworkAgreementsDialog
+        open={agreementDialogOpen}
+        onOpenChange={setAgreementDialogOpen}
+        customerId={agreementCustomer?.id || null}
+        customerName={agreementCustomer?.name || ''}
+        canEdit={canManageAgreements}
+      />
 
       {/* Edit Customer Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>

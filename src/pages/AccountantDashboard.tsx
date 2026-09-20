@@ -387,6 +387,9 @@ const AccountantDashboard = () => {
   const [invoiceFilterDate, setInvoiceFilterDate] = useState<string>('today');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceCustomer, setInvoiceCustomer] = useState('');
+  // Framework agreement (contract) pricing for the selected customer
+  const [contractAgreement, setContractAgreement] = useState<{ id: string; agreement_name: string; end_date: string } | null>(null);
+  const [contractPrices, setContractPrices] = useState<Record<string, number>>({});
   const [invoiceOrder, setInvoiceOrder] = useState('');
   const [invoiceDueDate, setInvoiceDueDate] = useState(defaultDueDate());
   const [invoiceTax, setInvoiceTax] = useState('');
@@ -411,6 +414,8 @@ const AccountantDashboard = () => {
     width_m: number | null;
     height_m: number | null;
     area_m2: number | null;
+    standard_price?: number;
+    contract_price?: number;
   }
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItem[]>([
     { description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }
@@ -429,6 +434,49 @@ const AccountantDashboard = () => {
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const customersRef = useRef<Customer[]>([]);
   useEffect(() => { customersRef.current = customers; }, [customers]);
+
+  // Load the active framework agreement prices whenever the invoice customer changes
+  useEffect(() => {
+    const loadAgreement = async () => {
+      if (!invoiceCustomer) {
+        setContractAgreement(null);
+        setContractPrices({});
+        return;
+      }
+      const today = new Date().toISOString().slice(0, 10);
+      const { data: agreement } = await supabase
+        .from('customer_price_lists')
+        .select('id, agreement_name, end_date')
+        .eq('customer_id', invoiceCustomer)
+        .eq('is_active', true)
+        .lte('start_date', today)
+        .gte('end_date', today)
+        .order('start_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!agreement) {
+        setContractAgreement(null);
+        setContractPrices({});
+        return;
+      }
+
+      const { data: prices } = await supabase
+        .from('contract_product_prices')
+        .select('product_id, custom_price')
+        .eq('agreement_id', agreement.id);
+
+      const map: Record<string, number> = {};
+      (prices || []).forEach((p: any) => { map[p.product_id] = Number(p.custom_price); });
+      setContractAgreement(agreement as any);
+      setContractPrices(map);
+      toast({
+        title: 'Framework Agreement active',
+        description: `${agreement.agreement_name} — ${Object.keys(map).length} contract price(s) will be applied automatically (valid until ${agreement.end_date}).`,
+      });
+    };
+    loadAgreement();
+  }, [invoiceCustomer]);
 
   // Open the invoice creation dialog when triggered from the Finance Notes panel
   useEffect(() => {
@@ -2356,7 +2404,13 @@ const AccountantDashboard = () => {
     // Preserve user-entered details (description, qty, unit price, dimensions).
     // Only link the product and update internal cost/unit labels for reporting.
     const quantity = item.quantity || 1;
-    const unitPrice = item.unit_price || 0;
+    const standardPrice = isAreaBased
+      ? Number(product.selling_price_per_m2 || 0)
+      : Number(product.selling_price || 0);
+    const agreementPrice = contractPrices[productId];
+    const hasAgreementPrice = agreementPrice !== undefined && agreementPrice !== null;
+    // Framework agreement price overrides the standard retail price
+    const unitPrice = hasAgreementPrice ? Number(agreementPrice) : (item.unit_price || 0);
     const widthM = isAreaBased ? item.width_m : null;
     const heightM = isAreaBased ? item.height_m : null;
     const areaM2 = isAreaBased
@@ -2380,6 +2434,9 @@ const AccountantDashboard = () => {
       sale_type: product.sale_type || 'unit',
       retail_unit: isAreaBased ? 'm²' : product.retail_unit,
       cost_per_unit: costPerUnit,
+      unit_price: unitPrice,
+      standard_price: standardPrice,
+      contract_price: hasAgreementPrice ? Number(agreementPrice) : undefined,
       amount,
       line_cost: lineCost,
       line_profit: lineProfit,
@@ -2389,6 +2446,13 @@ const AccountantDashboard = () => {
     };
 
     setInvoiceItems(newItems);
+
+    if (hasAgreementPrice) {
+      toast({
+        title: 'Framework Agreement Price applied',
+        description: `${product.name}: $${standardPrice.toFixed(2)} standard → $${Number(agreementPrice).toFixed(2)} agreement${contractAgreement ? ` (${contractAgreement.agreement_name})` : ''}`,
+      });
+    }
 
     // Popup showing the remaining balance (stock) of the selected goods
     if (product.sale_type === 'service') {
@@ -5137,6 +5201,13 @@ const AccountantDashboard = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {contractAgreement && (
+                <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-sm">
+                  <span className="font-semibold text-primary">Framework Agreement active: </span>
+                  {contractAgreement.agreement_name} — contract prices apply until {contractAgreement.end_date}
+                  {Object.keys(contractPrices).length === 0 && ' (no contract prices defined yet)'}
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="send-sms"
@@ -5286,6 +5357,11 @@ const AccountantDashboard = () => {
                               />
                               {isAreaBased && (
                                 <span className="text-xs text-muted-foreground">/m²</span>
+                              )}
+                              {item.contract_price !== undefined && (
+                                <span className="text-xs text-primary font-medium mt-1">
+                                  Framework Agreement Price applied (${(item.standard_price || 0).toFixed(2)} standard → ${item.contract_price.toFixed(2)} agreement)
+                                </span>
                               )}
                             </div>
                           </TableCell>
