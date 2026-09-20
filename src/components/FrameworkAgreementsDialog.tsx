@@ -187,27 +187,45 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
         return;
       }
     }
-    const priceToSave = Number(newPrice.custom_price);
+    const enteredPrice = Number(newPrice.custom_price);
+    const w = Number(newPrice.width);
+    const h = Number(newPrice.height);
+    const hasSize = isArea && w > 0 && h > 0;
+    const area = hasSize ? w * h : 0;
+    // With a size, the typed price is the TOTAL for that size; store the per-m² rate too
+    const perUnit = hasSize && area > 0 ? enteredPrice / area : enteredPrice;
+
     const { data, error } = await supabase
       .from('contract_product_prices')
       .upsert(
         {
           agreement_id: selectedAgreement,
           product_id: newPrice.product_id,
-          custom_price: priceToSave,
+          custom_price: perUnit,
+          width: hasSize ? w : null,
+          height: hasSize ? h : null,
+          total_price: hasSize ? enteredPrice : null,
         },
-        { onConflict: 'agreement_id,product_id' }
+        { onConflict: 'agreement_id,product_id,width,height' }
       )
-      .select('id, product_id, custom_price')
+      .select('id, product_id, custom_price, width, height, total_price')
       .maybeSingle();
     if (error || !data) {
       toast({ title: 'Could not save price', description: error?.message, variant: 'destructive' });
       return;
     }
     const row = data as ContractPrice;
-    setPrices([...prices.filter(p => p.product_id !== row.product_id), row]);
+    setPrices([
+      ...prices.filter(p => !(p.product_id === row.product_id && (p.width ?? null) === (row.width ?? null) && (p.height ?? null) === (row.height ?? null))),
+      row,
+    ]);
     setNewPrice({ product_id: '', custom_price: '', width: '', height: '' });
-    toast({ title: 'Contract price saved' });
+    toast({
+      title: 'Contract price saved',
+      description: hasSize
+        ? `${w}m × ${h}m = $${enteredPrice.toFixed(2)} (you can add more sizes for the same product)`
+        : undefined,
+    });
   };
 
   const removePrice = async (id: string) => {
