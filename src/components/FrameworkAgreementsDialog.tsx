@@ -360,31 +360,67 @@ export const FrameworkAgreementsDialog = ({ open, onOpenChange, customerId, cust
                       {(() => {
                         const sel = products.find(p => p.id === newPrice.product_id) || null;
                         const isArea = sel?.sale_type === 'area';
-                        const unitLabel = sel ? (isArea ? 'per m²' : `per ${sel.retail_unit || 'piece'}`) : 'per unit';
+                        const hasSize = isArea && newPrice.width !== '' && newPrice.height !== '';
+                        const area = hasSize ? Number(newPrice.width) * Number(newPrice.height) : 0;
+                        const unitLabel = sel
+                          ? isArea
+                            ? hasSize ? `total for ${(area || 0).toFixed(2)} m²` : 'per m²'
+                            : `per ${sel.retail_unit || 'piece'}`
+                          : 'per unit';
                         return (
-                          <div className="grid gap-1 w-[220px]">
-                            <Label>Contract price ({unitLabel})</Label>
-                            <div className="flex items-center gap-2">
-                              <Input
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={newPrice.custom_price}
-                                onChange={(e) => setNewPrice({ ...newPrice, custom_price: e.target.value })}
-                                placeholder="0.00"
-                              />
-                              <Badge variant="secondary" className="whitespace-nowrap">
-                                {sel ? (isArea ? 'm²' : (sel.retail_unit || 'pcs')) : 'unit'}
-                              </Badge>
-                            </div>
-                            {sel && (
-                              <p className="text-xs text-muted-foreground">
-                                {isArea
-                                  ? 'Measured by area — price is for 1 square meter (width × height).'
-                                  : 'Measured by piece — price is for 1 item.'}
-                              </p>
+                          <>
+                            {isArea && (
+                              <>
+                                <div className="grid gap-1 w-[110px]">
+                                  <Label>Width (m)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={newPrice.width}
+                                    onChange={(e) => setNewPrice({ ...newPrice, width: e.target.value })}
+                                    placeholder="W"
+                                  />
+                                </div>
+                                <div className="grid gap-1 w-[110px]">
+                                  <Label>Height (m)</Label>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={newPrice.height}
+                                    onChange={(e) => setNewPrice({ ...newPrice, height: e.target.value })}
+                                    placeholder="H"
+                                  />
+                                </div>
+                              </>
                             )}
-                          </div>
+                            <div className="grid gap-1 w-[220px]">
+                              <Label>Contract price ({unitLabel})</Label>
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={newPrice.custom_price}
+                                  onChange={(e) => setNewPrice({ ...newPrice, custom_price: e.target.value })}
+                                  placeholder="0.00"
+                                />
+                                <Badge variant="secondary" className="whitespace-nowrap">
+                                  {sel ? (isArea ? 'm²' : (sel.retail_unit || 'pcs')) : 'unit'}
+                                </Badge>
+                              </div>
+                              {sel && (
+                                <p className="text-xs text-muted-foreground">
+                                  {isArea
+                                    ? hasSize
+                                      ? `Enter the TOTAL price for ${newPrice.width}m × ${newPrice.height}m — saved as $${(Number(newPrice.custom_price || '0') / (area || 1)).toFixed(2)} per m².`
+                                      : 'Measured by area — price is for 1 square meter. Or enter Width × Height above and give the total price for that size.'
+                                    : 'Measured by piece — price is for 1 item.'}
+                                </p>
+                              )}
+                            </div>
+                          </>
                         );
                       })()}
                       <Button onClick={addPrice} className="gap-2">
