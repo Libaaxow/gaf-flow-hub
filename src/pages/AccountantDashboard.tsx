@@ -23,7 +23,8 @@ import {
   Eye,
   Download,
   Filter,
-  Pencil
+  Pencil,
+  Wallet
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
