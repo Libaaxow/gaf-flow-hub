@@ -405,7 +405,6 @@ const AccountantDashboard = () => {
   const [invoiceTerms, setInvoiceTerms] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
   const [invoiceAmountPaid, setInvoiceAmountPaid] = useState('');
-  const [sendSmsOnCreate, setSendSmsOnCreate] = useState(false);
 
   // Invoice items state with area-based support
   interface InvoiceItem {
@@ -2845,16 +2844,17 @@ const AccountantDashboard = () => {
         setPendingRequestId(null);
       }
 
-      // Send SMS notification if requested and customer has a phone number
-      if (sendSmsOnCreate && invoiceData) {
+      // Always send the invoice SMS when the customer has a phone number
+      if (invoiceData) {
         const customer = customers.find((c) => c.id === invoiceCustomer);
         if (customer?.phone) {
           try {
             const dueDateText = invoiceData.due_date
               ? format(new Date(invoiceData.due_date), 'dd.MM.yyyy')
               : 'N/A';
-            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAFMEDIA`;
-            await sendSMS({ to: customer.phone, message });
+            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAF MEDIA`;
+            await sendSMS({ to: customer.phone, message, messageType: 'invoice', customerId: customer.id, invoiceId: invoiceData.id });
+
             toast({
               title: 'SMS Sent',
               description: 'Invoice notification sent to customer.',
@@ -2879,7 +2879,6 @@ const AccountantDashboard = () => {
       setInvoiceTerms('');
       setInvoiceProjectName('');
       setInvoiceAmountPaid('');
-      setSendSmsOnCreate(false);
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       setCreateInvoiceDialogOpen(false);
       
@@ -5340,16 +5339,10 @@ const AccountantDashboard = () => {
                   {Object.keys(contractPrices).length === 0 && ' (no contract prices defined yet)'}
                 </div>
               )}
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="send-sms"
-                  checked={sendSmsOnCreate}
-                  onCheckedChange={(checked) => setSendSmsOnCreate(Boolean(checked))}
-                />
-                <Label htmlFor="send-sms" className="cursor-pointer text-sm font-normal">
-                  Send SMS notification to customer
-                </Label>
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
+                An SMS notification is sent to the customer automatically when the invoice is saved.
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="invoice-order">Related Order (Optional)</Label>
                 <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
