@@ -117,6 +117,7 @@ const Customers = () => {
 
     const roles = (data || []).map((r: any) => r.role);
     setIsAdmin(roles.includes('admin'));
+    setCanEdit(roles.includes('admin') || roles.includes('accountant') || roles.includes('sales') || roles.includes('marketing'));
     setCanManageAgreements(roles.includes('admin') || roles.includes('accountant'));
   };
 
