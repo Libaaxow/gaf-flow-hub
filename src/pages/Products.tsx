@@ -858,6 +858,12 @@ const Products = () => {
                                   Total: ${potential.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
                               )}
+                              {productLowMargin(product) && (
+                                <Badge variant="destructive" className="mt-1 gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Low margin {(productMargin(product) ?? 0).toFixed(0)}%
+                                </Badge>
+                              )}
                             </div>
                           );
                         })()}
