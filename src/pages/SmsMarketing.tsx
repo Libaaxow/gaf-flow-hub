@@ -22,7 +22,6 @@ interface CustomerRow {
   id: string;
   name: string;
   phone: string | null;
-  is_active?: boolean | null;
 }
 
 const COST_PER_SEGMENT = 0.05;
@@ -57,7 +56,7 @@ export default function SmsMarketing() {
     setLoading(true);
     try {
       const [{ data: cust }, { data: agreements }, { data: invoices }, { data: camps }] = await Promise.all([
-        supabase.from('customers').select('id, name, phone, is_active').order('name'),
+        supabase.from('customers').select('id, name, phone').order('name'),
         supabase.from('customer_price_lists').select('customer_id, is_active').eq('is_active', true),
         supabase.from('invoices').select('customer_id, invoice_date, total_amount, amount_paid, is_draft').eq('is_draft', false),
         supabase.from('sms_campaigns').select('*').order('created_at', { ascending: false }).limit(25),
@@ -101,7 +100,7 @@ export default function SmsMarketing() {
       const cutoffStr = cutoff.toISOString().slice(0, 10);
       return withPhone.filter((c) => !lastPurchase[c.id] || lastPurchase[c.id] < cutoffStr);
     }
-    return withPhone.filter((c) => c.is_active !== false);
+    return withPhone;
   }, [customers, audience, inactiveDays, frameworkCustomerIds, lastPurchase, outstandingBy]);
 
   const recipients = audienceCustomers.filter((c) => !excluded.has(c.id));
