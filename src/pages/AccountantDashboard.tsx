@@ -1963,6 +1963,34 @@ const AccountantDashboard = () => {
         description: `Payment of $${totalAmount.toFixed(2)}${totalDiscount > 0 ? ` with discount of $${totalDiscount.toFixed(2)}` : ''} allocated across ${selectedAllocations.length} invoice(s)${linkedSalesperson ? ` • Deducted from ${linkedSalesperson.full_name}'s total${linkedRequest ? ` (${linkedRequest.customer_name})` : ''}` : ''}`,
       });
 
+      // Receipt SMS to the customer (never blocks the payment record)
+      try {
+        const payCustomer = customers.find((c) => c.id === paymentCustomer);
+        if (payCustomer?.phone) {
+          const remaining = selectedAllocations.reduce((sum, alloc) => {
+            const inv = customerInvoices.find((i) => i.id === alloc.invoiceId);
+            if (!inv) return sum;
+            const discountAmount = calculateDiscountAmount(alloc, inv);
+            return sum + Math.max(0, Number(inv.total_amount) - (Number(inv.amount_paid) + alloc.amount + discountAmount));
+          }, 0);
+          const message = `Hi ${payCustomer.name}, we received your payment of $${totalAmount.toFixed(2)}. Ref: ${paymentReference}. Remaining balance on these invoices: $${remaining.toFixed(2)}. Mahadsanid - GAF MEDIA`;
+          await sendSMS({
+            to: payCustomer.phone,
+            message,
+            messageType: 'receipt',
+            customerId: payCustomer.id,
+          });
+          toast({ title: 'SMS Sent', description: 'Receipt notification sent to customer.' });
+        }
+      } catch (smsError: any) {
+        console.error('Receipt SMS failed:', smsError);
+        toast({
+          title: 'SMS Failed',
+          description: smsError?.message || 'Payment recorded but the receipt SMS could not be sent.',
+          variant: 'destructive',
+        });
+      }
+
       setPaymentDialogOpen(false);
       setPaymentCustomer('');
       setPaymentAmount('');
