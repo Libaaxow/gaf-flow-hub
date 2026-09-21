@@ -23,7 +23,8 @@ import {
   Eye,
   Download,
   Filter,
-  Pencil
+  Pencil,
+  Wallet
 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -75,12 +76,15 @@ import { EmployeesPanel } from '@/components/EmployeesPanel';
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
 import ContraSettlementPanel from '@/components/ContraSettlementPanel';
+import { FinancialYearSelector } from '@/components/FinancialYearSelector';
+import { useFinancialYear, isLowMargin, marginPercent, MIN_MARGIN_PERCENT } from '@/lib/financialYear';
 
 interface FinancialStats {
   totalRevenue: number;
   collectedAmount: number;
   outstandingAmount: number;
   totalExpenses: number;
+  openingBalance: number;
   profit: number;
   recognizedProfit: number;
   pendingProfit: number;
@@ -138,11 +142,13 @@ interface Customer {
 const AccountantDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { year: financialYear, range: financialRange, isCurrentYear } = useFinancialYear();
   const [stats, setStats] = useState<FinancialStats>({
     totalRevenue: 0,
     collectedAmount: 0,
     outstandingAmount: 0,
     totalExpenses: 0,
+    openingBalance: 0,
     profit: 0,
     recognizedProfit: 0,
     pendingProfit: 0,
@@ -612,6 +618,11 @@ const AccountantDashboard = () => {
     fetchFilteredData();
   }, [startDate, endDate]);
 
+  // Recalculate income figures when the financial year selection changes
+  useEffect(() => {
+    fetchActualStats();
+  }, [financialYear]);
+
   const [payrollRefresh, setPayrollRefresh] = useState(0);
 
   const fetchAllData = async () => {
@@ -1056,36 +1067,34 @@ const AccountantDashboard = () => {
     }
   };
 
-  // Fetch actual total stats (not filtered by date)
+  // Income figures (revenue, expenses, net profit) follow the selected financial year.
+  // Outstanding debt, opening balance and stock always carry forward across years.
   const fetchActualStats = async () => {
     try {
-      // Get all orders for actual revenue calculation
-      const { data: allOrdersData } = await supabase
-        .from('orders')
-        .select('order_value, amount_paid');
+      const yearStart = financialRange.start;
+      const yearEndExclusive = financialRange.endExclusive;
 
-      // Get all invoices with their items for profit calculation
+      // Invoices of the selected year (income statement)
+      const { data: yearInvoices } = await supabase
+        .from('invoices')
+        .select('id, total_amount, amount_paid, order_id, is_draft, status, invoice_date, invoice_items(line_profit)')
+        .gte('invoice_date', yearStart)
+        .lt('invoice_date', yearEndExclusive);
+
+      // All confirmed invoices (balance sheet — receivables carry forward)
       const { data: allInvoices } = await supabase
         .from('invoices')
-        .select(`
-          id,
-          total_amount, 
-          amount_paid, 
-          order_id, 
-          is_draft, 
-          status,
-          invoice_items(line_profit)
-        `);
+        .select('total_amount, amount_paid, is_draft');
 
       // Get all commissions
       const { data: allCommissions } = await supabase
         .from('commissions')
         .select('commission_amount, paid_status');
 
-      // Get all approved expenses
+      // Approved expenses with their dates
       const { data: allExpenses } = await supabase
         .from('expenses')
-        .select('amount, approval_status')
+        .select('amount, expense_date')
         .eq('approval_status', 'approved');
 
       // Fetch beginning balances
@@ -1093,27 +1102,40 @@ const AccountantDashboard = () => {
         .from('beginning_balances')
         .select('amount, account_type');
 
-      // Contra settlements move no cash — exclude them from cash collected
-      const { data: contraPayments } = await supabase
+      // Payments give the cash actually collected per date. Contra settlements
+      // move no cash, so they are excluded.
+      const { data: allPaymentsData } = await supabase
         .from('payments')
-        .select('amount')
-        .eq('is_contra', true);
-      const contraTotal = contraPayments?.reduce((sum, p) => sum + Number(p.amount || 0), 0) || 0;
+        .select('amount, payment_date, is_contra');
 
-      // Calculate beginning balance total
-      const beginningBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
+      const cashPayments = (allPaymentsData || []).filter((p: any) => !p.is_contra);
+      const collectedAmount = cashPayments
+        .filter((p: any) => p.payment_date >= yearStart && p.payment_date < yearEndExclusive)
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
+      const collectedBefore = cashPayments
+        .filter((p: any) => p.payment_date < yearStart)
+        .reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
 
-      // Calculate revenue from ALL invoices for total revenue
-      const totalRevenue = allInvoices?.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0) || 0;
-      const collectedAmount = (allInvoices?.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0) || 0) - contraTotal;
-      
-      // Outstanding Balance should only exclude true draft invoices (is_draft=true)
-      const confirmedInvoices = allInvoices?.filter(inv => !inv.is_draft) || [];
+      const totalExpenses = (allExpenses || [])
+        .filter((e: any) => e.expense_date >= yearStart && e.expense_date < yearEndExclusive)
+        .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+      const expensesBefore = (allExpenses || [])
+        .filter((e: any) => e.expense_date < yearStart)
+        .reduce((sum: number, e: any) => sum + Number(e.amount || 0), 0);
+
+      // Initial capital recorded in beginning balances
+      const initialBalance = beginningBalancesData?.reduce((sum, b) => sum + Number(b.amount || 0), 0) || 0;
+      // Cash carried forward into the selected year
+      const openingBalance = initialBalance + collectedBefore - expensesBefore;
+
+      // Revenue billed inside the selected year
+      const totalRevenue = (yearInvoices || []).reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
+
+      // Outstanding Balance carries forward and only excludes true draft invoices
+      const confirmedInvoices = (allInvoices || []).filter(inv => !inv.is_draft);
       const confirmedRevenue = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.total_amount || 0), 0);
       const confirmedCollected = confirmedInvoices.reduce((sum, inv) => sum + Number(inv.amount_paid || 0), 0);
       const outstandingAmount = confirmedRevenue - confirmedCollected;
-      
-      const totalExpenses = allExpenses?.reduce((sum, expense) => sum + Number(expense.amount || 0), 0) || 0;
 
       // Calculate profit recognition based on payment ratio
       // Recognized Profit = total_profit × (total_paid / invoice_total)
@@ -1122,7 +1144,7 @@ const AccountantDashboard = () => {
       let recognizedProfit = 0;
       let pendingProfit = 0;
 
-      (allInvoices || []).forEach((inv: any) => {
+      (yearInvoices || []).forEach((inv: any) => {
         // Sum all line profits from invoice items
         const invoiceProfit = (inv.invoice_items || []).reduce((sum: number, item: any) => 
           sum + Number(item.line_profit || 0), 0);
@@ -1143,28 +1165,27 @@ const AccountantDashboard = () => {
         }
       });
 
-      // Net Profit = Beginning Balance + Amount Collected - Expenses
-      const profit = beginningBalance + collectedAmount - totalExpenses;
+      // Net Profit for the year = cash collected this year - expenses this year.
+      // It starts at $0.00 when a new financial year begins; the cash carried
+      // forward is shown separately as the opening balance.
+      const profit = collectedAmount - totalExpenses;
       
       const pendingCommissions = allCommissions?.filter(c => c.paid_status === 'unpaid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
       const paidCommissions = allCommissions?.filter(c => c.paid_status === 'paid').reduce((sum, comm) => sum + Number(comm.commission_amount || 0), 0) || 0;
-      
-      const { count: invoiceCount } = await supabase
-        .from('invoices')
-        .select('*', { count: 'exact', head: true });
 
       setStats({
         totalRevenue,
         collectedAmount,
         outstandingAmount,
         totalExpenses,
+        openingBalance,
         profit,
         recognizedProfit,
         pendingProfit,
         totalProfit,
         pendingCommissions,
         paidCommissions,
-        totalInvoices: invoiceCount || 0,
+        totalInvoices: (yearInvoices || []).length,
       });
     } catch (error: any) {
       console.error('Error fetching actual stats:', error);
@@ -2487,6 +2508,16 @@ const AccountantDashboard = () => {
       });
     }
 
+    // Credit control: warn when the price leaves less than the minimum margin
+    if (unitPrice > 0 && isLowMargin(unitPrice, costPerUnit)) {
+      const m = marginPercent(unitPrice, costPerUnit) ?? 0;
+      toast({
+        title: `Low margin warning — ${m.toFixed(1)}%`,
+        description: `${product.name}: cost $${costPerUnit.toFixed(2)} vs price $${unitPrice.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin. Faa'iidada way hooseysaa.`,
+        variant: 'destructive',
+      });
+    }
+
     // Popup showing the remaining balance (stock) of the selected goods
     if (product.sale_type === 'service') {
       toast({
@@ -2563,6 +2594,20 @@ const AccountantDashboard = () => {
       }
     }
     
+    // Credit control: warn when a typed price leaves less than the minimum margin
+    if (field === 'unit_price') {
+      const priced = Number(newItems[index].unit_price) || 0;
+      const cost = Number(newItems[index].cost_per_unit) || 0;
+      if (priced > 0 && isLowMargin(priced, cost)) {
+        const m = marginPercent(priced, cost) ?? 0;
+        toast({
+          title: `Low margin warning — ${m.toFixed(1)}%`,
+          description: `Cost $${cost.toFixed(2)} vs price $${priced.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin.`,
+          variant: 'destructive',
+        });
+      }
+    }
+
     setInvoiceItems(newItems);
   };
 
@@ -3204,7 +3249,7 @@ const AccountantDashboard = () => {
       title: 'Total Revenue',
       value: `$${stats.totalRevenue.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Total invoice value',
+      description: `Invoiced in ${financialYear}`,
       color: 'text-blue-600',
       onClick: undefined as (() => void) | undefined,
     },
@@ -3212,7 +3257,7 @@ const AccountantDashboard = () => {
       title: 'Amount Collected',
       value: `$${stats.collectedAmount.toFixed(2)}`,
       icon: TrendingUp,
-      description: 'Payments received',
+      description: `Payments received in ${financialYear}`,
       color: 'text-green-600',
       onClick: undefined as (() => void) | undefined,
     },
@@ -3220,7 +3265,7 @@ const AccountantDashboard = () => {
       title: 'Outstanding',
       value: `$${stats.outstandingAmount.toFixed(2)}`,
       icon: Clock,
-      description: 'Pending payments — Click to view debtors',
+      description: 'All unpaid balances (carried forward) — Click to view debtors',
       color: 'text-orange-600',
       onClick: () => setOutstandingDebtsDialogOpen(true),
     },
@@ -3228,15 +3273,23 @@ const AccountantDashboard = () => {
       title: 'Total Expenses',
       value: `$${stats.totalExpenses.toFixed(2)}`,
       icon: TrendingDown,
-      description: 'Operational costs',
+      description: `Operational costs in ${financialYear}`,
       color: 'text-red-600',
       onClick: undefined as (() => void) | undefined,
     },
     {
-      title: 'Net Profit',
+      title: 'Opening Balance',
+      value: `$${stats.openingBalance.toFixed(2)}`,
+      icon: Wallet,
+      description: `Cash carried into ${financialYear}`,
+      color: 'text-indigo-600',
+      onClick: undefined as (() => void) | undefined,
+    },
+    {
+      title: `Net Profit ${financialYear}`,
       value: `$${stats.profit.toFixed(2)}`,
       icon: DollarSign,
-      description: 'Opening Balance + Collected - Expenses',
+      description: 'Collected - Expenses (this year only)',
       color: stats.profit >= 0 ? 'text-green-600' : 'text-red-600',
       onClick: undefined as (() => void) | undefined,
     },
@@ -3262,9 +3315,13 @@ const AccountantDashboard = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">Financial management and reporting</p>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Financial management and reporting — income shown for {financialRange.label}
+                {!isCurrentYear && ' (archived year)'}
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
+              <FinancialYearSelector />
               <Popover>
                 <PopoverTrigger asChild>
                   <Button

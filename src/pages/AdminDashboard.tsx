@@ -26,6 +26,7 @@ import { ShareholderCyclePanel } from '@/components/ShareholderCyclePanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
 import { ClosingReportCard } from '@/components/ClosingReportCard';
 import { CompanyAssetsPanel } from '@/components/CompanyAssetsPanel';
+import { FinancialYearSummary } from '@/components/FinancialYearSummary';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1529,6 +1530,9 @@ export default function AdminDashboard() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Financial year closing summary with archive selector */}
+      <FinancialYearSummary />
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">

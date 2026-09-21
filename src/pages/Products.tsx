@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { isLowMargin, marginPercent, MIN_MARGIN_PERCENT } from '@/lib/financialYear';
 
 interface Product {
   id: string;
@@ -260,6 +261,18 @@ const Products = () => {
     </div>
   );
 
+  // Credit control: alert when a saved price leaves less than the minimum margin
+  const warnLowMargin = (saleType: string, sell: number, cost: number, name: string) => {
+    if (saleType === 'service' || saleType === 'composite') return;
+    if (!isLowMargin(sell, cost)) return;
+    const m = marginPercent(sell, cost) ?? 0;
+    toast({
+      title: `Low margin warning — ${m.toFixed(1)}%`,
+      description: `${name}: cost $${cost.toFixed(2)} vs selling price $${sell.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin.`,
+      variant: 'destructive',
+    });
+  };
+
   const generateProductCode = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_product_code');
     if (error) throw error;
@@ -325,6 +338,12 @@ const Products = () => {
       }
 
       toast({ title: 'Success', description: 'Product added successfully' });
+      warnLowMargin(
+        saleType,
+        saleType === 'area' ? (sellingPriceM2 || 0) : productData.selling_price,
+        saleType === 'area' ? (costPerM2 || 0) : productData.cost_price / (productData.conversion_rate || 1),
+        productData.name,
+      );
       form.reset();
       setNewRecipe([{ component_product_id: '', quantity_required: '' }]);
       setIsDialogOpen(false);
@@ -398,6 +417,12 @@ const Products = () => {
       }
 
       toast({ title: 'Success', description: 'Product updated successfully' });
+      warnLowMargin(
+        saleType,
+        saleType === 'area' ? (sellingPriceM2 || 0) : productData.selling_price,
+        saleType === 'area' ? (costPerM2 || 0) : productData.cost_price / (productData.conversion_rate || 1),
+        productData.name,
+      );
       setIsEditDialogOpen(false);
       setSelectedProduct(null);
       fetchProducts();
@@ -482,6 +507,14 @@ const Products = () => {
   };
   const activeStockedProducts = stockedProducts.filter(p => p.status === 'active' && Number(p.stock_quantity || 0) > 0);
   const expectedTotalProfit = activeStockedProducts.reduce((sum, p) => sum + unitProfitForStock(p) * Number(p.stock_quantity || 0), 0);
+
+  // Credit control / COGS protection: selling price per stocked unit vs its cost
+  const unitSellForStock = (p: any) =>
+    p.sale_type === 'area' ? Number(p.selling_price_per_m2 || 0) : Number(p.selling_price || 0);
+  const productMargin = (p: any) => marginPercent(unitSellForStock(p), unitCostForStock(p));
+  const productLowMargin = (p: any) =>
+    p.sale_type !== 'service' && p.sale_type !== 'composite' && isLowMargin(unitSellForStock(p), unitCostForStock(p));
+  const lowMarginProducts = products.filter(p => p.status === 'active' && productLowMargin(p)).length;
 
 
 
@@ -735,6 +768,12 @@ const Products = () => {
               <p className="text-sm text-muted-foreground">Expected Total Profit</p>
             </CardContent>
           </Card>
+          <Card className={lowMarginProducts > 0 ? 'border-destructive/50' : undefined}>
+            <CardContent className="pt-6">
+              <div className={`text-2xl font-bold ${lowMarginProducts > 0 ? 'text-destructive' : 'text-green-600'}`}>{lowMarginProducts}</div>
+              <p className="text-sm text-muted-foreground">Low Margin (under {MIN_MARGIN_PERCENT}%)</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filters */}
@@ -842,6 +881,12 @@ const Products = () => {
                                 <span className={`block text-xs ${potential >= 0 ? 'text-green-600' : 'text-destructive'}`}>
                                   Total: ${potential.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </span>
+                              )}
+                              {productLowMargin(product) && (
+                                <Badge variant="destructive" className="mt-1 gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  Low margin {(productMargin(product) ?? 0).toFixed(0)}%
+                                </Badge>
                               )}
                             </div>
                           );
