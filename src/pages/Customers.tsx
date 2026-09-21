@@ -67,6 +67,7 @@ const Customers = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [canManageAgreements, setCanManageAgreements] = useState(false);
   const [agreementCustomer, setAgreementCustomer] = useState<Customer | null>(null);
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
@@ -116,6 +117,7 @@ const Customers = () => {
 
     const roles = (data || []).map((r: any) => r.role);
     setIsAdmin(roles.includes('admin'));
+    setCanEdit(roles.includes('admin') || roles.includes('accountant') || roles.includes('sales') || roles.includes('marketing'));
     setCanManageAgreements(roles.includes('admin') || roles.includes('accountant'));
   };
 
@@ -706,30 +708,30 @@ const Customers = () => {
                               <FileSignature className="h-4 w-4" />
                               Contract Prices
                             </Button>
+                            {canEdit && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditCustomer(customer)}
+                                className="gap-2"
+                              >
+                                <Pencil className="h-4 w-4" />
+                                Edit
+                              </Button>
+                            )}
                             {isAdmin && (
-                              <>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleEditCustomer(customer)}
-                                  className="gap-2"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                  Edit
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => {
-                                    setDeleteCustomerId(customer.id);
-                                    setIsDeleteDialogOpen(true);
-                                  }}
-                                  className="gap-2"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                  Delete
-                                </Button>
-                              </>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setDeleteCustomerId(customer.id);
+                                  setIsDeleteDialogOpen(true);
+                                }}
+                                className="gap-2"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Delete
+                              </Button>
                             )}
                           </div>
                         </td>
