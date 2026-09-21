@@ -2594,6 +2594,20 @@ const AccountantDashboard = () => {
       }
     }
     
+    // Credit control: warn when a typed price leaves less than the minimum margin
+    if (field === 'unit_price') {
+      const priced = Number(newItems[index].unit_price) || 0;
+      const cost = Number(newItems[index].cost_per_unit) || 0;
+      if (priced > 0 && isLowMargin(priced, cost)) {
+        const m = marginPercent(priced, cost) ?? 0;
+        toast({
+          title: `Low margin warning — ${m.toFixed(1)}%`,
+          description: `Cost $${cost.toFixed(2)} vs price $${priced.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin.`,
+          variant: 'destructive',
+        });
+      }
+    }
+
     setInvoiceItems(newItems);
   };
 
