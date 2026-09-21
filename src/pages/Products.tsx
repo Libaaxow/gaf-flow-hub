@@ -417,6 +417,12 @@ const Products = () => {
       }
 
       toast({ title: 'Success', description: 'Product updated successfully' });
+      warnLowMargin(
+        saleType,
+        saleType === 'area' ? (sellingPriceM2 || 0) : productData.selling_price,
+        saleType === 'area' ? (costPerM2 || 0) : productData.cost_price / (productData.conversion_rate || 1),
+        productData.name,
+      );
       setIsEditDialogOpen(false);
       setSelectedProduct(null);
       fetchProducts();
