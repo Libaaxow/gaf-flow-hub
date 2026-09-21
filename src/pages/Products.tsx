@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { z } from 'zod';
+import { isLowMargin, marginPercent, MIN_MARGIN_PERCENT } from '@/lib/financialYear';
 
 interface Product {
   id: string;
@@ -482,6 +483,14 @@ const Products = () => {
   };
   const activeStockedProducts = stockedProducts.filter(p => p.status === 'active' && Number(p.stock_quantity || 0) > 0);
   const expectedTotalProfit = activeStockedProducts.reduce((sum, p) => sum + unitProfitForStock(p) * Number(p.stock_quantity || 0), 0);
+
+  // Credit control / COGS protection: selling price per stocked unit vs its cost
+  const unitSellForStock = (p: any) =>
+    p.sale_type === 'area' ? Number(p.selling_price_per_m2 || 0) : Number(p.selling_price || 0);
+  const productMargin = (p: any) => marginPercent(unitSellForStock(p), unitCostForStock(p));
+  const productLowMargin = (p: any) =>
+    p.sale_type !== 'service' && p.sale_type !== 'composite' && isLowMargin(unitSellForStock(p), unitCostForStock(p));
+  const lowMarginProducts = products.filter(p => p.status === 'active' && productLowMargin(p)).length;
 
 
 
