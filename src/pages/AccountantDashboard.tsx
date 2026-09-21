@@ -5340,16 +5340,10 @@ const AccountantDashboard = () => {
                   {Object.keys(contractPrices).length === 0 && ' (no contract prices defined yet)'}
                 </div>
               )}
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id="send-sms"
-                  checked={sendSmsOnCreate}
-                  onCheckedChange={(checked) => setSendSmsOnCreate(Boolean(checked))}
-                />
-                <Label htmlFor="send-sms" className="cursor-pointer text-sm font-normal">
-                  Send SMS notification to customer
-                </Label>
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-2 text-sm text-muted-foreground">
+                An SMS notification is sent to the customer automatically when the invoice is saved.
               </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="invoice-order">Related Order (Optional)</Label>
                 <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
