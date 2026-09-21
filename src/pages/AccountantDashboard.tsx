@@ -2508,6 +2508,16 @@ const AccountantDashboard = () => {
       });
     }
 
+    // Credit control: warn when the price leaves less than the minimum margin
+    if (unitPrice > 0 && isLowMargin(unitPrice, costPerUnit)) {
+      const m = marginPercent(unitPrice, costPerUnit) ?? 0;
+      toast({
+        title: `Low margin warning — ${m.toFixed(1)}%`,
+        description: `${product.name}: cost $${costPerUnit.toFixed(2)} vs price $${unitPrice.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin. Faa'iidada way hooseysaa.`,
+        variant: 'destructive',
+      });
+    }
+
     // Popup showing the remaining balance (stock) of the selected goods
     if (product.sale_type === 'service') {
       toast({
