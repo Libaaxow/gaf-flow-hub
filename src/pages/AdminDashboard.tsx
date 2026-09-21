@@ -26,6 +26,7 @@ import { ShareholderCyclePanel } from '@/components/ShareholderCyclePanel';
 import { ShareholdersSummary } from '@/components/ShareholdersSummary';
 import { ClosingReportCard } from '@/components/ClosingReportCard';
 import { CompanyAssetsPanel } from '@/components/CompanyAssetsPanel';
+import { FinancialYearSummary } from '@/components/FinancialYearSummary';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
