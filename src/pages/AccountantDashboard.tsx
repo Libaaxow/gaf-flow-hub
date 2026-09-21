@@ -75,12 +75,15 @@ import { EmployeesPanel } from '@/components/EmployeesPanel';
 import { defaultDueDate } from '@/utils/dueDate';
 import { sendSMS } from '@/utils/sendSMS';
 import ContraSettlementPanel from '@/components/ContraSettlementPanel';
+import { FinancialYearSelector } from '@/components/FinancialYearSelector';
+import { useFinancialYear, isLowMargin, marginPercent, MIN_MARGIN_PERCENT } from '@/lib/financialYear';
 
 interface FinancialStats {
   totalRevenue: number;
   collectedAmount: number;
   outstandingAmount: number;
   totalExpenses: number;
+  openingBalance: number;
   profit: number;
   recognizedProfit: number;
   pendingProfit: number;
@@ -138,11 +141,13 @@ interface Customer {
 const AccountantDashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { year: financialYear, range: financialRange, isCurrentYear } = useFinancialYear();
   const [stats, setStats] = useState<FinancialStats>({
     totalRevenue: 0,
     collectedAmount: 0,
     outstandingAmount: 0,
     totalExpenses: 0,
+    openingBalance: 0,
     profit: 0,
     recognizedProfit: 0,
     pendingProfit: 0,
