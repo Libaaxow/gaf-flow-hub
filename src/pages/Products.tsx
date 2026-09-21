@@ -261,6 +261,18 @@ const Products = () => {
     </div>
   );
 
+  // Credit control: alert when a saved price leaves less than the minimum margin
+  const warnLowMargin = (saleType: string, sell: number, cost: number, name: string) => {
+    if (saleType === 'service' || saleType === 'composite') return;
+    if (!isLowMargin(sell, cost)) return;
+    const m = marginPercent(sell, cost) ?? 0;
+    toast({
+      title: `Low margin warning — ${m.toFixed(1)}%`,
+      description: `${name}: cost $${cost.toFixed(2)} vs selling price $${sell.toFixed(2)} is below the ${MIN_MARGIN_PERCENT}% minimum margin.`,
+      variant: 'destructive',
+    });
+  };
+
   const generateProductCode = async (): Promise<string> => {
     const { data, error } = await supabase.rpc('generate_product_code');
     if (error) throw error;
