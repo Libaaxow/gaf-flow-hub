@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.send-sms-sent]
 verify_jwt = false
+
+[functions.send-sms-twilio]
+verify_jwt = false
+
+[functions.monthly-debt-reminders]
+verify_jwt = false
