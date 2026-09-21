@@ -36,6 +36,7 @@ import Leads from "./pages/Leads";
 import PaymentReport from "./pages/PaymentReport";
 import GitHubSettings from "./pages/GitHubSettings";
 import CorporateAdmin from "./pages/CorporateAdmin";
+import SmsMarketing from "./pages/SmsMarketing";
 
 
 import NotFound from "./pages/NotFound";
@@ -268,6 +269,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <CorporateAdmin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/sms-marketing"
+              element={
+                <ProtectedRoute>
+                  <SmsMarketing />
                 </ProtectedRoute>
               }
             />

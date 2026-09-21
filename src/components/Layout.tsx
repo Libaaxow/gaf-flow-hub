@@ -19,6 +19,7 @@ import {
   Building2,
   Package,
   Brain,
+  MessageSquare,
 } from 'lucide-react';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import gafMediaLogo from '@/assets/gaf-media-logo.png';
@@ -58,6 +59,7 @@ const navItems: NavItem[] = [
   { href: '/corporate', label: 'Corporate & Shares', icon: Building2, roles: ['admin', 'board', 'accountant', 'auditor'] },
 
   
+  { href: '/sms-marketing', label: 'Marketing SMS', icon: MessageSquare, roles: ['admin', 'accountant', 'marketing'] },
   { href: '/tax-settings', label: 'Tax Settings', icon: Settings, roles: ['admin'] },
   { href: '/github-settings', label: 'GitHub', icon: Settings, roles: ['admin'] },
   { href: '/users', label: 'Users', icon: UserCog, roles: ['admin'] },
