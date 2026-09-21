@@ -2722,6 +2722,133 @@ export type Database = {
           },
         ]
       }
+      sms_campaigns: {
+        Row: {
+          audience: string
+          audience_days: number | null
+          created_at: string
+          created_by: string | null
+          estimated_cost: number
+          id: string
+          message: string
+          name: string
+          status: string
+          total_delivered: number
+          total_failed: number
+          total_recipients: number
+          total_sent: number
+          updated_at: string
+        }
+        Insert: {
+          audience?: string
+          audience_days?: number | null
+          created_at?: string
+          created_by?: string | null
+          estimated_cost?: number
+          id?: string
+          message: string
+          name: string
+          status?: string
+          total_delivered?: number
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+          updated_at?: string
+        }
+        Update: {
+          audience?: string
+          audience_days?: number | null
+          created_at?: string
+          created_by?: string | null
+          estimated_cost?: number
+          id?: string
+          message?: string
+          name?: string
+          status?: string
+          total_delivered?: number
+          total_failed?: number
+          total_recipients?: number
+          total_sent?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          campaign_id: string | null
+          cost: number
+          created_at: string
+          customer_id: string | null
+          error_message: string | null
+          id: string
+          invoice_id: string | null
+          message: string
+          message_type: string
+          phone: string
+          provider_sid: string | null
+          segments: number
+          sent_by: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          cost?: number
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          message: string
+          message_type?: string
+          phone: string
+          provider_sid?: string | null
+          segments?: number
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          cost?: number
+          created_at?: string
+          customer_id?: string | null
+          error_message?: string | null
+          id?: string
+          invoice_id?: string | null
+          message?: string
+          message_type?: string
+          phone?: string
+          provider_sid?: string | null
+          segments?: number
+          sent_by?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sms_messages_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "sms_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sms_messages_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       staff_directory: {
         Row: {
           avatar_url: string | null
