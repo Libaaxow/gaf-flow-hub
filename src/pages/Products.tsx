@@ -744,6 +744,12 @@ const Products = () => {
               <p className="text-sm text-muted-foreground">Expected Total Profit</p>
             </CardContent>
           </Card>
+          <Card className={lowMarginProducts > 0 ? 'border-destructive/50' : undefined}>
+            <CardContent className="pt-6">
+              <div className={`text-2xl font-bold ${lowMarginProducts > 0 ? 'text-destructive' : 'text-green-600'}`}>{lowMarginProducts}</div>
+              <p className="text-sm text-muted-foreground">Low Margin (under {MIN_MARGIN_PERCENT}%)</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Search and Filters */}
