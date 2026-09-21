@@ -3291,9 +3291,13 @@ const AccountantDashboard = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold">Accountant Dashboard</h1>
-              <p className="text-sm sm:text-base text-muted-foreground">Financial management and reporting</p>
+              <p className="text-sm sm:text-base text-muted-foreground">
+                Financial management and reporting — income shown for {financialRange.label}
+                {!isCurrentYear && ' (archived year)'}
+              </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
+              <FinancialYearSelector />
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
