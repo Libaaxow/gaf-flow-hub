@@ -67,6 +67,7 @@ const Customers = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canEdit, setCanEdit] = useState(false);
   const [canManageAgreements, setCanManageAgreements] = useState(false);
   const [agreementCustomer, setAgreementCustomer] = useState<Customer | null>(null);
   const [agreementDialogOpen, setAgreementDialogOpen] = useState(false);
