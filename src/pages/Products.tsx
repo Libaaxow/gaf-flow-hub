@@ -326,6 +326,12 @@ const Products = () => {
       }
 
       toast({ title: 'Success', description: 'Product added successfully' });
+      warnLowMargin(
+        saleType,
+        saleType === 'area' ? (sellingPriceM2 || 0) : productData.selling_price,
+        saleType === 'area' ? (costPerM2 || 0) : productData.cost_price / (productData.conversion_rate || 1),
+        productData.name,
+      );
       form.reset();
       setNewRecipe([{ component_product_id: '', quantity_required: '' }]);
       setIsDialogOpen(false);
