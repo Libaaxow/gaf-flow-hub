@@ -617,6 +617,11 @@ const AccountantDashboard = () => {
     fetchFilteredData();
   }, [startDate, endDate]);
 
+  // Recalculate income figures when the financial year selection changes
+  useEffect(() => {
+    fetchActualStats();
+  }, [financialYear]);
+
   const [payrollRefresh, setPayrollRefresh] = useState(0);
 
   const fetchAllData = async () => {
