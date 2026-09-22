@@ -359,7 +359,7 @@ export const generateClosingReportPDF = (data: ClosingReportData) => {
           const width = Number(item.width_m || 0);
           const height = Number(item.height_m || 0);
           const quantity = Number(item.quantity || 1);
-          const area = Number(item.area_m2 || (width && height ? width * height * quantity : 0));
+          const area = Number(item.area_m2 || (width && height ? width * height : 0)) * Math.max(quantity, 1);
           const measure = area > 0 ? (width && height ? `${quantity} × ${width.toFixed(2)} × ${height.toFixed(2)} m\n${area.toFixed(2)} m²` : `${area.toFixed(2)} m²`) : `${quantity} pcs`;
           return [
             `${invoice.invoice_number}\n${invoice.customer_name}`,
