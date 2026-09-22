@@ -135,11 +135,12 @@ export const formatItemMeasure = (item: {
   const quantity = Number(item.quantity || 0);
   const width = Number(item.width_m || 0);
   const height = Number(item.height_m || 0);
-  const area = Number(item.area_m2 || (width > 0 && height > 0 ? width * height * Math.max(quantity, 1) : 0));
-  const isArea = item.sale_type === "area" || area > 0;
+  const unitArea = Number(item.area_m2 || (width > 0 && height > 0 ? width * height : 0));
+  const totalArea = unitArea * Math.max(quantity, 1);
+  const isArea = item.sale_type === "area" || totalArea > 0;
   if (!isArea) return `${quantity || 1} pcs`;
   if (width > 0 && height > 0) {
-    return `${quantity || 1} × ${width.toFixed(2)} × ${height.toFixed(2)} m\n${area.toFixed(2)} m² total`;
+    return `${quantity || 1} × ${width.toFixed(2)} × ${height.toFixed(2)} m\n${totalArea.toFixed(2)} m² total`;
   }
-  return `${area.toFixed(2)} m²`;
+  return `${totalArea.toFixed(2)} m²`;
 };

@@ -39,7 +39,7 @@ export const ActivityTimeline = ({ entityType, entityId }: { entityType: 'lead' 
       const actorIds = Array.from(new Set(data.map((e: any) => e.actor_id).filter(Boolean)));
       let names: Record<string, string> = {};
       if (actorIds.length) {
-        const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', actorIds);
+        const { data: profs } = await supabase.from('staff_directory').select('id, full_name').in('id', actorIds);
         names = Object.fromEntries((profs || []).map((p: any) => [p.id, p.full_name]));
       }
       setEntries(data.map((e: any) => ({ ...e, actor_name: e.actor_id ? names[e.actor_id] : null })));
