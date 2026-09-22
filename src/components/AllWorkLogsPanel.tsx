@@ -61,7 +61,7 @@ export const AllWorkLogsPanel = () => {
 
     const ids = [...new Set(list.map(l => l.operator_id))];
     if (ids.length) {
-      const { data: profs } = await supabase.from('profiles').select('id, full_name').in('id', ids);
+      const { data: profs } = await supabase.from('staff_directory').select('id, full_name').in('id', ids);
       const map: Record<string, string> = {};
       (profs || []).forEach(p => { map[p.id] = p.full_name; });
       setNames(map);
