@@ -2164,16 +2164,9 @@ export default function AdminDashboard() {
               </SelectContent>
             </Select>
           </div>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              id="send-sms"
-              checked={sendSmsOnCreate}
-              onCheckedChange={(checked) => setSendSmsOnCreate(Boolean(checked))}
-            />
-            <Label htmlFor="send-sms" className="cursor-pointer text-sm font-normal">
-              Send SMS notification to customer
-            </Label>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            An SMS notification is sent automatically to the customer.
+          </p>
           <div className="grid gap-2">
             <Label htmlFor="invoice-order">Related Order (Optional)</Label>
             <Select value={invoiceOrder} onValueChange={setInvoiceOrder}>
