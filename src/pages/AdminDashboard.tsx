@@ -159,7 +159,6 @@ export default function AdminDashboard() {
   const [invoiceTax, setInvoiceTax] = useState('');
   const [invoiceNotes, setInvoiceNotes] = useState('');
   const [invoiceProjectName, setInvoiceProjectName] = useState('');
-  const [sendSmsOnCreate, setSendSmsOnCreate] = useState(false);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
@@ -781,7 +780,6 @@ export default function AdminDashboard() {
       setInvoiceTax('');
       setInvoiceNotes('');
       setInvoiceProjectName('');
-      setSendSmsOnCreate(false);
       setInvoiceItems([{ description: '', quantity: 1, unit_price: 0, amount: 0, sale_type: 'unit', width_m: null, height_m: null, area_m2: null }]);
       setCreateInvoiceDialogOpen(false);
       
