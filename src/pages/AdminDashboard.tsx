@@ -749,15 +749,15 @@ export default function AdminDashboard() {
       }
 
       // Send SMS notification if requested and customer has a phone number
-      if (sendSmsOnCreate && invoiceData) {
+      if (invoiceData) {
         const customer = customers.find((c) => c.id === invoiceCustomer);
         if (customer?.phone) {
           try {
             const dueDateText = invoiceData.due_date
               ? format(new Date(invoiceData.due_date), 'dd.MM.yyyy')
               : 'N/A';
-            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAFMEDIA`;
-            await sendSMS({ to: customer.phone, message });
+            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAF MEDIA`;
+            await sendSMS({ to: customer.phone, message, messageType: 'invoice', customerId: customer.id, invoiceId: invoiceData.id });
             toast({
               title: 'SMS Sent',
               description: 'Invoice notification sent to customer.',
