@@ -1186,15 +1186,50 @@ const Products = () => {
                   </div>
                   {canManageProducts && (
                     <div className="space-y-2">
+                      {editProductSaleType === 'unit' && Number(selectedProduct.conversion_rate || 1) > 1 && (
+                        <div className="space-y-1">
+                          <Label htmlFor="edit-stock_boxes">
+                            {selectedProduct.purchase_unit || 'Box'}es in stock
+                          </Label>
+                          <Input
+                            id="edit-stock_boxes"
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            placeholder={`e.g. 15`}
+                            value={editStockBoxes}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setEditStockBoxes(v);
+                              const boxes = parseFloat(v);
+                              if (v !== '' && !isNaN(boxes)) {
+                                setEditStockPieces(String(boxes * Number(selectedProduct.conversion_rate || 1)));
+                              }
+                            }}
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            1 {selectedProduct.purchase_unit || 'Box'} = {Number(selectedProduct.conversion_rate || 1)} {selectedProduct.retail_unit || 'Piece'}
+                            {editStockBoxes !== '' && !isNaN(parseFloat(editStockBoxes)) && (
+                              <span className="text-primary font-medium">
+                                {' '}→ {parseFloat(editStockBoxes) * Number(selectedProduct.conversion_rate || 1)} {selectedProduct.retail_unit || 'Piece'}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      )}
                       <Label htmlFor="edit-stock_quantity" className="flex items-center gap-2">
-                        Stock Quantity
+                        Stock Quantity (in {editProductSaleType === 'area' ? 'm²' : (selectedProduct.retail_unit || 'pieces')})
                       </Label>
                       <Input 
                         id="edit-stock_quantity" 
                         name="stock_quantity" 
                         type="number" 
                         step="0.01"
-                        defaultValue={selectedProduct.stock_quantity} 
+                        value={editStockPieces}
+                        onChange={(e) => {
+                          setEditStockPieces(e.target.value);
+                          setEditStockBoxes('');
+                        }}
                       />
                       <p className="text-xs text-muted-foreground">Manual adjustment for corrections</p>
                     </div>
