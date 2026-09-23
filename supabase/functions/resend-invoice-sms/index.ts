@@ -44,7 +44,7 @@ serve(async (req: Request): Promise<Response> => {
     const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const { data: invoices, error } = await db
       .from("invoices")
-      .select("id, invoice_number, total_amount, due_date, customer_id, customers(name, phone)")
+      .select("id, invoice_number, total_amount, amount_paid, due_date, customer_id, customers(name, phone)")
       .in("id", invoiceIds);
     if (error) throw error;
 
