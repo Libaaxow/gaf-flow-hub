@@ -1034,6 +1034,8 @@ const Products = () => {
           if (open && selectedProduct) {
             setEditProductSaleType(selectedProduct.sale_type || 'unit');
             setEditRecipe([{ component_product_id: '', quantity_required: '' }]);
+            setEditStockBoxes('');
+            setEditStockPieces(String(selectedProduct.stock_quantity ?? 0));
             loadRecipe(selectedProduct.id);
           }
         }}>
