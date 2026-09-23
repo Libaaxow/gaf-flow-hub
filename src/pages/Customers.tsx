@@ -83,8 +83,11 @@ const Customers = () => {
   const { user } = useAuth();
 
   useEffect(() => {
-    fetchCustomers();
     checkAdminRole();
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchCustomers();
 
     // Set up realtime subscription for customers
     const channel = supabase
