@@ -752,10 +752,9 @@ export default function AdminDashboard() {
         const customer = customers.find((c) => c.id === invoiceCustomer);
         if (customer?.phone) {
           try {
-            const dueDateText = invoiceData.due_date
-              ? format(new Date(invoiceData.due_date), 'dd.MM.yyyy')
-              : 'N/A';
-            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAF MEDIA`;
+            const totalAmt = Number(invoiceData.total_amount) || 0;
+            const remainingBal = Math.max(0, totalAmt - (Number(invoiceData.amount_paid) || 0));
+            const message = `GAF MEDIA, $${totalAmt.toFixed(2)} ayaa lagugu dallacay oo ah sales Invoice ka ${invoiceData.invoice_number}. Haraaga lacagta kugu harsan waa $${remainingBal.toFixed(2)}. Branch: Baidoa`;
             await sendSMS({ to: customer.phone, message, messageType: 'invoice', customerId: customer.id, invoiceId: invoiceData.id });
             toast({
               title: 'SMS Sent',

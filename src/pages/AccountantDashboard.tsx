@@ -1972,7 +1972,7 @@ const AccountantDashboard = () => {
             const discountAmount = calculateDiscountAmount(alloc, inv);
             return sum + Math.max(0, Number(inv.total_amount) - (Number(inv.amount_paid) + alloc.amount + discountAmount));
           }, 0);
-          const message = `Hi ${payCustomer.name}, we received your payment of $${totalAmount.toFixed(2)}. Ref: ${paymentReference}. Remaining balance on these invoices: $${remaining.toFixed(2)}. Mahadsanid - GAF MEDIA`;
+          const message = `GAF MEDIA, $${totalAmount.toFixed(2)} ayaa aad bixisay, lacagta kugu harsan waa $${remaining.toFixed(2)}. Branch: Baidoa`;
           await sendSMS({
             to: payCustomer.phone,
             message,
@@ -2849,10 +2849,9 @@ const AccountantDashboard = () => {
         const customer = customers.find((c) => c.id === invoiceCustomer);
         if (customer?.phone) {
           try {
-            const dueDateText = invoiceData.due_date
-              ? format(new Date(invoiceData.due_date), 'dd.MM.yyyy')
-              : 'N/A';
-            const message = `Hi ${customer.name}, invoice ${invoiceData.invoice_number} is ready. Total: $${Number(invoiceData.total_amount).toFixed(2)}. Due: ${dueDateText}. Thank you - GAF MEDIA`;
+            const totalAmt = Number(invoiceData.total_amount) || 0;
+            const remainingBal = Math.max(0, totalAmt - (Number(invoiceData.amount_paid) || 0));
+            const message = `GAF MEDIA, $${totalAmt.toFixed(2)} ayaa lagugu dallacay oo ah sales Invoice ka ${invoiceData.invoice_number}. Haraaga lacagta kugu harsan waa $${remainingBal.toFixed(2)}. Branch: Baidoa`;
             await sendSMS({ to: customer.phone, message, messageType: 'invoice', customerId: customer.id, invoiceId: invoiceData.id });
 
             toast({

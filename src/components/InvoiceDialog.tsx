@@ -187,8 +187,8 @@ export const InvoiceDialog = ({ open, onOpenChange, order }: InvoiceDialogProps)
     setIsSendingSms(true);
     try {
       const invNum = order.invoice_number || order.id || "N/A";
-      const dueDate = order.due_date ? format(new Date(order.due_date), "dd.MM.yyyy") : "N/A";
-      const message = `Hi ${customerName}, invoice ${invNum} is ready. Total: $${totalAmount.toFixed(2)}. Due: ${dueDate}. Thank you - GAFMEDIA`;
+      const remainingBal = Math.max(0, totalAmount - amountPaid);
+      const message = `GAF MEDIA, $${totalAmount.toFixed(2)} ayaa lagugu dallacay oo ah sales Invoice ka ${invNum}. Haraaga lacagta kugu harsan waa $${remainingBal.toFixed(2)}. Branch: Baidoa`;
       await sendSMS({ to: customerContact, message });
       toast({ title: "SMS Sent", description: "Invoice notification sent to customer." });
     } catch (error: any) {
