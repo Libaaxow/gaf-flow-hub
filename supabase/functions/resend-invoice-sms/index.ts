@@ -44,7 +44,7 @@ serve(async (req: Request): Promise<Response> => {
     const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
     const { data: invoices, error } = await db
       .from("invoices")
-      .select("id, invoice_number, total_amount, due_date, customer_id, customers(name, phone)")
+      .select("id, invoice_number, total_amount, amount_paid, due_date, customer_id, customers(name, phone)")
       .in("id", invoiceIds);
     if (error) throw error;
 
@@ -52,10 +52,9 @@ serve(async (req: Request): Promise<Response> => {
     for (const inv of invoices || []) {
       const cust: any = (inv as any).customers;
       const to = normalizePhone(cust?.phone || "");
-      const due = inv.due_date
-        ? new Date(inv.due_date).toLocaleDateString("en-GB").replace(/\//g, ".")
-        : "N/A";
-      const body = `Hi ${cust?.name?.trim() || "Customer"}, invoice ${inv.invoice_number} is ready. Total: $${Number(inv.total_amount).toFixed(2)}. Due: ${due}. Thank you - GAF MEDIA`;
+      const totalAmt = Number(inv.total_amount) || 0;
+      const remainingBal = Math.max(0, totalAmt - (Number((inv as any).amount_paid) || 0));
+      const body = `GAF MEDIA, $${totalAmt.toFixed(2)} ayaa lagugu dallacay oo ah sales Invoice ka ${inv.invoice_number}. Haraaga lacagta kugu harsan waa $${remainingBal.toFixed(2)}. Branch: Baidoa`;
 
       const res = await fetch(
         `https://api.twilio.com/2010-04-01/Accounts/${ACCOUNT_SID}/Messages.json`,
