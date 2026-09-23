@@ -99,6 +99,8 @@ const Products = () => {
   const [editProductSaleType, setEditProductSaleType] = useState<string>('unit');
   const [newRecipe, setNewRecipe] = useState<RecipeLine[]>([{ component_product_id: '', quantity_required: '' }]);
   const [editRecipe, setEditRecipe] = useState<RecipeLine[]>([]);
+  const [editStockBoxes, setEditStockBoxes] = useState<string>('');
+  const [editStockPieces, setEditStockPieces] = useState<string>('');
   const { toast } = useToast();
   const { user } = useAuth();
 
